@@ -318,3 +318,11 @@ async def clear_results():
     shutil.rmtree(RESULT_DIR)
     RESULT_DIR.mkdir()
     return {"ok": True}
+
+
+@app.delete("/clear/all")
+async def clear_all():
+    for d in (UPLOAD_DIR, RESULT_DIR, TEMPLATES_DIR):
+        shutil.rmtree(d)
+        d.mkdir()
+    return {"ok": True}
