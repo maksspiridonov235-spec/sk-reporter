@@ -138,7 +138,7 @@
 
     <hr class="divider"/>
 
-    <button class="btn btn-gray" onclick="clearAll()">Очистить загруженные файлы</button>
+    <button class="btn btn-red" onclick="resetAll()">Сбросить всё и начать заново</button>
 
   </div>
 
@@ -288,11 +288,14 @@
 
   // ── Очистка ───────────────────────────────────────────────────────────────
 
-  async function clearAll() {
-    if (!confirm("Удалить все загруженные отчёты?")) return;
-    await apiFetch("/clear/reports", { method: "DELETE" });
-    logLine("Загруженные отчёты удалены", "ok");
+  async function resetAll() {
+    if (!confirm("Сбросить всё? Удалятся отчёты, шаблоны и результаты.")) return;
+    await apiFetch("/clear/all", { method: "DELETE" });
+    logLine("Всё сброшено. Можно начинать заново.", "ok");
     refreshReportsList();
+    refreshTemplatesList();
+    refreshResults();
+    document.getElementById("log").innerHTML = "";
   }
 
   // ── Drag & Drop ───────────────────────────────────────────────────────────
