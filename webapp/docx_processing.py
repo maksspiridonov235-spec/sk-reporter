@@ -191,28 +191,89 @@ def replace_date_in_report_line(doc: Document, mode: Literal["today", "yesterday
 
 # ── Объединение отчётов ─────────────────────────────────────────────────────
 
+def _zip_replace(zip_path: str, inner_name: str, new_data: bytes) -> None:
+    """Заменяет файл внутри ZIP-архива."""
+    tmp = zip_path + ".tmp"
+    with zipfile.ZipFile(zip_path, "r") as zin:
+        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
+            for item in zin.infolist():
+                if item.filename == inner_name:
+                    zout.writestr(item, new_data)
+                else:
+                    zout.writestr(item, zin.read(item.filename))
+    os.replace(tmp, zip_path)
+
+
+_EXT_TO_CONTENT_TYPE = {
+    ".jpeg": "image/jpeg",
+    ".jpg":  "image/jpeg",
+    ".png":  "image/png",
+    ".gif":  "image/gif",
+    ".bmp":  "image/bmp",
+    ".tiff": "image/tiff",
+    ".wmf":  "image/x-wmf",
+    ".emf":  "image/x-emf",
+}
+
+
 def _copy_media_from_docx(src_path: str, dst_path: str, remap: dict) -> None:
     """
-    Копирует медиафайлы (картинки) из src_path в dst_path (оба — .docx ZIP-архивы).
-    Переименовывает их чтобы не было коллизий, заполняет remap {старое_имя: новое_имя}.
+    Копирует медиафайлы из src в dst, обновляет [Content_Types].xml в dst.
+    Заполняет remap {старое_имя: новое_имя}.
     """
     with zipfile.ZipFile(src_path, "r") as src_zip:
         src_media = [n for n in src_zip.namelist() if n.startswith("word/media/")]
-        with zipfile.ZipFile(dst_path, "a") as dst_zip:
+        if not src_media:
+            return
+
+        # Читаем текущий [Content_Types].xml из dst
+        with zipfile.ZipFile(dst_path, "r") as dst_zip:
             existing = set(dst_zip.namelist())
-            for src_name in src_media:
-                base = os.path.basename(src_name)           # image1.png
-                stem, ext = os.path.splitext(base)          # image1, .png
-                # Генерируем уникальное имя если уже есть
-                candidate = f"word/media/{base}"
-                counter = 1
-                while candidate in existing:
-                    candidate = f"word/media/{stem}_{counter}{ext}"
-                    counter += 1
-                data = src_zip.read(src_name)
-                dst_zip.writestr(candidate, data)
-                existing.add(candidate)
-                remap[base] = os.path.basename(candidate)
+            ct_xml = dst_zip.read("[Content_Types].xml").decode("utf-8")
+
+        ct_root = ET.fromstring(ct_xml)
+        ct_ns = "http://schemas.openxmlformats.org/package/2006/content-types"
+        ET.register_namespace("", ct_ns)
+
+        # Собираем уже объявленные расширения
+        declared_exts = {
+            el.get("Extension", "").lower()
+            for el in ct_root.findall(f"{{{ct_ns}}}Default")
+        }
+
+        new_media: list[tuple[str, bytes]] = []  # (новое_имя_в_zip, данные)
+
+        for src_name in src_media:
+            base = os.path.basename(src_name)
+            stem, ext = os.path.splitext(base)
+            candidate = f"word/media/{base}"
+            counter = 1
+            while candidate in existing:
+                candidate = f"word/media/{stem}_{counter}{ext}"
+                counter += 1
+            data = src_zip.read(src_name)
+            new_media.append((candidate, data))
+            existing.add(candidate)
+            remap[base] = os.path.basename(candidate)
+
+            # Добавляем Default в [Content_Types].xml если расширение новое
+            ext_lower = ext.lower().lstrip(".")
+            if ext_lower not in declared_exts:
+                content_type = _EXT_TO_CONTENT_TYPE.get(ext.lower(), "application/octet-stream")
+                new_default = ET.SubElement(ct_root, f"{{{ct_ns}}}Default")
+                new_default.set("Extension", ext_lower)
+                new_default.set("ContentType", content_type)
+                declared_exts.add(ext_lower)
+
+        # Записываем медиафайлы и обновлённый [Content_Types].xml в dst
+        new_ct_xml = ET.tostring(ct_root, encoding="unicode", xml_declaration=False)
+        new_ct_xml = "<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\n" + new_ct_xml
+
+        with zipfile.ZipFile(dst_path, "a") as dst_zip:
+            for name, data in new_media:
+                dst_zip.writestr(name, data)
+
+        _zip_replace(dst_path, "[Content_Types].xml", new_ct_xml.encode("utf-8"))
 
 
 def _fix_image_refs_in_element(element, remap: dict) -> None:
@@ -322,20 +383,6 @@ def merge_reports(template_path: str, report_paths: list[str], output_path: str)
         inserted += 1
 
     return inserted
-
-
-def _zip_replace(zip_path: str, inner_name: str, new_data: bytes) -> None:
-    """Заменяет файл внутри ZIP-архива."""
-    import tempfile
-    tmp = zip_path + ".tmp"
-    with zipfile.ZipFile(zip_path, "r") as zin:
-        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
-            for item in zin.infolist():
-                if item.filename == inner_name:
-                    zout.writestr(item, new_data)
-                else:
-                    zout.writestr(item, zin.read(item.filename))
-    os.replace(tmp, zip_path)
 
 
 def _patch_rids(element, rid_remap: dict[str, str]) -> None:
