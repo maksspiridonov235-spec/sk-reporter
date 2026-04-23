@@ -2,7 +2,6 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
-from urllib.parse import unquote
 import sys
 
 # Добавляем корень проекта в путь, чтобы видеть agent
@@ -164,49 +163,6 @@ async def rename(mode: str):
     return {"log": log}
 
 
-# ── Объединить отчёты для одной компании ───────────────────────────────────
-
-@app.post("/merge/{company_name}")
-async def merge_one(company_name: str):
-    company_name = unquote(company_name)
-    company = next((c for c in COMPANIES if c[0] == company_name), None)
-    if not company:
-        raise HTTPException(status_code=404, detail="Компания не найдена")
-
-    name, keywords = company
-    kw_lower = [k.lower() for k in keywords]
-
-    # Найти шаблон для этой компании (по-старому, по имени файла)
-    template = next(
-        (f for f in TEMPLATES_DIR.iterdir()
-         if any(k in f.name.lower() for k in kw_lower) and f.suffix.lower() in (".docx", ".doc")),
-        None
-    )
-    if not template:
-        raise HTTPException(status_code=404, detail=f"Шаблон для «{name}» не найден в загруженных файлах")
-
-    # Найти отчёты для этой компании (УМНЫЙ ПОИСК)
-    reports = find_reports_for_company(name, keywords)
-
-    if not reports:
-        raise HTTPException(
-            status_code=404, 
-            detail=f"Reports for '{name}' not found. Try renaming files or check content."
-        )
-
-    output_path = RESULT_DIR / f"{name}_merged.docx"
-    inserted = merge_reports(str(template), [str(r) for r in reports], str(output_path))
-
-    return {
-        "company": name,
-        "template": template.name,
-        "reports_found": len(reports),
-        "inserted": inserted,
-        "result": f"{name}_merged.docx",
-        "ai_used": AGENT_ENABLED and len(reports) > 0,
-    }
-
-
 # ── Сформировать сводный отчёт (все компании) ──────────────────────────────
 
 @app.post("/merge/all")
@@ -258,10 +214,46 @@ async def merge_all():
 
     print(f"[SUMMARY] Results: {len(results)}, Errors: {len(errors)}")
     return {
-        "results": results, 
+        "results": results,
         "errors": errors,
         "total_merged": len(results),
         "ai_agent_active": AGENT_ENABLED
+    }
+
+
+# ── Объединить отчёты для одной компании ───────────────────────────────────
+
+@app.post("/merge/{company_name}")
+async def merge_one(company_name: str):
+    company_name = company_name.replace("%20", " ").replace("+", " ")
+    company = next((c for c in COMPANIES if c[0] == company_name), None)
+    if not company:
+        raise HTTPException(status_code=404, detail="Компания не найдена")
+
+    name, keywords = company
+
+    template = next(
+        (f for f in TEMPLATES_DIR.iterdir()
+         if any(k in f.name.lower() for k in [kw.lower() for kw in keywords])
+         and f.suffix.lower() in (".docx", ".doc")),
+        None
+    )
+    if not template:
+        raise HTTPException(status_code=404, detail=f"Шаблон для «{name}» не найден")
+
+    reports = find_reports_for_company(name, keywords)
+    if not reports:
+        raise HTTPException(status_code=404, detail=f"Отчёты для «{name}» не найдены")
+
+    output_path = RESULT_DIR / f"{name}_merged.docx"
+    inserted = merge_reports(str(template), [str(r) for r in reports], str(output_path))
+
+    return {
+        "company": name,
+        "template": template.name,
+        "reports_found": len(reports),
+        "inserted": inserted,
+        "result": f"{name}_merged.docx",
     }
 
 
