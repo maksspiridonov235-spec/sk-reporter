@@ -233,37 +233,53 @@ async def merge_all():
             print(f"[ERROR] {msg}")
             errors.append(msg)
 
-    # Файлы без болванки — копируем в результаты как есть
-    all_matched = set()
-    for name, keywords in COMPANIES:
-        for f in UPLOAD_DIR.iterdir():
-            if f.suffix.lower() not in (".docx", ".doc"):
-                continue
-            if AGENT_ENABLED:
-                detected = detect_company(str(f))
-                if detected and detected == name:
-                    all_matched.add(f)
-            else:
-                kw_lower = [k.lower() for k in keywords]
-                if any(k in f.name.lower() for k in kw_lower):
-                    all_matched.add(f)
+    # Определяем какие файлы вошли в сборку
+    all_matched: set = set()
+    for r in results:
+        company_name = r["company"]
+        company = next((c for c in COMPANIES if c[0] == company_name), None)
+        if company:
+            for f in UPLOAD_DIR.iterdir():
+                if f.suffix.lower() not in (".docx", ".doc"):
+                    continue
+                if AGENT_ENABLED:
+                    detected = detect_company(str(f))
+                    if detected and detected == company_name:
+                        all_matched.add(f)
+                else:
+                    kw_lower = [k.lower() for k in company[1]]
+                    if any(k in f.name.lower() for k in kw_lower):
+                        all_matched.add(f)
 
+    # Файлы которые не попали ни в одну компанию — копируем как есть
     unmatched = []
+    unmatched_unknown = []
     for f in UPLOAD_DIR.iterdir():
         if f.suffix.lower() not in (".docx", ".doc"):
             continue
-        if f not in all_matched:
-            dest = RESULT_DIR / f.name
-            shutil.copy2(f, dest)
-            unmatched.append(f.name)
-            print(f"[INFO] Без болванки, скопирован как есть: {f.name}")
+        if f in all_matched:
+            continue
+        dest = RESULT_DIR / f.name
+        shutil.copy2(f, dest)
+        # Пробуем определить компанию через AI для лога
+        if AGENT_ENABLED:
+            detected = detect_company(str(f))
+            if detected:
+                unmatched.append({"file": f.name, "company": detected, "reason": "нет болванки"})
+                print(f"[INFO] Нет болванки для '{detected}', скопирован: {f.name}")
+            else:
+                unmatched_unknown.append(f.name)
+                print(f"[UNKNOWN] Компания не определена, скопирован: {f.name}")
+        else:
+            unmatched_unknown.append(f.name)
 
-    print(f"[SUMMARY] Results: {len(results)}, Errors: {len(errors)}, Без болванки: {len(unmatched)}")
+    print(f"[SUMMARY] Results: {len(results)}, Errors: {len(errors)}, Без болванки: {len(unmatched)}, Не распознано: {len(unmatched_unknown)}")
     return {
         "results": results,
         "errors": errors,
         "total_merged": len(results),
         "unmatched": unmatched,
+        "unmatched_unknown": unmatched_unknown,
         "ai_agent_active": AGENT_ENABLED
     }
 
