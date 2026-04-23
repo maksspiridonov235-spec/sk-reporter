@@ -24,10 +24,10 @@ from docx_processing import (
 try:
     from agent.ocr_agent import detect_company_hybrid
     AGENT_ENABLED = True
-    print("✅ AI-агент подключён: анализ отчётов через Ollama")
+    print("[INFO] AI agent connected: report analysis via Ollama")
 except ImportError as e:
     AGENT_ENABLED = False
-    print(f"⚠️ Агент не найден, используется только поиск по ключевым словам: {e}")
+    print(f"[WARNING] Agent not found, using keyword search only: {e}")
 
 app = FastAPI(title="Объединение отчётов СК")
 templates = Jinja2Templates(directory="templates")
@@ -97,7 +97,7 @@ async def upload_reports(files: list[UploadFile] = File(...)):
     
     # Если агент включён, можно сразу проанализировать загруженные файлы
     if AGENT_ENABLED:
-        print(f"📥 Загружено {len(saved)} файлов. AI-анализ будет выполнен при формировании отчёта.")
+        print(f"[INFO] Uploaded {len(saved)} files. AI analysis will be performed when generating report.")
     
     return {"uploaded": saved, "count": len(saved)}
 
@@ -189,7 +189,7 @@ async def merge_one(company_name: str):
     if not reports:
         raise HTTPException(
             status_code=404, 
-            detail=f"Отчёты для «{name}» не найдены. Попробуйте переименовать файлы или проверьте содержимое."
+            detail=f"Reports for '{name}' not found. Try renaming files or check content."
         )
 
     output_path = RESULT_DIR / f"{name}_merged.docx"
