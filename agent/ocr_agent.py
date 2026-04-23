@@ -65,11 +65,11 @@ def extract_text_from_docx(filepath: str, max_pages: int = 3) -> str:
         return "\n".join(text_parts)
     
     except Exception as e:
-        print(f"Ошибка чтения файла {filepath}: {e}")
+        print(f"[ERROR] Error reading file {filepath}: {e}")
         return ""
 
 
-def detect_company_with_ai(filepath: str, model: str = "qwen3.5:397b-cloud") -> Optional[str]:
+def detect_company_with_ai(filepath: str, model: str = "qwen2.5:7b") -> Optional[str]:
     """
     Использует AI для определения компании в документе.
     
@@ -84,7 +84,7 @@ def detect_company_with_ai(filepath: str, model: str = "qwen3.5:397b-cloud") -> 
     text = extract_text_from_docx(filepath)
     
     if not text or len(text) < 50:
-        print(f"⚠️ Файл {filepath} слишком короткий или пустой для анализа.")
+        print(f"[WARNING] Fail {filepath} too short or empty for analysis.")
         return None
     
     # 2. Отправляем запрос к Ollama
@@ -110,19 +110,19 @@ def detect_company_with_ai(filepath: str, model: str = "qwen3.5:397b-cloud") -> 
         # Проверяем, есть ли ответ в списке известных
         for company in KNOWN_COMPANIES:
             if company.lower() in clean_name.lower() or clean_name.lower() in company.lower():
-                print(f"✅ AI определил компанию: {company} (ответ модели: {ai_answer})")
+                print(f"[SUCCESS] AI detected company: {company} (model response: {ai_answer})")
                 return company
         
         if clean_name.upper() == "UNKNOWN":
-            print(f"⚠️ AI не смог определить компанию для {filepath}")
+            print(f"[WARNING] AI could not detect company for {filepath}")
             return None
             
         # Если модель вернула что-то похожее, но не точное совпадение
-        print(f"❓ AI вернул нестандартный ответ: '{ai_answer}'. Попытка сопоставления...")
+        print(f"[INFO] AI returned non-standard answer: '{ai_answer}'. Attempting matching...")
         return None
         
     except Exception as e:
-        print(f"❌ Ошибка при запросе к Ollama: {e}")
+        print(f"[ERROR] Error when requesting Ollama: {e}")
         return None
 
 
@@ -143,7 +143,7 @@ def detect_company_hybrid(filepath: str) -> Optional[str]:
                 return company_name
     
     # Если по имени не нашли — подключаем тяжелую артиллерию (AI)
-    print(f"🔍 По имени файла компания не найдена. Запускаю AI-анализ для {filepath}...")
+    print(f"[INFO] Company not found by filename. Running AI analysis for {filepath}...")
     return detect_company_with_ai(filepath)
 
 
