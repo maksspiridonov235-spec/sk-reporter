@@ -143,7 +143,7 @@ async def run_macro(macro_name: str):
         raise HTTPException(status_code=400, detail="Неизвестный макрос")
 
     log = []
-    for f in TEMPLATES_DIR.iterdir():
+    for f in UPLOAD_DIR.iterdir():
         if f.suffix.lower() not in (".docx", ".doc"):
             continue
         ok, msg = apply_macro_to_file(str(f), macro_name)
