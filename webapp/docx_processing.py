@@ -367,7 +367,8 @@ def merge_reports(template_path: str, report_paths: list[str], output_path: str)
 
         # 4. Копируем тело документа, патча rId в XML-элементах
         master = Document(output_path)
-        master.add_page_break()
+        if inserted > 0:
+            master.add_page_break()
 
         for element in src_doc.element.body:
             tag = element.tag.split("}")[-1] if "}" in element.tag else element.tag
