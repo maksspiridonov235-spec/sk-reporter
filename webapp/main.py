@@ -211,6 +211,10 @@ async def merge_one(company_name: str):
 async def merge_all():
     results = []
     errors = []
+    
+    print(f"[DEBUG] Starting merge_all(). UPLOAD_DIR: {UPLOAD_DIR}")
+    print(f"[DEBUG] Files in UPLOAD_DIR: {list(UPLOAD_DIR.iterdir()) if UPLOAD_DIR.exists() else 'DIR NOT FOUND'}")
+    print(f"[DEBUG] Files in TEMPLATES_DIR: {list(TEMPLATES_DIR.iterdir()) if TEMPLATES_DIR.exists() else 'DIR NOT FOUND'}")
 
     for name, keywords in COMPANIES:
         kw_lower = [k.lower() for k in keywords]
@@ -221,14 +225,18 @@ async def merge_all():
             None
         )
         if not template:
-            errors.append(f"Шаблон для «{name}» не найден — пропущен")
+            msg = f"Template for '{name}' not found — skipped"
+            print(f"[WARNING] {msg}")
+            errors.append(msg)
             continue
 
         # УМНЫЙ ПОИСК ОТЧЁТОВ
         reports = find_reports_for_company(name, keywords)
+        print(f"[DEBUG] Found {len(reports)} reports for '{name}'")
         
         if not reports:
             # Не считаем это ошибкой, просто пропускаем
+            print(f"[INFO] No reports found for '{name}', skipping")
             continue
 
         output_path = RESULT_DIR / f"{name}_merged.docx"
@@ -240,9 +248,13 @@ async def merge_all():
                 "file": f"{name}_merged.docx",
                 "reports_count": len(reports)
             })
+            print(f"[OK] Merged '{name}': {inserted} reports")
         except Exception as e:
-            errors.append(f"«{name}»: {e}")
+            msg = f"'{name}': {str(e)}"
+            print(f"[ERROR] {msg}")
+            errors.append(msg)
 
+    print(f"[SUMMARY] Results: {len(results)}, Errors: {len(errors)}")
     return {
         "results": results, 
         "errors": errors,
