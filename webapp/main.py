@@ -2,6 +2,10 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
+import sys
+
+# Добавляем корень проекта в путь, чтобы видеть agent
+sys.path.append(str(Path(__file__).parent.parent))
 
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
@@ -15,6 +19,15 @@ from docx_processing import (
     merge_reports,
     rename_files,
 )
+
+# Импорт агента для умного поиска компаний
+try:
+    from agent.ocr_agent import detect_company_hybrid
+    AGENT_ENABLED = True
+    print("✅ AI-агент подключён: анализ отчётов через Ollama")
+except ImportError as e:
+    AGENT_ENABLED = False
+    print(f"⚠️ Агент не найден, используется только поиск по ключевым словам: {e}")
 
 app = FastAPI(title="Объединение отчётов СК")
 templates = Jinja2Templates(directory="templates")
@@ -31,6 +44,34 @@ for d in (UPLOAD_DIR, RESULT_DIR, TEMPLATES_DIR):
     d.mkdir(exist_ok=True)
 
 
+# ── Вспомогательная функция: Умный поиск отчётов ───────────────────────────
+
+def find_reports_for_company(company_name: str, keywords: list[str]):
+    """
+    Ищет отчёты для компании. Сначала по ключевым словам в имени,
+    если не найдено — использует AI-агент для анализа содержимого.
+    """
+    found_reports = []
+    
+    for f in UPLOAD_DIR.iterdir():
+        if f.suffix.lower() not in (".docx", ".doc"):
+            continue
+        
+        # 1. Быстрая проверка по имени файла
+        kw_lower = [k.lower() for k in keywords]
+        if any(k in f.name.lower() for k in kw_lower):
+            found_reports.append(f)
+            continue
+        
+        # 2. Если по имени не подошло — используем AI (если включён)
+        if AGENT_ENABLED:
+            detected = detect_company_hybrid(str(f))
+            if detected and detected == company_name:
+                found_reports.append(f)
+    
+    return found_reports
+
+
 # ── Главная страница ────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
@@ -39,6 +80,7 @@ async def index(request: Request):
     return templates.TemplateResponse("index.html", {
         "request": request,
         "companies": companies,
+        "agent_enabled": AGENT_ENABLED,
     })
 
 
@@ -52,6 +94,11 @@ async def upload_reports(files: list[UploadFile] = File(...)):
         with open(dest, "wb") as out:
             shutil.copyfileobj(f.file, out)
         saved.append(f.filename)
+    
+    # Если агент включён, можно сразу проанализировать загруженные файлы
+    if AGENT_ENABLED:
+        print(f"📥 Загружено {len(saved)} файлов. AI-анализ будет выполнен при формировании отчёта.")
+    
     return {"uploaded": saved, "count": len(saved)}
 
 
@@ -127,7 +174,7 @@ async def merge_one(company_name: str):
     name, keywords = company
     kw_lower = [k.lower() for k in keywords]
 
-    # Найти шаблон для этой компании
+    # Найти шаблон для этой компании (по-старому, по имени файла)
     template = next(
         (f for f in TEMPLATES_DIR.iterdir()
          if any(k in f.name.lower() for k in kw_lower) and f.suffix.lower() in (".docx", ".doc")),
@@ -136,11 +183,14 @@ async def merge_one(company_name: str):
     if not template:
         raise HTTPException(status_code=404, detail=f"Шаблон для «{name}» не найден в загруженных файлах")
 
-    # Найти отчёты для этой компании
-    reports = [
-        f for f in UPLOAD_DIR.iterdir()
-        if any(k in f.name.lower() for k in kw_lower) and f.suffix.lower() in (".docx", ".doc")
-    ]
+    # Найти отчёты для этой компании (УМНЫЙ ПОИСК)
+    reports = find_reports_for_company(name, keywords)
+
+    if not reports:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Отчёты для «{name}» не найдены. Попробуйте переименовать файлы или проверьте содержимое."
+        )
 
     output_path = RESULT_DIR / f"{name}_merged.docx"
     inserted = merge_reports(str(template), [str(r) for r in reports], str(output_path))
@@ -151,6 +201,7 @@ async def merge_one(company_name: str):
         "reports_found": len(reports),
         "inserted": inserted,
         "result": f"{name}_merged.docx",
+        "ai_used": AGENT_ENABLED and len(reports) > 0,
     }
 
 
@@ -173,19 +224,31 @@ async def merge_all():
             errors.append(f"Шаблон для «{name}» не найден — пропущен")
             continue
 
-        reports = [
-            f for f in UPLOAD_DIR.iterdir()
-            if any(k in f.name.lower() for k in kw_lower) and f.suffix.lower() in (".docx", ".doc")
-        ]
+        # УМНЫЙ ПОИСК ОТЧЁТОВ
+        reports = find_reports_for_company(name, keywords)
+        
+        if not reports:
+            # Не считаем это ошибкой, просто пропускаем
+            continue
 
         output_path = RESULT_DIR / f"{name}_merged.docx"
         try:
             inserted = merge_reports(str(template), [str(r) for r in reports], str(output_path))
-            results.append({"company": name, "inserted": inserted, "file": f"{name}_merged.docx"})
+            results.append({
+                "company": name, 
+                "inserted": inserted, 
+                "file": f"{name}_merged.docx",
+                "reports_count": len(reports)
+            })
         except Exception as e:
             errors.append(f"«{name}»: {e}")
 
-    return {"results": results, "errors": errors}
+    return {
+        "results": results, 
+        "errors": errors,
+        "total_merged": len(results),
+        "ai_agent_active": AGENT_ENABLED
+    }
 
 
 # ── Скачать результат ───────────────────────────────────────────────────────
