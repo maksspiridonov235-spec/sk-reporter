@@ -114,6 +114,12 @@ def detect_company(filepath: str) -> Optional[str]:
         return None
 
 
+def _xml_bytes(root) -> bytes:
+    """Сериализует XML с двойными кавычками в заголовке — Word на Windows требует этого."""
+    body = etree.tostring(root, encoding="unicode")
+    return ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + body).encode("utf-8")
+
+
 def merge_report_into_template(template_path: str, report_path: str, output_path: str) -> bool:
     """
     Вставляет содержимое report_path в конец template_path через ZIP.
@@ -227,8 +233,7 @@ def merge_report_into_template(template_path: str, report_path: str, output_path
                             master_body.append(el_copy)
                         if sect_pr is not None:
                             master_body.append(sect_pr)
-                        zo.writestr(item, etree.tostring(master_root, xml_declaration=True,
-                                                          encoding="UTF-8", standalone=True))
+                        zo.writestr(item, _xml_bytes(master_root))
                     elif item == "word/_rels/document.xml.rels":
                         rels_data = zt.read(item)
                         rels_root = etree.fromstring(rels_data)
@@ -238,10 +243,8 @@ def merge_report_into_template(template_path: str, report_path: str, output_path
                                 "Type": IMG_REL,
                                 "Target": new_target,
                             })
-                        zo.writestr(item, etree.tostring(rels_root, xml_declaration=True,
-                                                          encoding="UTF-8", standalone=True))
+                        zo.writestr(item, _xml_bytes(rels_root))
                     elif item == "[Content_Types].xml":
-                        # Добавляем типы для новых медиафайлов
                         ct_root = etree.fromstring(content_types_xml)
                         CT_NS = "http://schemas.openxmlformats.org/package/2006/content-types"
                         existing_parts = set(el.get("PartName", "") for el in ct_root)
@@ -259,8 +262,7 @@ def merge_report_into_template(template_path: str, report_path: str, output_path
                                     "PartName": part,
                                     "ContentType": ct,
                                 })
-                        zo.writestr(item, etree.tostring(ct_root, xml_declaration=True,
-                                                          encoding="UTF-8", standalone=True))
+                        zo.writestr(item, _xml_bytes(ct_root))
                     else:
                         zo.writestr(item, zt.read(item))
 
