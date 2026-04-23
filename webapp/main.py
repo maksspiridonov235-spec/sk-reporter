@@ -20,14 +20,14 @@ from docx_processing import (
     rename_files,
 )
 
-# Импорт агента для умного поиска компаний
+# Импорт агента
 try:
-    from agent.ocr_agent import detect_company_hybrid
+    from agent.ocr_agent import detect_company, merge_report_into_template
     AGENT_ENABLED = True
-    print("[INFO] AI agent connected: report analysis via Ollama")
+    print("[INFO] AI agent connected: qwen3.5:cloud via Ollama")
 except ImportError as e:
     AGENT_ENABLED = False
-    print(f"[WARNING] Agent not found, using keyword search only: {e}")
+    print(f"[WARNING] Agent not found: {e}")
 
 app = FastAPI(title="Объединение отчётов СК")
 templates = Jinja2Templates(directory="templates")
@@ -44,6 +44,30 @@ for d in (UPLOAD_DIR, RESULT_DIR, TEMPLATES_DIR):
     d.mkdir(exist_ok=True)
 
 
+# ── Слияние: агент или fallback ────────────────────────────────────────────
+
+def _do_merge(template_path: str, report_paths: list[str], output_path: str) -> int:
+    if AGENT_ENABLED:
+        import shutil
+        shutil.copy2(template_path, output_path)
+        inserted = 0
+        for i, rp in enumerate(sorted(report_paths)):
+            # Начиная со второго отчёта добавляем разрыв страницы
+            tmp = output_path + ".tmp.docx"
+            shutil.copy2(output_path, tmp)
+            master = Document(tmp)
+            if i > 0:
+                master.add_page_break()
+            master.save(tmp)
+            ok = merge_report_into_template(tmp, rp, output_path)
+            import os; os.remove(tmp)
+            if ok:
+                inserted += 1
+        return inserted
+    else:
+        return merge_reports(template_path, report_paths, output_path)
+
+
 # ── Вспомогательная функция: Умный поиск отчётов ───────────────────────────
 
 def find_reports_for_company(company_name: str, keywords: list[str]):
@@ -52,23 +76,21 @@ def find_reports_for_company(company_name: str, keywords: list[str]):
     если не найдено — использует AI-агент для анализа содержимого.
     """
     found_reports = []
-    
+
     for f in UPLOAD_DIR.iterdir():
         if f.suffix.lower() not in (".docx", ".doc"):
             continue
-        
-        # 1. Быстрая проверка по имени файла
+
         kw_lower = [k.lower() for k in keywords]
         if any(k in f.name.lower() for k in kw_lower):
             found_reports.append(f)
             continue
-        
-        # 2. Если по имени не подошло — используем AI (если включён)
+
         if AGENT_ENABLED:
-            detected = detect_company_hybrid(str(f))
+            detected = detect_company(str(f))
             if detected and detected == company_name:
                 found_reports.append(f)
-    
+
     return found_reports
 
 
@@ -199,10 +221,10 @@ async def merge_all():
 
         output_path = RESULT_DIR / f"{name}_merged.docx"
         try:
-            inserted = merge_reports(str(template), [str(r) for r in reports], str(output_path))
+            inserted = _do_merge(str(template), [str(r) for r in reports], str(output_path))
             results.append({
-                "company": name, 
-                "inserted": inserted, 
+                "company": name,
+                "inserted": inserted,
                 "file": f"{name}_merged.docx",
                 "reports_count": len(reports)
             })
@@ -246,7 +268,7 @@ async def merge_one(company_name: str):
         raise HTTPException(status_code=404, detail=f"Отчёты для «{name}» не найдены")
 
     output_path = RESULT_DIR / f"{name}_merged.docx"
-    inserted = merge_reports(str(template), [str(r) for r in reports], str(output_path))
+    inserted = _do_merge(str(template), [str(r) for r in reports], str(output_path))
 
     return {
         "company": name,
