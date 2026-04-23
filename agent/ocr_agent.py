@@ -1,14 +1,18 @@
 """
 Агент на базе Ollama + qwen3.5:cloud для анализа и сборки отчётов СК.
-Определяет компанию по содержимому документа, вставляет в болванку без ZIP.
+Определяет компанию по содержимому документа, вставляет в болванку.
 """
 
 import ollama
 import re
 import json
+import zipfile
+import shutil
+import os
 from copy import deepcopy
 from pathlib import Path
 from typing import Optional
+from lxml import etree
 
 from docx import Document
 
@@ -52,6 +56,15 @@ def extract_text(filepath: str) -> str:
 
 
 def detect_company(filepath: str) -> Optional[str]:
+    filename = Path(filepath).name
+
+    # Быстрая проверка по имени файла — работает в 90% случаев
+    for company in KNOWN_COMPANIES:
+        if company.lower() in filename.lower():
+            print(f"[FILENAME] {filename} → {company}")
+            return company
+
+    # Fallback: спрашиваем AI по содержимому документа
     text = extract_text(filepath)
     if not text:
         return None
@@ -72,10 +85,10 @@ def detect_company(filepath: str) -> Optional[str]:
 
         for company in KNOWN_COMPANIES:
             if company.lower() in clean.lower() or clean.lower() in company.lower():
-                print(f"[AI] {Path(filepath).name} → {company}")
+                print(f"[AI] {filename} → {company}")
                 return company
 
-        print(f"[AI] Не распознана: '{answer}' для {Path(filepath).name}")
+        print(f"[AI] Не распознана: '{answer}' для {filename}")
         return None
 
     except Exception as e:
@@ -85,42 +98,171 @@ def detect_company(filepath: str) -> Optional[str]:
 
 def merge_report_into_template(template_path: str, report_path: str, output_path: str) -> bool:
     """
-    Вставляет содержимое report_path в конец template_path.
-    Копирует элементы напрямую через python-docx без ZIP-манипуляций.
-    Картинки переносятся через document part relationships.
+    Вставляет содержимое report_path в конец template_path через ZIP.
+    Картинки копируются с переименованием чтобы избежать дублей.
     """
     try:
-        master = Document(template_path)
-        src = Document(report_path)
+        import tempfile
 
-        # Копируем relationships (картинки) из src в master
-        rid_map: dict[str, str] = {}
-        for rel in src.part.rels.values():
-            if "image" in rel.reltype:
-                img_part = rel.target_part
-                new_rid = master.part.relate_to(img_part, rel.reltype)
-                rid_map[rel.rId] = new_rid
+        # Читаем XML тела отчёта
+        with zipfile.ZipFile(report_path, "r") as zr:
+            doc_xml = zr.read("word/document.xml")
+            report_media = {
+                name: zr.read(name)
+                for name in zr.namelist()
+                if name.startswith("word/media/")
+            }
+            try:
+                rels_xml = zr.read("word/_rels/document.xml.rels")
+            except KeyError:
+                rels_xml = None
 
-        # Копируем тело документа
-        for element in src.element.body:
-            tag = element.tag.split("}")[-1] if "}" in element.tag else element.tag
-            if tag == "sectPr":
-                continue
-            el_copy = deepcopy(element)
-            # Патчим rId для картинок
-            if rid_map:
-                _patch_rids(el_copy, rid_map)
-            master.element.body.append(el_copy)
+        # Разбираем XML отчёта
+        src_root = etree.fromstring(doc_xml)
+        NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+        body = src_root.find(f"{{{NS}}}body")
 
-        master.save(output_path)
+        # Собираем элементы тела (без последнего sectPr)
+        body_elements = []
+        for el in body:
+            tag = el.tag.split("}")[-1] if "}" in el.tag else el.tag
+            if tag != "sectPr":
+                body_elements.append(deepcopy(el))
+
+        # Читаем rels отчёта чтобы знать rId→имя файла
+        rid_to_name: dict[str, str] = {}
+        if rels_xml:
+            rels_root = etree.fromstring(rels_xml)
+            for rel in rels_root:
+                rId = rel.get("Id", "")
+                target = rel.get("Target", "")
+                if target.startswith("media/"):
+                    rid_to_name[rId] = "word/" + target
+
+        # Копируем шаблон во временный файл, потом в output
+        tmp = output_path + ".build.docx"
+        shutil.copy2(template_path, tmp)
+
+        # Определяем какие медиафайлы уже есть в шаблоне
+        with zipfile.ZipFile(tmp, "r") as zt:
+            existing_media = set(n for n in zt.namelist() if n.startswith("word/media/"))
+            content_types_xml = zt.read("[Content_Types].xml")
+
+        # Генерируем уникальные имена для медиафайлов отчёта
+        name_map: dict[str, str] = {}  # старое имя → новое имя
+        counter = len(existing_media) + 1
+        for old_name, data in report_media.items():
+            ext = Path(old_name).suffix
+            new_name = f"word/media/img_r{counter}{ext}"
+            while new_name in existing_media or new_name in name_map.values():
+                counter += 1
+                new_name = f"word/media/img_r{counter}{ext}"
+            name_map[old_name] = new_name
+            counter += 1
+
+        # Читаем rels шаблона чтобы знать следующий свободный rId
+        with zipfile.ZipFile(tmp, "r") as zt:
+            master_rels_xml = zt.read("word/_rels/document.xml.rels")
+
+        master_rels_root = etree.fromstring(master_rels_xml)
+        existing_ids = set()
+        for r in master_rels_root:
+            rid = r.get("Id", "")
+            if rid.startswith("rId"):
+                try:
+                    existing_ids.add(int(rid[3:]))
+                except ValueError:
+                    pass
+        next_id = max(existing_ids, default=0) + 1
+
+        # Строим финальный rid_map: старый rId отчёта → новый rId в шаблоне
+        IMG_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+        rid_final_map: dict[str, str] = {}  # старый rId → новый rId
+        new_rels: list[tuple[str, str]] = []  # (новый rId, target относительно word/)
+        for old_rid, old_name in rid_to_name.items():
+            if old_name in name_map:
+                new_rid = f"rId{next_id}"
+                next_id += 1
+                new_target = "media/" + Path(name_map[old_name]).name
+                rid_final_map[old_rid] = new_rid
+                new_rels.append((new_rid, new_target))
+
+        # Строим новый ZIP
+        with zipfile.ZipFile(tmp, "r") as zt:
+            with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zo:
+                for item in zt.namelist():
+                    if item == "word/document.xml":
+                        master_xml = zt.read(item)
+                        master_root = etree.fromstring(master_xml)
+                        master_body = master_root.find(f"{{{NS}}}body")
+                        last = master_body[-1] if len(master_body) else None
+                        last_tag = last.tag.split("}")[-1] if last is not None else ""
+                        if last_tag == "sectPr":
+                            sect_pr = deepcopy(last)
+                            master_body.remove(last)
+                        else:
+                            sect_pr = None
+                        for el in body_elements:
+                            el_copy = deepcopy(el)
+                            if rid_final_map:
+                                _patch_rids_by_target(el_copy, rid_final_map)
+                            master_body.append(el_copy)
+                        if sect_pr is not None:
+                            master_body.append(sect_pr)
+                        zo.writestr(item, etree.tostring(master_root, xml_declaration=True,
+                                                          encoding="UTF-8", standalone=True))
+                    elif item == "word/_rels/document.xml.rels":
+                        rels_data = zt.read(item)
+                        rels_root = etree.fromstring(rels_data)
+                        for new_rid, new_target in new_rels:
+                            etree.SubElement(rels_root, "Relationship", {
+                                "Id": new_rid,
+                                "Type": IMG_REL,
+                                "Target": new_target,
+                            })
+                        zo.writestr(item, etree.tostring(rels_root, xml_declaration=True,
+                                                          encoding="UTF-8", standalone=True))
+                    elif item == "[Content_Types].xml":
+                        # Добавляем типы для новых медиафайлов
+                        ct_root = etree.fromstring(content_types_xml)
+                        CT_NS = "http://schemas.openxmlformats.org/package/2006/content-types"
+                        existing_parts = set(el.get("PartName", "") for el in ct_root)
+                        EXT_MAP = {
+                            ".png": "image/png", ".jpg": "image/jpeg",
+                            ".jpeg": "image/jpeg", ".gif": "image/gif",
+                            ".bmp": "image/bmp", ".tiff": "image/tiff",
+                        }
+                        for new_name in name_map.values():
+                            part = "/" + new_name
+                            if part not in existing_parts:
+                                ext = Path(new_name).suffix.lower()
+                                ct = EXT_MAP.get(ext, "image/png")
+                                etree.SubElement(ct_root, f"{{{CT_NS}}}Override", {
+                                    "PartName": part,
+                                    "ContentType": ct,
+                                })
+                        zo.writestr(item, etree.tostring(ct_root, xml_declaration=True,
+                                                          encoding="UTF-8", standalone=True))
+                    else:
+                        zo.writestr(item, zt.read(item))
+
+                # Записываем новые медиафайлы
+                for old_name, new_name in name_map.items():
+                    if old_name in report_media:
+                        zo.writestr(new_name, report_media[old_name])
+
+        os.remove(tmp)
         return True
 
     except Exception as e:
+        import traceback
         print(f"[ERROR] merge {report_path}: {e}")
+        traceback.print_exc()
         return False
 
 
-def _patch_rids(element, rid_map: dict) -> None:
+def _patch_rids_by_target(element, rid_new_map: dict) -> None:
+    """Патчит r:embed/r:id атрибуты в XML элементе."""
     ATTRS = (
         "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed",
         "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id",
@@ -128,7 +270,9 @@ def _patch_rids(element, rid_map: dict) -> None:
     )
     for attr in ATTRS:
         val = element.get(attr)
-        if val and val in rid_map:
-            element.set(attr, rid_map[val])
+        if val and val in rid_new_map:
+            element.set(attr, rid_new_map[val])
     for child in element:
-        _patch_rids(child, rid_map)
+        _patch_rids_by_target(child, rid_new_map)
+
+

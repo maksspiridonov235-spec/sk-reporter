@@ -68,8 +68,19 @@
     .result-item a:hover { text-decoration: underline; }
 
     /* Лог */
-    .log-panel { height: 200px; background: #1e1e1e; color: #d4d4d4; font-family: monospace;
-                 font-size: 12px; overflow-y: auto; padding: 10px 14px; }
+    .log-wrap { border-top: 2px solid #333; flex-shrink: 0; }
+    .log-resizer { height: 6px; background: #2d2d2d; cursor: ns-resize; display: flex;
+                   align-items: center; justify-content: center; }
+    .log-resizer::after { content: ''; width: 40px; height: 2px; background: #555; border-radius: 2px; }
+    .log-header { display: flex; align-items: center; justify-content: space-between;
+                  background: #2d2d2d; padding: 4px 14px; user-select: none; }
+    .log-header span { color: #888; font-size: 11px; font-family: monospace; }
+    .log-header .log-clear { font-size: 11px; color: #6b7280; cursor: pointer; background: none;
+                              border: none; padding: 2px 6px; border-radius: 3px; }
+    .log-header .log-clear:hover { color: #fff; background: #444; }
+    .log-panel { height: 200px; min-height: 60px; background: #1e1e1e;
+                 color: #d4d4d4; font-family: monospace; font-size: 12px;
+                 overflow-y: auto; padding: 10px 14px; }
     .log-panel .ok  { color: #6ee7b7; }
     .log-panel .err { color: #fca5a5; }
     .log-panel .info{ color: #93c5fd; }
@@ -111,7 +122,7 @@
     <hr class="divider"/>
 
     <div>
-      <div class="section-title">Макросы (к шаблонам)</div>
+      <div class="section-title">Макросы (к отчётам, до сборки)</div>
       <button class="btn btn-blue" style="margin-bottom:6px"
               onclick="runMacro('HighlightSecondRow_No5991')">Выделить 2-ю строку таблиц</button>
       <button class="btn btn-blue" style="margin-bottom:6px"
@@ -138,6 +149,10 @@
 
     <hr class="divider"/>
 
+    <button class="btn btn-gray" onclick="downloadAll()">Забрать всё (ZIP)</button>
+
+    <hr class="divider"/>
+
     <button class="btn btn-red" onclick="resetAll()">Сбросить всё и начать заново</button>
 
   </div>
@@ -159,7 +174,14 @@
     </div>
 
     <!-- Лог -->
-    <div class="log-panel" id="log"></div>
+    <div class="log-wrap">
+      <div class="log-resizer" id="log-resizer"></div>
+      <div class="log-header">
+        <span>Журнал операций</span>
+        <button class="log-clear" onclick="document.getElementById('log').innerHTML=''">очистить</button>
+      </div>
+      <div class="log-panel" id="log"></div>
+    </div>
 
   </div>
 </div>
@@ -196,6 +218,7 @@
     logLine(`Загружаю ${input.files.length} отчётов...`);
     const data = await apiFetch("/upload/reports", { method: "POST", body: fd });
     logLine(`Загружено: ${data.count} файлов`, "ok");
+    logLine("Готово.", "ok");
     refreshReportsList();
   }
 
@@ -205,6 +228,7 @@
     logLine(`Загружаю ${input.files.length} шаблонов...`);
     const data = await apiFetch("/upload/templates", { method: "POST", body: fd });
     logLine(`Загружено: ${data.count} шаблонов`, "ok");
+    logLine("Готово.", "ok");
     refreshTemplatesList();
   }
 
@@ -227,18 +251,27 @@
   // ── Макросы ───────────────────────────────────────────────────────────────
 
   async function runMacro(name) {
-    logLine(`Применяю макрос: ${name}...`);
+    const names = {
+      "HighlightSecondRow_No5991": "Выделение 2-й строки таблиц",
+      "NewMacros": "Форматирование документа",
+      "ReplaceDateInReportLine": "Замена даты на сегодняшнюю",
+      "ReplaceDateInReportLine2": "Замена даты на вчерашнюю",
+    };
+    logLine(`Запускаю макрос: ${names[name] || name}...`);
     const data = await apiFetch(`/macro/${name}`, { method: "POST" });
     data.log.forEach(line => logLine(line, line.startsWith("[ERR]") ? "err" : "ok"));
+    logLine("Готово.", "ok");
   }
 
   // ── Переименование ────────────────────────────────────────────────────────
 
   async function renameFiles(mode) {
-    logLine(`Переименование файлов (${mode === "today" ? "сегодня" : "вчера"})...`);
+    logLine(`Переименование готовых файлов (дата → ${mode === "today" ? "сегодня" : "вчера"})...`);
     const data = await apiFetch(`/rename/${mode}`, { method: "POST" });
     data.log.forEach(line => logLine(line, line.startsWith("Ошибка") ? "err" : "ok"));
-    refreshTemplatesList();
+    if (data.log.length === 0) logLine("Нет файлов для переименования.", "info");
+    logLine("Готово.", "ok");
+    refreshResults();
   }
 
   // ── Объединение ───────────────────────────────────────────────────────────
@@ -246,27 +279,33 @@
   async function mergeOne(company) {
     logLine(`Формирую отчёт: ${company}...`);
     const data = await apiFetch(`/merge/${encodeURIComponent(company)}`, { method: "POST" });
-    logLine(`${company}: вставлено ${data.inserted} файлов → ${data.result}`, "ok");
+    logLine(`${company}: вставлено ${data.inserted} отчётов → ${data.result}`, "ok");
+    logLine("Готово.", "ok");
     refreshResults();
   }
 
   async function mergeAll() {
-    logLine("Forming all reports...");
+    logLine("Формирую все отчёты...");
     try {
       const data = await apiFetch("/merge/all", { method: "POST" });
-      
+
       if (data.results.length === 0 && data.errors.length === 0) {
-        logLine("No reports or templates found. Check if files are uploaded.", "err");
+        logLine("Отчёты и шаблоны не найдены. Проверьте загруженные файлы.", "err");
         return;
       }
-      
-      data.results.forEach(r => logLine(`${r.company}: ${r.inserted} files => ${r.file}`, "ok"));
-      data.errors.forEach(e => logLine(`WARNING: ${e}`, "err"));
-      
-      const summary = `Complete. Success: ${data.results.length}, Warnings: ${data.errors.length}`;
+
+      data.results.forEach(r => logLine(`${r.company}: вставлено ${r.inserted} отчётов → ${r.file}`, "ok"));
+      data.errors.forEach(e => logLine(`Предупреждение: ${e}`, "err"));
+      if (data.unmatched && data.unmatched.length > 0) {
+        logLine(`Без болванки (скопированы как есть): ${data.unmatched.length} файлов`, "info");
+        data.unmatched.forEach(f => logLine(`  → ${f}`, "info"));
+      }
+
+      const summary = `Завершено. Собрано: ${data.results.length}, без болванки: ${(data.unmatched||[]).length}, предупреждений: ${data.errors.length}`;
       logLine(summary, data.errors.length ? "err" : "ok");
+      logLine("Готово.", "ok");
     } catch (e) {
-      logLine(`FAILED: ${e.message}`, "err");
+      logLine(`Ошибка: ${e.message}`, "err");
     }
     refreshResults();
   }
@@ -286,16 +325,29 @@
       : "<div style='color:#888;font-size:13px'>Нет готовых файлов</div>";
   }
 
+  // ── Скачать всё ZIP ───────────────────────────────────────────────────────
+
+  async function downloadAll() {
+    logLine("Подготавливаю архив со всеми файлами...");
+    const a = document.createElement("a");
+    a.href = "/download/all.zip";
+    a.download = "отчёты.zip";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    logLine("Загрузка архива началась.", "ok");
+  }
+
   // ── Очистка ───────────────────────────────────────────────────────────────
 
   async function resetAll() {
     if (!confirm("Сбросить всё? Удалятся отчёты, шаблоны и результаты.")) return;
     await apiFetch("/clear/all", { method: "DELETE" });
-    logLine("Всё сброшено. Можно начинать заново.", "ok");
+    document.getElementById("log").innerHTML = "";
+    logLine("Все файлы удалены. Можно начинать заново.", "ok");
     refreshReportsList();
     refreshTemplatesList();
     refreshResults();
-    document.getElementById("log").innerHTML = "";
   }
 
   // ── Drag & Drop ───────────────────────────────────────────────────────────
@@ -317,6 +369,34 @@
 
   setupDrop("zone-reports", "inp-reports");
   setupDrop("zone-templates", "inp-templates");
+
+  // ── Растягивание лога ─────────────────────────────────────────────────────
+  (function() {
+    const resizer = document.getElementById("log-resizer");
+    const logPanel = document.getElementById("log");
+    let startY = 0, startH = 0;
+
+    resizer.addEventListener("mousedown", e => {
+      startY = e.clientY;
+      startH = logPanel.offsetHeight;
+      document.body.style.cursor = "ns-resize";
+      document.body.style.userSelect = "none";
+
+      function onMove(e) {
+        const delta = startY - e.clientY;
+        const newH = Math.max(60, startH + delta);
+        logPanel.style.height = newH + "px";
+      }
+      function onUp() {
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+      }
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+  })();
 
   // Загружаем списки при старте
   refreshReportsList();

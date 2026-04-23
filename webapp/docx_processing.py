@@ -41,7 +41,7 @@ COMPANIES = [
     ("ТВС",                ["твс", "тюменьвторсырье"]),
     ("НСС",                ["нсс", "нефтеспецстрой", "ооонефтеспецстрой",
                             "ооо нефтеспецстрой", "ооонсс", "ооо нсс"]),
-    ("ОТ и ТБ",            ["от и тб", "отитб", "оттб", "отитб", "ОТИТБ", "ОТТБ"]),
+    ("ОТ и ТБ",            ["от и тб", "отитб", "оттб", "отитб", "ОТИТБ", "ОТТБ", "озотобос", "пб"]),
     ("Стройфинансгрупп",   ["стройфинансгрупп", "ооостройфинансгрупп", "ооо стройфинансгрупп", "сфг"]),
 ]
 
@@ -61,38 +61,66 @@ def highlight_second_row(doc: Document) -> int:
     """
     Для каждой таблицы документа: если строк >= 2,
     красит 2-ю строку в голубой (#BDD6EE), жирный, по центру.
-    Возвращает количество обработанных таблиц.
+    Работает с объединёнными ячейками через XML напрямую.
     """
-    BLUE = RGBColor(0xBD, 0xD6, 0xEE)
+    BLUE_HEX = "BDD6EE"
     processed = 0
 
     for tbl in doc.tables:
         if len(tbl.rows) < 2:
             continue
-        row = tbl.rows[1]
-        for cell in row.cells:
-            text = cell.text.strip()
-            if not text:
+
+        # Берём реальные <w:tc> элементы второй строки из XML (без дублей от merge)
+        row_el = tbl.rows[1]._tr
+        seen_tc = set()
+        for tc in row_el.findall(qn("w:tc")):
+            if id(tc) in seen_tc:
                 continue
+            seen_tc.add(id(tc))
+
+            # Пропускаем ячейки с vMerge (продолжение вертикального объединения)
+            tcPr = tc.find(qn("w:tcPr"))
+            if tcPr is not None:
+                vMerge = tcPr.find(qn("w:vMerge"))
+                if vMerge is not None and vMerge.get(qn("w:val")) != "restart":
+                    continue
+
             # Фон
-            tc = cell._tc
-            tcPr = tc.get_or_add_tcPr()
+            if tcPr is None:
+                tcPr = etree.SubElement(tc, qn("w:tcPr"))
             shd = tcPr.find(qn("w:shd"))
             if shd is None:
                 shd = etree.SubElement(tcPr, qn("w:shd"))
-            color_hex = f"{BLUE.red:02X}{BLUE.green:02X}{BLUE.blue:02X}"
             shd.set(qn("w:val"), "clear")
             shd.set(qn("w:color"), "auto")
-            shd.set(qn("w:fill"), color_hex)
+            shd.set(qn("w:fill"), BLUE_HEX)
+            # Убираем тему чтобы наш цвет не перекрывался
+            for attr in list(shd.attrib):
+                if "theme" in attr.lower():
+                    del shd.attrib[attr]
 
             # Вертикальное выравнивание
-            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+            vAlign = tcPr.find(qn("w:vAlign"))
+            if vAlign is None:
+                vAlign = etree.SubElement(tcPr, qn("w:vAlign"))
+            vAlign.set(qn("w:val"), "center")
 
             # Текст: жирный, по центру
-            for para in cell.paragraphs:
-                para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                for run in para.runs:
-                    run.bold = True
+            for p in tc.findall(qn("w:p")):
+                pPr = p.find(qn("w:pPr"))
+                if pPr is None:
+                    pPr = etree.SubElement(p, qn("w:pPr"))
+                jc = pPr.find(qn("w:jc"))
+                if jc is None:
+                    jc = etree.SubElement(pPr, qn("w:jc"))
+                jc.set(qn("w:val"), "center")
+                for r in p.findall(qn("w:r")):
+                    rPr = r.find(qn("w:rPr"))
+                    if rPr is None:
+                        rPr = etree.SubElement(r, qn("w:rPr"))
+                    b = rPr.find(qn("w:b"))
+                    if b is None:
+                        etree.SubElement(rPr, qn("w:b"))
 
         processed += 1
 
@@ -108,48 +136,94 @@ def format_document(doc: Document) -> None:
     - Ширина всех таблиц = 18.33 см, выравнивание по центру
     - Все инлайн-картинки → 5.33 × 4 см
     """
-    CM_TO_EMU = 914400 / 100  # 1 cm = 914400 / 100 EMU? нет, 1 cm = 360000 EMU
-    # python-docx Cm() сам переводит
-    TABLE_WIDTH = Cm(18.33)
-    IMG_W = Cm(5.33)
-    IMG_H = Cm(4.0)
+    # 18.33 см в единицах dxa (twentieths of a point): 1 cm = 567 dxa
+    TABLE_WIDTH_DXA = int(18.33 * 567)
+    # 5.33 см и 4 см в EMU (English Metric Units): 1 cm = 360000 EMU
+    IMG_W_EMU = int(5.33 * 360000)
+    IMG_H_EMU = int(4.0 * 360000)
 
-    # Шрифт и интервалы для всех параграфов
-    for para in doc.paragraphs:
-        para.paragraph_format.space_before = Pt(0)
-        para.paragraph_format.space_after = Pt(0)
-        para.paragraph_format.line_spacing = 1.0
-        for run in para.runs:
-            run.font.name = "Times New Roman"
-            run.font.size = Pt(10)
+    def _format_paras(paragraphs):
+        for para in paragraphs:
+            pPr = para._p.get_or_add_pPr()
+            # Интервалы
+            spacing = pPr.find(qn("w:spacing"))
+            if spacing is None:
+                spacing = etree.SubElement(pPr, qn("w:spacing"))
+            spacing.set(qn("w:before"), "0")
+            spacing.set(qn("w:after"), "0")
+            spacing.set(qn("w:line"), "240")
+            spacing.set(qn("w:lineRule"), "auto")
+            # Шрифт и размер для каждого run
+            for run in para.runs:
+                run.font.name = "Times New Roman"
+                run.font.size = Pt(10)
+            # Если параграф вообще без runs — задаём через rPr по умолчанию
+            rPr = pPr.find(qn("w:rPr"))
+            if rPr is None:
+                rPr = etree.SubElement(pPr, qn("w:rPr"))
+            rFonts = rPr.find(qn("w:rFonts"))
+            if rFonts is None:
+                rFonts = etree.SubElement(rPr, qn("w:rFonts"))
+            rFonts.set(qn("w:ascii"), "Times New Roman")
+            rFonts.set(qn("w:hAnsi"), "Times New Roman")
+            sz = rPr.find(qn("w:sz"))
+            if sz is None:
+                sz = etree.SubElement(rPr, qn("w:sz"))
+            sz.set(qn("w:val"), "20")  # 10pt = 20 half-points
+            szCs = rPr.find(qn("w:szCs"))
+            if szCs is None:
+                szCs = etree.SubElement(rPr, qn("w:szCs"))
+            szCs.set(qn("w:val"), "20")
 
-    # То же внутри таблиц
+    # Параграфы вне таблиц
+    _format_paras(doc.paragraphs)
+
+    # Таблицы
     for tbl in doc.tables:
+        tblEl = tbl._tbl
+        tblPr = tblEl.find(qn("w:tblPr"))
+        if tblPr is None:
+            tblPr = etree.SubElement(tblEl, qn("w:tblPr"))
+
         # Ширина таблицы
-        tbl.width = TABLE_WIDTH
-        tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
-        tblPr = tbl._tbl.find(qn("w:tblPr"))
-        if tblPr is not None:
-            tblW = tblPr.find(qn("w:tblW"))
-            if tblW is None:
-                tblW = etree.SubElement(tblPr, qn("w:tblW"))
-            tblW.set(qn("w:w"), str(int(TABLE_WIDTH.pt * 20)))
-            tblW.set(qn("w:type"), "dxa")
+        tblW = tblPr.find(qn("w:tblW"))
+        if tblW is None:
+            tblW = etree.SubElement(tblPr, qn("w:tblW"))
+        tblW.set(qn("w:w"), str(TABLE_WIDTH_DXA))
+        tblW.set(qn("w:type"), "dxa")
+
+        # Выравнивание по центру
+        jc = tblPr.find(qn("w:jc"))
+        if jc is None:
+            jc = etree.SubElement(tblPr, qn("w:jc"))
+        jc.set(qn("w:val"), "center")
+
+        # Запрет авторастяжки
+        autofit = tblPr.find(qn("w:tblLayout"))
+        if autofit is None:
+            autofit = etree.SubElement(tblPr, qn("w:tblLayout"))
+        autofit.set(qn("w:type"), "fixed")
 
         for row in tbl.rows:
             for cell in row.cells:
-                for para in cell.paragraphs:
-                    para.paragraph_format.space_before = Pt(0)
-                    para.paragraph_format.space_after = Pt(0)
-                    para.paragraph_format.line_spacing = 1.0
-                    for run in para.runs:
-                        run.font.name = "Times New Roman"
-                        run.font.size = Pt(10)
+                _format_paras(cell.paragraphs)
 
-    # Картинки
+    # Картинки: меняем размер прямо в XML (cx/cy в EMU)
+    EMU_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+    PIC_NS = "http://schemas.openxmlformats.org/drawingml/2006/picture"
     for shape in doc.inline_shapes:
-        shape.width = IMG_W
-        shape.height = IMG_H
+        # Находим <a:ext> внутри <wp:extent>
+        drawing = shape._inline
+        extent = drawing.find(
+            "{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}extent"
+        )
+        if extent is not None:
+            extent.set("cx", str(IMG_W_EMU))
+            extent.set("cy", str(IMG_H_EMU))
+        # Также патчим <a:ext> внутри spPr
+        for ext in drawing.iter(f"{{{EMU_NS}}}ext"):
+            ext.set("cx", str(IMG_W_EMU))
+            ext.set("cy", str(IMG_H_EMU))
 
 
 # ── Макросы 3 и 4: ReplaceDateInReportLine / ReplaceDateInReportLine2 ──────
@@ -446,6 +520,37 @@ def rename_files(folder: str, mode: Literal["today", "yesterday"]) -> list[str]:
                 log.append(f"Переименован: {filename} → {new_name}")
             except Exception as e:
                 log.append(f"Ошибка: {filename} — {e}")
+    return log
+
+
+# ── Переименование результатов ──────────────────────────────────────────────
+
+def rename_results(folder: str, mode: Literal["today", "yesterday"]) -> list[str]:
+    """
+    Переименовывает Евракор_merged.docx → Евракор_Ежедневный отчёт СК за DD.MM.YYYY.docx
+    """
+    new_date = (
+        datetime.now().strftime("%d.%m.%Y")
+        if mode == "today"
+        else (datetime.now() - timedelta(days=1)).strftime("%d.%m.%Y")
+    )
+    log = []
+    for filename in os.listdir(folder):
+        if not filename.lower().endswith((".docx", ".doc")):
+            continue
+        if "_merged" not in filename:
+            continue
+        company = filename.replace("_merged.docx", "").replace("_merged.doc", "")
+        ext = ".docx" if filename.lower().endswith(".docx") else ".doc"
+        new_name = f"{company}_Ежедневный отчёт СК за {new_date}{ext}"
+        try:
+            os.rename(
+                os.path.join(folder, filename),
+                os.path.join(folder, new_name),
+            )
+            log.append(f"Переименован: {filename} → {new_name}")
+        except Exception as e:
+            log.append(f"Ошибка: {filename} — {e}")
     return log
 
 

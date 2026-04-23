@@ -1,14 +1,17 @@
 import os
+import io
 import shutil
 import tempfile
+import zipfile
 from pathlib import Path
 import sys
+from docx import Document
 
 # Добавляем корень проекта в путь, чтобы видеть agent
 sys.path.append(str(Path(__file__).parent.parent))
 
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
@@ -18,6 +21,7 @@ from docx_processing import (
     apply_macro_to_file,
     merge_reports,
     rename_files,
+    rename_results,
 )
 
 # Импорт агента
@@ -71,24 +75,19 @@ def _do_merge(template_path: str, report_paths: list[str], output_path: str) -> 
 # ── Вспомогательная функция: Умный поиск отчётов ───────────────────────────
 
 def find_reports_for_company(company_name: str, keywords: list[str]):
-    """
-    Ищет отчёты для компании. Сначала по ключевым словам в имени,
-    если не найдено — использует AI-агент для анализа содержимого.
-    """
     found_reports = []
 
     for f in UPLOAD_DIR.iterdir():
         if f.suffix.lower() not in (".docx", ".doc"):
             continue
 
-        kw_lower = [k.lower() for k in keywords]
-        if any(k in f.name.lower() for k in kw_lower):
-            found_reports.append(f)
-            continue
-
         if AGENT_ENABLED:
             detected = detect_company(str(f))
             if detected and detected == company_name:
+                found_reports.append(f)
+        else:
+            kw_lower = [k.lower() for k in keywords]
+            if any(k in f.name.lower() for k in kw_lower):
                 found_reports.append(f)
 
     return found_reports
@@ -181,7 +180,7 @@ async def run_macro(macro_name: str):
 async def rename(mode: str):
     if mode not in ("today", "yesterday"):
         raise HTTPException(status_code=400, detail="mode должен быть today или yesterday")
-    log = rename_files(str(TEMPLATES_DIR), mode)  # type: ignore[arg-type]
+    log = rename_results(str(RESULT_DIR), mode)
     return {"log": log}
 
 
@@ -234,11 +233,37 @@ async def merge_all():
             print(f"[ERROR] {msg}")
             errors.append(msg)
 
-    print(f"[SUMMARY] Results: {len(results)}, Errors: {len(errors)}")
+    # Файлы без болванки — копируем в результаты как есть
+    all_matched = set()
+    for name, keywords in COMPANIES:
+        for f in UPLOAD_DIR.iterdir():
+            if f.suffix.lower() not in (".docx", ".doc"):
+                continue
+            if AGENT_ENABLED:
+                detected = detect_company(str(f))
+                if detected and detected == name:
+                    all_matched.add(f)
+            else:
+                kw_lower = [k.lower() for k in keywords]
+                if any(k in f.name.lower() for k in kw_lower):
+                    all_matched.add(f)
+
+    unmatched = []
+    for f in UPLOAD_DIR.iterdir():
+        if f.suffix.lower() not in (".docx", ".doc"):
+            continue
+        if f not in all_matched:
+            dest = RESULT_DIR / f.name
+            shutil.copy2(f, dest)
+            unmatched.append(f.name)
+            print(f"[INFO] Без болванки, скопирован как есть: {f.name}")
+
+    print(f"[SUMMARY] Results: {len(results)}, Errors: {len(errors)}, Без болванки: {len(unmatched)}")
     return {
         "results": results,
         "errors": errors,
         "total_merged": len(results),
+        "unmatched": unmatched,
         "ai_agent_active": AGENT_ENABLED
     }
 
@@ -279,11 +304,29 @@ async def merge_one(company_name: str):
     }
 
 
+# ── Скачать все результаты одним ZIP ───────────────────────────────────────
+
+@app.get("/download/all.zip")
+async def download_all():
+    files = [f for f in RESULT_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
+    if not files:
+        raise HTTPException(status_code=404, detail="Нет готовых файлов")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in files:
+            zf.write(f, f.name)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82%D1%8B.zip"},
+    )
+
+
 # ── Скачать результат ───────────────────────────────────────────────────────
 
 @app.get("/download/{filename}")
 async def download(filename: str):
-    # Защита от path traversal
     path = (RESULT_DIR / filename).resolve()
     if not str(path).startswith(str(RESULT_DIR.resolve())):
         raise HTTPException(status_code=400, detail="Недопустимый путь")
