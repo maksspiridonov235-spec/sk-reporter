@@ -297,12 +297,16 @@
       data.results.forEach(r => logLine(`${r.company}: вставлено ${r.inserted} отчётов → ${r.file}`, "ok"));
       data.errors.forEach(e => logLine(`Предупреждение: ${e}`, "err"));
       if (data.unmatched && data.unmatched.length > 0) {
-        logLine(`Без болванки (скопированы как есть): ${data.unmatched.length} файлов`, "info");
-        data.unmatched.forEach(f => logLine(`  → ${f}`, "info"));
+        logLine(`Без болванки — скопированы как есть (${data.unmatched.length}):`, "info");
+        data.unmatched.forEach(f => logLine(`  → ${f.file} (${f.company})`, "info"));
+      }
+      if (data.unmatched_unknown && data.unmatched_unknown.length > 0) {
+        logLine(`Компания не определена — скопированы как есть (${data.unmatched_unknown.length}):`, "err");
+        data.unmatched_unknown.forEach(f => logLine(`  → ${f}`, "err"));
       }
 
-      const summary = `Завершено. Собрано: ${data.results.length}, без болванки: ${(data.unmatched||[]).length}, предупреждений: ${data.errors.length}`;
-      logLine(summary, data.errors.length ? "err" : "ok");
+      const summary = `Завершено. Собрано: ${data.results.length}, без болванки: ${(data.unmatched||[]).length}, не распознано: ${(data.unmatched_unknown||[]).length}`;
+      logLine(summary, (data.unmatched_unknown||[]).length ? "err" : "ok");
       logLine("Готово.", "ok");
     } catch (e) {
       logLine(`Ошибка: ${e.message}`, "err");

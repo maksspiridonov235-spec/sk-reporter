@@ -16,11 +16,28 @@ from lxml import etree
 
 from docx import Document
 
-KNOWN_COMPANIES = [
-    "Евракор", "Лесные технологии", "ЮНС", "НГСК", "Сибитек", "ЭСМ",
-    "НГП", "РОСЭКСПО", "ТПС", "ТЭКПРО", "ЮПИ", "УГГ", "ЮГС", "ТВС",
-    "НСС", "ОТ и ТБ", "Стройфинансгрупп"
-]
+# Название компании → все варианты написания в именах файлов
+COMPANIES_MAP = {
+    "Евракор":           ["евракор", "еврокор"],
+    "Лесные технологии": ["лесн. технологии", "лесные технологии", "лестех", "лесные технологи"],
+    "ЮНС":               ["нткс", "юнс", "югранефтестрой", "югранефтестой"],
+    "НГСК":              ["нгск", "ткс", "новая газовая строительная компания"],
+    "Сибитек":           ["сибитек"],
+    "ЭСМ":               ["эсм", "энергостроймонтаж", "энергостоймонтаж"],
+    "НГП":               ["нгп", "нефтегазпроект"],
+    "РОСЭКСПО":          ["росэкспо"],
+    "ТПС":               ["тпс", "трубопроводсервис тпс"],
+    "ТЭКПРО":            ["тэкпро", "трубопроводсервис тэкпро"],
+    "ЮПИ":               ["юпи", "югорский проектный институт"],
+    "УГГ":               ["угг", "уралгеогрупп"],
+    "ЮГС":               ["югс", "юграгидрострой"],
+    "ТВС":               ["твс", "тюменьвторсырье"],
+    "НСС":               ["нсс", "нефтеспецстрой"],
+    "ОТ и ТБ":           ["от и тб", "отитб", "оттб", "озотобос", "пб"],
+    "Стройфинансгрупп":  ["стройфинансгрупп", "сфг"],
+}
+
+KNOWN_COMPANIES = list(COMPANIES_MAP.keys())
 
 MODEL = "qwen3.5:cloud"
 
@@ -57,16 +74,18 @@ def extract_text(filepath: str) -> str:
 
 def detect_company(filepath: str) -> Optional[str]:
     filename = Path(filepath).name
+    filename_lower = filename.lower()
 
-    # Быстрая проверка по имени файла — работает в 90% случаев
-    for company in KNOWN_COMPANIES:
-        if company.lower() in filename.lower():
+    # Шаг 1: проверка по всем вариантам написания в имени файла
+    for company, keywords in COMPANIES_MAP.items():
+        if any(kw in filename_lower for kw in keywords):
             print(f"[FILENAME] {filename} → {company}")
             return company
 
-    # Fallback: спрашиваем AI по содержимому документа
+    # Шаг 2: AI анализирует содержимое документа
     text = extract_text(filepath)
     if not text:
+        print(f"[UNKNOWN] Не удалось прочитать текст: {filename}")
         return None
 
     try:
@@ -79,7 +98,6 @@ def detect_company(filepath: str) -> Optional[str]:
             options={"temperature": 0.0, "num_predict": 30},
         )
         answer = response["message"]["content"].strip()
-        # Убираем <think>...</think> если модель добавила
         answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL).strip()
         clean = re.sub(r'["\'\.\n]', "", answer).strip()
 
@@ -88,7 +106,7 @@ def detect_company(filepath: str) -> Optional[str]:
                 print(f"[AI] {filename} → {company}")
                 return company
 
-        print(f"[AI] Не распознана: '{answer}' для {filename}")
+        print(f"[UNKNOWN] AI не распознал компанию для: {filename}")
         return None
 
     except Exception as e:
