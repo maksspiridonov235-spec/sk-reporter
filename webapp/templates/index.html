@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Объединение отчётов СК</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f0f2f5; color: #222; }
+    header { background: #1a56a0; color: #fff; padding: 16px 24px; font-size: 18px; font-weight: bold; }
+
+    .layout { display: flex; gap: 0; height: calc(100vh - 54px); }
+
+    /* Левая панель */
+    .sidebar { width: 300px; min-width: 260px; background: #fff; border-right: 1px solid #ddd;
+               display: flex; flex-direction: column; padding: 16px; gap: 12px; overflow-y: auto; }
+
+    .section-title { font-size: 12px; font-weight: bold; text-transform: uppercase;
+                     color: #888; letter-spacing: .5px; margin-bottom: 4px; }
+
+    .upload-zone { border: 2px dashed #aac4e8; border-radius: 8px; padding: 14px;
+                   text-align: center; cursor: pointer; background: #f5f9ff;
+                   transition: border-color .2s; }
+    .upload-zone:hover { border-color: #1a56a0; }
+    .upload-zone input { display: none; }
+    .upload-zone span { font-size: 13px; color: #555; }
+
+    .file-list { font-size: 12px; color: #444; max-height: 120px; overflow-y: auto;
+                 border: 1px solid #e0e0e0; border-radius: 6px; padding: 6px; background: #fafafa; }
+    .file-list div { padding: 2px 0; border-bottom: 1px solid #f0f0f0; }
+    .file-list div:last-child { border-bottom: none; }
+
+    /* Кнопки действий */
+    .btn { width: 100%; padding: 9px 12px; border: none; border-radius: 6px; cursor: pointer;
+           font-size: 13px; font-weight: bold; transition: background .15s; }
+    .btn-blue   { background: #1a56a0; color: #fff; }
+    .btn-blue:hover   { background: #154480; }
+    .btn-green  { background: #1e8c45; color: #fff; }
+    .btn-green:hover  { background: #166835; }
+    .btn-orange { background: #d97706; color: #fff; }
+    .btn-orange:hover { background: #b45309; }
+    .btn-red    { background: #dc2626; color: #fff; }
+    .btn-red:hover    { background: #b91c1c; }
+    .btn-gray   { background: #6b7280; color: #fff; }
+    .btn-gray:hover   { background: #4b5563; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .divider { border: none; border-top: 1px solid #e5e7eb; margin: 4px 0; }
+
+    /* Центральная область */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Список компаний */
+    .companies-grid { padding: 16px; display: grid;
+                      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+    .company-btn { padding: 10px 8px; background: #fff; border: 1px solid #cbd5e1;
+                   border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold;
+                   text-align: center; transition: background .15s, border-color .15s; }
+    .company-btn:hover { background: #e8f0fb; border-color: #1a56a0; color: #1a56a0; }
+
+    /* Результаты */
+    .results-panel { padding: 0 16px 16px; flex: 1; overflow-y: auto; }
+    .results-title { font-size: 13px; font-weight: bold; color: #444; margin-bottom: 8px; }
+    .result-item { display: flex; align-items: center; justify-content: space-between;
+                   background: #fff; border: 1px solid #d1fae5; border-radius: 6px;
+                   padding: 8px 12px; margin-bottom: 6px; font-size: 13px; }
+    .result-item a { color: #1a56a0; font-weight: bold; text-decoration: none; }
+    .result-item a:hover { text-decoration: underline; }
+
+    /* Лог */
+    .log-panel { height: 200px; background: #1e1e1e; color: #d4d4d4; font-family: monospace;
+                 font-size: 12px; overflow-y: auto; padding: 10px 14px; }
+    .log-panel .ok  { color: #6ee7b7; }
+    .log-panel .err { color: #fca5a5; }
+    .log-panel .info{ color: #93c5fd; }
+
+    /* Спиннер */
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff;
+               border-top-color: transparent; border-radius: 50%; animation: spin .6s linear infinite;
+               vertical-align: middle; margin-left: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>Объединение отчётов СК</header>
+
+<div class="layout">
+
+  <!-- Левая панель -->
+  <div class="sidebar">
+
+    <div>
+      <div class="section-title">1. Отчёты от инженеров</div>
+      <div class="upload-zone" onclick="document.getElementById('inp-reports').click()">
+        <input type="file" id="inp-reports" multiple accept=".docx,.doc" onchange="uploadReports(this)"/>
+        <span>Перетащите или нажмите<br>для загрузки .docx/.doc</span>
+      </div>
+      <div id="list-reports" class="file-list" style="margin-top:6px">Нет файлов</div>
+    </div>
+
+    <div>
+      <div class="section-title">2. Шаблоны подрядчиков</div>
+      <div class="upload-zone" onclick="document.getElementById('inp-templates').click()">
+        <input type="file" id="inp-templates" multiple accept=".docx,.doc" onchange="uploadTemplates(this)"/>
+        <span>Болванки для каждой компании</span>
+      </div>
+      <div id="list-templates" class="file-list" style="margin-top:6px">Нет файлов</div>
+    </div>
+
+    <hr class="divider"/>
+
+    <div>
+      <div class="section-title">Макросы (к шаблонам)</div>
+      <button class="btn btn-blue" style="margin-bottom:6px"
+              onclick="runMacro('HighlightSecondRow_No5991')">Выделить 2-ю строку таблиц</button>
+      <button class="btn btn-blue" style="margin-bottom:6px"
+              onclick="runMacro('NewMacros')">Форматировать документ</button>
+      <button class="btn btn-orange" style="margin-bottom:6px"
+              onclick="runMacro('ReplaceDateInReportLine')">Поставить сегодняшнюю дату</button>
+      <button class="btn btn-orange"
+              onclick="runMacro('ReplaceDateInReportLine2')">Поставить вчерашнюю дату</button>
+    </div>
+
+    <hr class="divider"/>
+
+    <div>
+      <div class="section-title">Переименовать файлы шаблонов</div>
+      <button class="btn btn-orange" style="margin-bottom:6px"
+              onclick="renameFiles('today')">Дата → сегодня</button>
+      <button class="btn btn-orange"
+              onclick="renameFiles('yesterday')">Дата → вчера</button>
+    </div>
+
+    <hr class="divider"/>
+
+    <button class="btn btn-green" onclick="mergeAll()">Сформировать все отчёты</button>
+
+    <hr class="divider"/>
+
+    <button class="btn btn-gray" onclick="clearAll()">Очистить загруженные файлы</button>
+
+  </div>
+
+  <!-- Основная область -->
+  <div class="main">
+
+    <!-- Кнопки компаний -->
+    <div class="companies-grid">
+      {% for company in companies %}
+      <div class="company-btn" onclick="mergeOne('{{ company }}')">{{ company }}</div>
+      {% endfor %}
+    </div>
+
+    <!-- Результаты -->
+    <div class="results-panel">
+      <div class="results-title">Готовые файлы</div>
+      <div id="results-list"></div>
+    </div>
+
+    <!-- Лог -->
+    <div class="log-panel" id="log"></div>
+
+  </div>
+</div>
+
+<script>
+  // ── Утилиты ──────────────────────────────────────────────────────────────
+
+  function logLine(msg, type = "info") {
+    const el = document.getElementById("log");
+    const line = document.createElement("div");
+    line.className = type;
+    line.textContent = new Date().toLocaleTimeString() + "  " + msg;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  async function apiFetch(url, options = {}) {
+    try {
+      const res = await fetch(url, options);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || res.statusText);
+      return data;
+    } catch (e) {
+      logLine("Ошибка: " + e.message, "err");
+      throw e;
+    }
+  }
+
+  // ── Загрузка файлов ───────────────────────────────────────────────────────
+
+  async function uploadReports(input) {
+    const fd = new FormData();
+    for (const f of input.files) fd.append("files", f);
+    logLine(`Загружаю ${input.files.length} отчётов...`);
+    const data = await apiFetch("/upload/reports", { method: "POST", body: fd });
+    logLine(`Загружено: ${data.count} файлов`, "ok");
+    refreshReportsList();
+  }
+
+  async function uploadTemplates(input) {
+    const fd = new FormData();
+    for (const f of input.files) fd.append("files", f);
+    logLine(`Загружаю ${input.files.length} шаблонов...`);
+    const data = await apiFetch("/upload/templates", { method: "POST", body: fd });
+    logLine(`Загружено: ${data.count} шаблонов`, "ok");
+    refreshTemplatesList();
+  }
+
+  async function refreshReportsList() {
+    const data = await apiFetch("/files/reports");
+    const el = document.getElementById("list-reports");
+    el.innerHTML = data.files.length
+      ? data.files.map(f => `<div>${f}</div>`).join("")
+      : "Нет файлов";
+  }
+
+  async function refreshTemplatesList() {
+    const data = await apiFetch("/files/templates");
+    const el = document.getElementById("list-templates");
+    el.innerHTML = data.files.length
+      ? data.files.map(f => `<div>${f}</div>`).join("")
+      : "Нет файлов";
+  }
+
+  // ── Макросы ───────────────────────────────────────────────────────────────
+
+  async function runMacro(name) {
+    logLine(`Применяю макрос: ${name}...`);
+    const data = await apiFetch(`/macro/${name}`, { method: "POST" });
+    data.log.forEach(line => logLine(line, line.startsWith("[ERR]") ? "err" : "ok"));
+  }
+
+  // ── Переименование ────────────────────────────────────────────────────────
+
+  async function renameFiles(mode) {
+    logLine(`Переименование файлов (${mode === "today" ? "сегодня" : "вчера"})...`);
+    const data = await apiFetch(`/rename/${mode}`, { method: "POST" });
+    data.log.forEach(line => logLine(line, line.startsWith("Ошибка") ? "err" : "ok"));
+    refreshTemplatesList();
+  }
+
+  // ── Объединение ───────────────────────────────────────────────────────────
+
+  async function mergeOne(company) {
+    logLine(`Формирую отчёт: ${company}...`);
+    const data = await apiFetch(`/merge/${encodeURIComponent(company)}`, { method: "POST" });
+    logLine(`${company}: вставлено ${data.inserted} файлов → ${data.result}`, "ok");
+    refreshResults();
+  }
+
+  async function mergeAll() {
+    logLine("Формирую все отчёты...");
+    const data = await apiFetch("/merge/all", { method: "POST" });
+    data.results.forEach(r => logLine(`${r.company}: ${r.inserted} файлов → ${r.file}`, "ok"));
+    data.errors.forEach(e => logLine(e, "err"));
+    logLine(`Готово. Успешно: ${data.results.length}, ошибок: ${data.errors.length}`,
+            data.errors.length ? "err" : "ok");
+    refreshResults();
+  }
+
+  // ── Результаты ────────────────────────────────────────────────────────────
+
+  async function refreshResults() {
+    const data = await apiFetch("/results");
+    const el = document.getElementById("results-list");
+    el.innerHTML = data.files.length
+      ? data.files.map(f =>
+          `<div class="result-item">
+             <span>${f}</span>
+             <a href="/download/${encodeURIComponent(f)}" download>Скачать</a>
+           </div>`
+        ).join("")
+      : "<div style='color:#888;font-size:13px'>Нет готовых файлов</div>";
+  }
+
+  // ── Очистка ───────────────────────────────────────────────────────────────
+
+  async function clearAll() {
+    if (!confirm("Удалить все загруженные отчёты?")) return;
+    await apiFetch("/clear/reports", { method: "DELETE" });
+    logLine("Загруженные отчёты удалены", "ok");
+    refreshReportsList();
+  }
+
+  // ── Drag & Drop ───────────────────────────────────────────────────────────
+
+  function setupDrop(zoneId, inputId) {
+    const zone = document.querySelector(`#${inputId}`).closest(".upload-zone");
+    zone.addEventListener("dragover", e => { e.preventDefault(); zone.style.borderColor = "#1a56a0"; });
+    zone.addEventListener("dragleave", () => { zone.style.borderColor = "#aac4e8"; });
+    zone.addEventListener("drop", e => {
+      e.preventDefault();
+      zone.style.borderColor = "#aac4e8";
+      const input = document.getElementById(inputId);
+      const dt = new DataTransfer();
+      for (const f of e.dataTransfer.files) dt.items.add(f);
+      input.files = dt.files;
+      input.dispatchEvent(new Event("change"));
+    });
+  }
+
+  setupDrop("zone-reports", "inp-reports");
+  setupDrop("zone-templates", "inp-templates");
+
+  // Загружаем списки при старте
+  refreshReportsList();
+  refreshTemplatesList();
+  refreshResults();
+</script>
+</body>
+</html>
