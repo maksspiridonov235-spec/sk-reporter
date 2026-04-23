@@ -251,12 +251,23 @@
   }
 
   async function mergeAll() {
-    logLine("Формирую все отчёты...");
-    const data = await apiFetch("/merge/all", { method: "POST" });
-    data.results.forEach(r => logLine(`${r.company}: ${r.inserted} файлов → ${r.file}`, "ok"));
-    data.errors.forEach(e => logLine(e, "err"));
-    logLine(`Готово. Успешно: ${data.results.length}, ошибок: ${data.errors.length}`,
-            data.errors.length ? "err" : "ok");
+    logLine("Forming all reports...");
+    try {
+      const data = await apiFetch("/merge/all", { method: "POST" });
+      
+      if (data.results.length === 0 && data.errors.length === 0) {
+        logLine("No reports or templates found. Check if files are uploaded.", "err");
+        return;
+      }
+      
+      data.results.forEach(r => logLine(`${r.company}: ${r.inserted} files => ${r.file}`, "ok"));
+      data.errors.forEach(e => logLine(`WARNING: ${e}`, "err"));
+      
+      const summary = `Complete. Success: ${data.results.length}, Warnings: ${data.errors.length}`;
+      logLine(summary, data.errors.length ? "err" : "ok");
+    } catch (e) {
+      logLine(`FAILED: ${e.message}`, "err");
+    }
     refreshResults();
   }
 
