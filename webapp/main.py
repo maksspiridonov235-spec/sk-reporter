@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
+from urllib.parse import unquote
 import sys
 
 # Добавляем корень проекта в путь, чтобы видеть agent
@@ -167,6 +168,7 @@ async def rename(mode: str):
 
 @app.post("/merge/{company_name}")
 async def merge_one(company_name: str):
+    company_name = unquote(company_name)
     company = next((c for c in COMPANIES if c[0] == company_name), None)
     if not company:
         raise HTTPException(status_code=404, detail="Компания не найдена")

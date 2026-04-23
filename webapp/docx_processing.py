@@ -6,6 +6,8 @@
 import os
 import re
 import shutil
+import zipfile
+import xml.etree.ElementTree as ET
 from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import Literal
@@ -189,36 +191,166 @@ def replace_date_in_report_line(doc: Document, mode: Literal["today", "yesterday
 
 # ── Объединение отчётов ─────────────────────────────────────────────────────
 
+def _copy_media_from_docx(src_path: str, dst_path: str, remap: dict) -> None:
+    """
+    Копирует медиафайлы (картинки) из src_path в dst_path (оба — .docx ZIP-архивы).
+    Переименовывает их чтобы не было коллизий, заполняет remap {старое_имя: новое_имя}.
+    """
+    with zipfile.ZipFile(src_path, "r") as src_zip:
+        src_media = [n for n in src_zip.namelist() if n.startswith("word/media/")]
+        with zipfile.ZipFile(dst_path, "a") as dst_zip:
+            existing = set(dst_zip.namelist())
+            for src_name in src_media:
+                base = os.path.basename(src_name)           # image1.png
+                stem, ext = os.path.splitext(base)          # image1, .png
+                # Генерируем уникальное имя если уже есть
+                candidate = f"word/media/{base}"
+                counter = 1
+                while candidate in existing:
+                    candidate = f"word/media/{stem}_{counter}{ext}"
+                    counter += 1
+                data = src_zip.read(src_name)
+                dst_zip.writestr(candidate, data)
+                existing.add(candidate)
+                remap[base] = os.path.basename(candidate)
+
+
+def _fix_image_refs_in_element(element, remap: dict) -> None:
+    """
+    Обновляет все ссылки на картинки в XML-элементе согласно remap.
+    Картинки в docx ссылаются через r:embed в <a:blip> и <v:imagedata>.
+    Remap применяется к именам файлов в relationships, но мы патчим
+    уже resolved-имена прямо в XML через rId → имя файла.
+    Этот патч применяется на уровне имён файлов в rels.
+    """
+    pass  # Rels патчим отдельно в merge_reports
+
+
 def merge_reports(template_path: str, report_paths: list[str], output_path: str) -> int:
     """
     Объединяет отчёты из report_paths в шаблон template_path,
     сохраняет результат в output_path.
+    Корректно переносит картинки через ZIP чтобы они не были битыми.
     Возвращает количество вставленных файлов.
     """
     shutil.copy2(template_path, output_path)
-    master = Document(output_path)
-
-    # Добавляем разрыв страницы перед каждым новым документом
     inserted = 0
+
     for path in sorted(report_paths):
         try:
-            src = Document(path)
+            src_doc = Document(path)
         except Exception:
             continue
 
-        # Разрыв страницы
+        # 1. Копируем медиафайлы из src в output, получаем карту переименований
+        remap: dict[str, str] = {}
+        _copy_media_from_docx(path, output_path, remap)
+
+        # 2. Читаем relationships из источника чтобы построить rId → имя файла
+        src_rels: dict[str, str] = {}
+        with zipfile.ZipFile(path, "r") as zf:
+            rels_name = "word/_rels/document.xml.rels"
+            if rels_name in zf.namelist():
+                rels_xml = zf.read(rels_name).decode("utf-8")
+                root = ET.fromstring(rels_xml)
+                ns = "http://schemas.openxmlformats.org/package/2006/relationships"
+                for rel in root.findall(f"{{{ns}}}Relationship"):
+                    rid = rel.get("Id", "")
+                    target = rel.get("Target", "")
+                    # target вида "../media/image1.png" или "media/image1.png"
+                    basename = os.path.basename(target)
+                    src_rels[rid] = basename
+
+        # 3. Добавляем relationships в output для новых медиафайлов
+        #    и строим карту старых rId → новых rId
+        rid_remap: dict[str, str] = {}
+        if remap:
+            with zipfile.ZipFile(output_path, "r") as zf:
+                rels_name = "word/_rels/document.xml.rels"
+                ET.register_namespace("", "http://schemas.openxmlformats.org/package/2006/relationships")
+                rels_xml = zf.read(rels_name).decode("utf-8")
+                rels_root = ET.fromstring(rels_xml)
+
+            ns = "http://schemas.openxmlformats.org/package/2006/relationships"
+            img_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+
+            # Найдём максимальный rId в output
+            existing_ids = set()
+            for rel in rels_root.findall(f"{{{ns}}}Relationship"):
+                existing_ids.add(rel.get("Id", ""))
+            rid_counter = 1
+            while f"rId{rid_counter}" in existing_ids:
+                rid_counter += 1
+
+            # Для каждого rId из источника с картинкой — добавляем новый rel в output
+            for old_rid, old_basename in src_rels.items():
+                if old_basename not in remap:
+                    continue
+                new_basename = remap[old_basename]
+                new_rid = f"rId{rid_counter}"
+                while new_rid in existing_ids:
+                    rid_counter += 1
+                    new_rid = f"rId{rid_counter}"
+                rid_remap[old_rid] = new_rid
+                existing_ids.add(new_rid)
+                rid_counter += 1
+                new_rel = ET.SubElement(rels_root, f"{{{ns}}}Relationship")
+                new_rel.set("Id", new_rid)
+                new_rel.set("Type", img_type)
+                new_rel.set("Target", f"media/{new_basename}")
+
+            # Записываем обновлённый rels обратно в ZIP
+            new_rels_xml = ET.tostring(rels_root, encoding="unicode", xml_declaration=False)
+            new_rels_xml = '<?xml version=\'1.0\' encoding=\'UTF-8\' standalone=\'yes\'?>\n' + new_rels_xml
+            _zip_replace(output_path, rels_name, new_rels_xml.encode("utf-8"))
+
+        # 4. Копируем тело документа, патча rId в XML-элементах
+        master = Document(output_path)
         master.add_page_break()
 
-        for element in src.element.body:
+        for element in src_doc.element.body:
             tag = element.tag.split("}")[-1] if "}" in element.tag else element.tag
-            if tag in ("sectPr",):
+            if tag == "sectPr":
                 continue
-            master.element.body.append(deepcopy(element))
+            el_copy = deepcopy(element)
+            # Патчим все вхождения старых rId на новые
+            if rid_remap:
+                _patch_rids(el_copy, rid_remap)
+            master.element.body.append(el_copy)
 
+        master.save(output_path)
         inserted += 1
 
-    master.save(output_path)
     return inserted
+
+
+def _zip_replace(zip_path: str, inner_name: str, new_data: bytes) -> None:
+    """Заменяет файл внутри ZIP-архива."""
+    import tempfile
+    tmp = zip_path + ".tmp"
+    with zipfile.ZipFile(zip_path, "r") as zin:
+        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
+            for item in zin.infolist():
+                if item.filename == inner_name:
+                    zout.writestr(item, new_data)
+                else:
+                    zout.writestr(item, zin.read(item.filename))
+    os.replace(tmp, zip_path)
+
+
+def _patch_rids(element, rid_remap: dict[str, str]) -> None:
+    """Рекурсивно заменяет атрибуты r:embed, r:id, r:link на новые rId."""
+    REMAP_ATTRS = (
+        "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed",
+        "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id",
+        "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}link",
+    )
+    for attr in REMAP_ATTRS:
+        val = element.get(attr)
+        if val and val in rid_remap:
+            element.set(attr, rid_remap[val])
+    for child in element:
+        _patch_rids(child, rid_remap)
 
 
 # ── Переименование файлов ───────────────────────────────────────────────────
