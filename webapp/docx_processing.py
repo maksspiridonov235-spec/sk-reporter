@@ -367,15 +367,33 @@ def merge_reports(template_path: str, report_paths: list[str], output_path: str)
 
         # 4. Копируем тело документа, патча rId в XML-элементах
         master = Document(output_path)
-        if inserted > 0:
+
+        # Собираем элементы тела, пропуская ведущие пустые параграфы с разрывами
+        body_elements = [
+            el for el in src_doc.element.body
+            if (el.tag.split("}")[-1] if "}" in el.tag else el.tag) != "sectPr"
+        ]
+
+        # Отрезаем пустые page-break параграфы в начале
+        def _is_page_break_para(el):
+            tag = el.tag.split("}")[-1] if "}" in el.tag else el.tag
+            if tag != "p":
+                return False
+            from lxml import etree
+            xml = etree.tostring(el, encoding="unicode")
+            has_break = 'w:br' in xml and 'page' in xml
+            # Текст — всё что не в тегах
+            text = "".join(el.itertext()).strip()
+            return has_break and not text
+
+        while body_elements and _is_page_break_para(body_elements[0]):
+            body_elements.pop(0)
+
+        if inserted > 0 and body_elements:
             master.add_page_break()
 
-        for element in src_doc.element.body:
-            tag = element.tag.split("}")[-1] if "}" in element.tag else element.tag
-            if tag == "sectPr":
-                continue
+        for element in body_elements:
             el_copy = deepcopy(element)
-            # Патчим все вхождения старых rId на новые
             if rid_remap:
                 _patch_rids(el_copy, rid_remap)
             master.element.body.append(el_copy)
