@@ -512,6 +512,17 @@ async def stream_pipeline():
     )
 
 
+@app.post("/agents/normalize-one")
+async def normalize_one(data: dict):
+    """Нормализует один JSON (из кэша браузера)."""
+    err = _check_agents()
+    if err:
+        raise HTTPException(status_code=503, detail=err)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, normalize, data)
+    return result
+
+
 @app.post("/agents/verify-one")
 async def verify_one(data: dict):
     """Верифицирует один JSON (из кэша браузера)."""
