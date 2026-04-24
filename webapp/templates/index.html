@@ -85,6 +85,16 @@
     .log-panel .err { color: #fca5a5; }
     .log-panel .info{ color: #93c5fd; }
 
+    /* Карточка разобранного отчёта */
+    .parsed-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+                   padding: 12px 14px; margin-bottom: 10px; font-size: 12px; }
+    .parsed-card h4 { font-size: 13px; color: #1a56a0; margin-bottom: 8px; font-weight: bold; }
+    .parsed-card table { width: 100%; border-collapse: collapse; }
+    .parsed-card td { padding: 3px 6px; vertical-align: top; }
+    .parsed-card td:first-child { color: #666; width: 120px; white-space: nowrap; font-weight: bold; }
+    .parsed-card td:last-child { color: #222; }
+    .parsed-card .parse-err { color: #dc2626; font-style: italic; }
+
     /* Спиннер */
     .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff;
                border-top-color: transparent; border-radius: 50%; animation: spin .6s linear infinite;
@@ -149,6 +159,15 @@
 
     <hr class="divider"/>
 
+    <div>
+      <div class="section-title">Разобрать отчёты (Claude AI)</div>
+      <input type="password" id="inp-api-key" placeholder="sk-ant-..." class="api-key-input"
+             style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;margin-bottom:6px"/>
+      <button class="btn btn-blue" onclick="parseReports()">Извлечь структуру из отчётов</button>
+    </div>
+
+    <hr class="divider"/>
+
     <button class="btn btn-gray" onclick="downloadAll()">Забрать всё (ZIP)</button>
 
     <hr class="divider"/>
@@ -171,6 +190,12 @@
     <div class="results-panel">
       <div class="results-title">Готовые файлы</div>
       <div id="results-list"></div>
+
+      <!-- Распарсенные данные из отчётов -->
+      <div id="parsed-panel" style="display:none;margin-top:16px">
+        <div class="results-title" style="margin-bottom:8px">Структура отчётов (Claude AI)</div>
+        <div id="parsed-list"></div>
+      </div>
     </div>
 
     <!-- Лог -->
@@ -340,6 +365,63 @@
     a.click();
     document.body.removeChild(a);
     logLine("Загрузка архива началась.", "ok");
+  }
+
+  // ── Claude API: разбор отчётов ────────────────────────────────────────────
+
+  async function parseReports() {
+    const apiKey = document.getElementById("inp-api-key").value.trim();
+    if (!apiKey) { logLine("Введите API ключ Anthropic (sk-ant-...)", "err"); return; }
+
+    logLine("Отправляю отчёты на анализ Claude API...");
+    const fd = new FormData();
+    fd.append("api_key", apiKey);
+
+    let data;
+    try {
+      const res = await fetch("/parse/reports", { method: "POST", body: fd });
+      data = await res.json();
+      if (!res.ok) throw new Error(data.detail || res.statusText);
+    } catch (e) {
+      logLine("Ошибка разбора: " + e.message, "err");
+      return;
+    }
+
+    logLine(`Разобрано ${data.count} файлов`, "ok");
+
+    const panel = document.getElementById("parsed-panel");
+    const list  = document.getElementById("parsed-list");
+    panel.style.display = "block";
+
+    const LABELS = {
+      date: "Дата",
+      company: "Компания",
+      object: "Объект",
+      inspector: "Инспектор",
+      weather: "Погода",
+      work_done: "Выполнено",
+      violations: "Нарушения",
+      conclusion: "Вывод",
+      report_number: "Номер отчёта",
+      work_volume: "Объём работ",
+    };
+
+    list.innerHTML = data.parsed.map(r => {
+      if (r._parse_error) {
+        return `<div class="parsed-card"><h4>${r._source_file}</h4>
+          <span class="parse-err">Не удалось разобрать</span></div>`;
+      }
+      const rows = Object.entries(LABELS)
+        .filter(([k]) => r[k])
+        .map(([k, label]) => `<tr><td>${label}</td><td>${r[k]}</td></tr>`)
+        .join("");
+      return `<div class="parsed-card">
+        <h4>${r._source_file}</h4>
+        <table>${rows}</table>
+      </div>`;
+    }).join("");
+
+    logLine("Готово.", "ok");
   }
 
   // ── Очистка ───────────────────────────────────────────────────────────────
