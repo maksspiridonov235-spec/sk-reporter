@@ -69,7 +69,7 @@ def extract_full_text(filepath: str) -> str:
 def parse_report(filepath: str, api_key: Optional[str] = None) -> Optional[dict]:
     """
     Разбирает отчёт и возвращает структурированный dict.
-    api_key берётся из параметра или переменной окружения ANTHROPIC_API_KEY.
+    api_key и base_url берутся из переменных окружения ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL.
     """
     key = api_key or os.environ.get("ANTHROPIC_API_KEY")
     if not key:

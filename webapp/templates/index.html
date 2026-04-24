@@ -161,8 +161,6 @@
 
     <div>
       <div class="section-title">Разобрать отчёты (Claude AI)</div>
-      <input type="password" id="inp-api-key" placeholder="sk-ant-..." class="api-key-input"
-             style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;margin-bottom:6px"/>
       <button class="btn btn-blue" onclick="parseReports()">Извлечь структуру из отчётов</button>
     </div>
 
@@ -370,16 +368,11 @@
   // ── Claude API: разбор отчётов ────────────────────────────────────────────
 
   async function parseReports() {
-    const apiKey = document.getElementById("inp-api-key").value.trim();
-    if (!apiKey) { logLine("Введите API ключ Anthropic (sk-ant-...)", "err"); return; }
-
-    logLine("Отправляю отчёты на анализ Claude API...");
-    const fd = new FormData();
-    fd.append("api_key", apiKey);
+    logLine("Отправляю отчёты на анализ Claude AI...");
 
     let data;
     try {
-      const res = await fetch("/parse/reports", { method: "POST", body: fd });
+      const res = await fetch("/parse/reports", { method: "POST" });
       data = await res.json();
       if (!res.ok) throw new Error(data.detail || res.statusText);
     } catch (e) {
