@@ -1,10 +1,12 @@
 import os
 import io
+import json
 import shutil
 import tempfile
 import zipfile
 from pathlib import Path
 import sys
+import asyncio
 from docx import Document
 
 # Добавляем корень проекта в путь, чтобы видеть agent
@@ -33,15 +35,17 @@ except ImportError as e:
     AGENT_ENABLED = False
     print(f"[WARNING] Agent not found: {e}")
 
-# Импорт парсера и pipeline на Claude API
+# Импорт агентов
 try:
-    from agent.report_parser import parse_reports_batch
+    from agent.report_parser import parse_report, parse_reports_batch
+    from agent.normalizer import normalize
+    from agent.verifier import verify
     from agent.pipeline import run_pipeline, pipeline_summary
     PARSER_ENABLED = True
-    print("[INFO] Claude API parser + pipeline ready")
+    print("[INFO] Claude API agents ready")
 except ImportError as e:
     PARSER_ENABLED = False
-    print(f"[WARNING] Parser not found: {e}")
+    print(f"[WARNING] Agents not found: {e}")
 
 app = FastAPI(title="Объединение отчётов СК")
 templates = Jinja2Templates(directory="templates")
@@ -373,39 +377,150 @@ async def list_results():
     return {"files": sorted(files)}
 
 
-# ── Разбор отчётов через Claude API ────────────────────────────────────────
+# ── Страница агентов ────────────────────────────────────────────────────────
 
-@app.post("/parse/reports")
-async def parse_reports_endpoint():
-    """Только парсинг — без нормализации и верификации."""
+@app.get("/agents", response_class=HTMLResponse)
+async def agents_page(request: Request):
+    files = sorted(f.name for f in UPLOAD_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc"))
+    return templates.TemplateResponse("agents.html", {
+        "request": request,
+        "files": files,
+        "agent_ready": PARSER_ENABLED and bool(os.environ.get("ANTHROPIC_API_KEY")),
+    })
+
+
+# ── SSE: потоковый запуск агентов ───────────────────────────────────────────
+
+def _sse(data: dict) -> str:
+    return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _check_agents():
     if not PARSER_ENABLED:
-        raise HTTPException(status_code=503, detail="Парсер недоступен")
+        return "Агенты недоступны (import error)"
     if not os.environ.get("ANTHROPIC_API_KEY"):
-        raise HTTPException(status_code=503, detail="ANTHROPIC_API_KEY не задан в окружении сервера")
+        return "ANTHROPIC_API_KEY не задан"
+    return None
 
-    files = [str(f) for f in UPLOAD_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
+
+async def _stream_agent(agent_name: str, files: list[str], agent_fn):
+    """Универсальный SSE-генератор для одного агента."""
+    err = _check_agents()
+    if err:
+        yield _sse({"type": "error", "msg": err})
+        return
+
     if not files:
-        raise HTTPException(status_code=404, detail="Нет загруженных отчётов")
+        yield _sse({"type": "error", "msg": "Нет загруженных отчётов"})
+        return
 
-    results = parse_reports_batch(files)
-    return {"parsed": results, "count": len(results)}
+    yield _sse({"type": "start", "agent": agent_name, "total": len(files)})
+
+    for i, fp in enumerate(files):
+        filename = Path(fp).name
+        yield _sse({"type": "progress", "file": filename, "index": i + 1, "total": len(files)})
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, agent_fn, fp)
+        yield _sse({"type": "result", "file": filename, "data": result})
+
+    yield _sse({"type": "done", "agent": agent_name})
 
 
-@app.post("/pipeline/run")
-async def run_pipeline_endpoint():
-    """Полный pipeline: Парсер → Нормализатор → Верификатор."""
-    if not PARSER_ENABLED:
-        raise HTTPException(status_code=503, detail="Pipeline недоступен")
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        raise HTTPException(status_code=503, detail="ANTHROPIC_API_KEY не задан в окружении сервера")
+@app.get("/agents/stream/parse")
+async def stream_parse():
+    files = sorted(str(f) for f in UPLOAD_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc"))
+    return StreamingResponse(
+        _stream_agent("Парсер", files, parse_report),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
-    files = [str(f) for f in UPLOAD_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
-    if not files:
-        raise HTTPException(status_code=404, detail="Нет загруженных отчётов")
 
-    results = run_pipeline(files)
-    summary = pipeline_summary(results)
-    return {"results": results, "summary": summary, "count": len(results)}
+@app.get("/agents/stream/normalize")
+async def stream_normalize(file: str):
+    """Нормализует один файл (принимает имя файла, читает из кэша сессии)."""
+    err = _check_agents()
+    if err:
+        async def _err():
+            yield _sse({"type": "error", "msg": err})
+        return StreamingResponse(_err(), media_type="text/event-stream")
+
+    async def _gen():
+        yield _sse({"type": "start", "agent": "Нормализатор", "total": 1})
+        # parsed передаётся через тело — здесь упрощённо через query
+        yield _sse({"type": "info", "msg": f"Используй /agents/stream/pipeline для полного цикла"})
+        yield _sse({"type": "done", "agent": "Нормализатор"})
+
+    return StreamingResponse(_gen(), media_type="text/event-stream")
+
+
+@app.get("/agents/stream/pipeline")
+async def stream_pipeline():
+    """Полный pipeline файл за файлом через SSE."""
+    files = sorted(str(f) for f in UPLOAD_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc"))
+
+    async def _gen():
+        err = _check_agents()
+        if err:
+            yield _sse({"type": "error", "msg": err})
+            return
+        if not files:
+            yield _sse({"type": "error", "msg": "Нет загруженных отчётов"})
+            return
+
+        yield _sse({"type": "start", "agent": "Pipeline", "total": len(files)})
+        loop = asyncio.get_event_loop()
+        ok_count = 0
+        fail_count = 0
+
+        for i, fp in enumerate(files):
+            filename = Path(fp).name
+
+            yield _sse({"type": "progress", "file": filename, "index": i + 1,
+                        "total": len(files), "step": "parse"})
+            parsed = await loop.run_in_executor(None, parse_report, fp)
+            if not parsed:
+                yield _sse({"type": "result", "file": filename,
+                            "error": "Парсер не смог извлечь данные"})
+                fail_count += 1
+                continue
+
+            yield _sse({"type": "progress", "file": filename, "index": i + 1,
+                        "total": len(files), "step": "normalize"})
+            normalized = await loop.run_in_executor(None, normalize, parsed)
+
+            yield _sse({"type": "progress", "file": filename, "index": i + 1,
+                        "total": len(files), "step": "verify"})
+            verification = await loop.run_in_executor(None, verify, normalized)
+
+            if verification.get("ok"):
+                ok_count += 1
+            else:
+                fail_count += 1
+
+            yield _sse({"type": "result", "file": filename,
+                        "parsed": parsed, "normalized": normalized,
+                        "verification": verification})
+
+        yield _sse({"type": "done", "agent": "Pipeline",
+                    "ok": ok_count, "fail": fail_count, "total": len(files)})
+
+    return StreamingResponse(
+        _gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.post("/agents/verify-one")
+async def verify_one(data: dict):
+    """Верифицирует один JSON (из кэша браузера)."""
+    err = _check_agents()
+    if err:
+        raise HTTPException(status_code=503, detail=err)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, verify, data)
+    return result
 
 
 # ── Очистить загруженные файлы ──────────────────────────────────────────────
