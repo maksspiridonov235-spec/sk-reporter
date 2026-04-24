@@ -44,7 +44,10 @@ PARSE_PROMPT = """Ты — эксперт по разбору ежедневны
 
 
 def extract_full_text(filepath: str) -> str:
-    """Извлекает весь текст из docx для отправки в Claude."""
+    """
+    Извлекает текст из docx без дублей из merged-ячеек.
+    Каждая строка таблицы — уникальные значения ячеек через ' | '.
+    """
     try:
         doc = Document(filepath)
         parts = []
@@ -56,13 +59,13 @@ def extract_full_text(filepath: str) -> str:
 
         for table in doc.tables:
             for row in table.rows:
-                row_texts = []
+                seen = []
                 for cell in row.cells:
                     t = cell.text.strip()
-                    if t:
-                        row_texts.append(t)
-                if row_texts:
-                    parts.append(" | ".join(row_texts))
+                    if t and t not in seen:
+                        seen.append(t)
+                if seen:
+                    parts.append(" | ".join(seen))
 
         return "\n".join(parts)
     except Exception as e:
