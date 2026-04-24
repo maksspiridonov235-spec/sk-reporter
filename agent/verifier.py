@@ -6,8 +6,12 @@
 import os
 import re
 import json
+import time
 from typing import Optional
 import anthropic
+
+MAX_RETRIES = 3
+RETRY_DELAY = 5
 
 MODEL = "claude-sonnet-4-6"
 
@@ -40,26 +44,38 @@ def verify(normalized: dict, api_key: Optional[str] = None) -> dict:
         print("[VERIFY] ANTHROPIC_API_KEY не задан — пропускаем верификацию")
         return {"ok": True, "score": 0, "missing": [], "warnings": ["Верификатор отключён"], "summary": ""}
 
-    try:
-        client = anthropic.Anthropic(api_key=key)
-        response = client.messages.create(
-            model=MODEL,
-            max_tokens=512,
-            system=PROMPT,
-            messages=[{
-                "role": "user",
-                "content": f"Проверь отчёт:\n{json.dumps(normalized, ensure_ascii=False, indent=2)}"
-            }],
-        )
-        raw = response.content[0].text.strip()
-        raw = re.sub(r"^```(?:json)?\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
-        result = json.loads(raw)
-        result["_source_file"] = normalized.get("_source_file")
-        score = result.get("score", "?")
-        ok = result.get("ok", False)
-        print(f"[VERIFY] {'OK' if ok else 'FAIL'} score={score}: {normalized.get('_source_file')}")
-        return result
-    except Exception as e:
-        print(f"[VERIFY] ERROR: {e}")
-        return {"ok": False, "score": 0, "missing": [], "warnings": [str(e)], "summary": "Ошибка верификатора"}
+    client = anthropic.Anthropic(api_key=key)
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = client.messages.create(
+                model=MODEL,
+                max_tokens=512,
+                system=PROMPT,
+                messages=[{
+                    "role": "user",
+                    "content": f"Проверь отчёт:\n{json.dumps(normalized, ensure_ascii=False, indent=2)}"
+                }],
+            )
+            raw = response.content[0].text.strip()
+            raw = re.sub(r"^```(?:json)?\s*", "", raw)
+            raw = re.sub(r"\s*```$", "", raw)
+            raw = raw.strip()
+            if not raw:
+                print(f"[VERIFY] Пустой ответ (попытка {attempt})")
+                if attempt < MAX_RETRIES:
+                    time.sleep(RETRY_DELAY)
+                    continue
+                return {"ok": False, "score": 0, "missing": [], "warnings": ["Пустой ответ модели"], "summary": ""}
+            result = json.loads(raw)
+            result["_source_file"] = normalized.get("_source_file")
+            score = result.get("score", "?")
+            ok = result.get("ok", False)
+            print(f"[VERIFY] {'OK' if ok else 'FAIL'} score={score}: {normalized.get('_source_file')}")
+            return result
+        except Exception as e:
+            print(f"[VERIFY] ERROR (попытка {attempt}): {e}")
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+
+    return {"ok": False, "score": 0, "missing": [], "warnings": ["Все попытки исчерпаны"], "summary": "Ошибка верификатора"}
