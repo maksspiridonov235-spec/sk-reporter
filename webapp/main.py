@@ -33,6 +33,15 @@ except ImportError as e:
     AGENT_ENABLED = False
     print(f"[WARNING] Agent not found: {e}")
 
+# Импорт парсера на Claude API
+try:
+    from agent.report_parser import parse_reports_batch
+    PARSER_ENABLED = True
+    print("[INFO] Claude API parser ready")
+except ImportError as e:
+    PARSER_ENABLED = False
+    print(f"[WARNING] Parser not found: {e}")
+
 app = FastAPI(title="Объединение отчётов СК")
 templates = Jinja2Templates(directory="templates")
 
@@ -361,6 +370,25 @@ async def download(filename: str):
 async def list_results():
     files = [f.name for f in RESULT_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
     return {"files": sorted(files)}
+
+
+# ── Разбор отчётов через Claude API ────────────────────────────────────────
+
+@app.post("/parse/reports")
+async def parse_reports_endpoint(api_key: str = Form(...)):
+    """Извлекает структурированные данные из загруженных отчётов через Claude API."""
+    if not PARSER_ENABLED:
+        raise HTTPException(status_code=503, detail="Парсер недоступен")
+
+    files = [
+        str(f) for f in UPLOAD_DIR.iterdir()
+        if f.suffix.lower() in (".docx", ".doc")
+    ]
+    if not files:
+        raise HTTPException(status_code=404, detail="Нет загруженных отчётов")
+
+    results = parse_reports_batch(files, api_key=api_key)
+    return {"parsed": results, "count": len(results)}
 
 
 # ── Очистить загруженные файлы ──────────────────────────────────────────────
