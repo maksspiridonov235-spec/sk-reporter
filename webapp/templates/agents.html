@@ -116,26 +116,27 @@
   <div class="agents-row">
 
     <div class="agent-card">
-      <h3>Агент 1 — Парсер</h3>
-      <p>Читает docx и извлекает структурированные данные: дата, компания, объект, инспектор, работы.</p>
+      <h3>Шаг 1 — Парсер</h3>
+      <p>Читает docx и извлекает данные: дата, компания, объект, инспектор, работы. Смотришь результат — решаешь дальше.</p>
       <button class="btn btn-blue" onclick="runAgent('parse')" {% if not agent_ready %}disabled{% endif %}>
         Запустить парсер
       </button>
     </div>
 
     <div class="agent-card">
-      <h3>Агент 2 — Нормализатор + Верификатор</h3>
-      <p>Нормализует данные, приводит к единому формату, проверяет полноту и ставит оценку 0–100.</p>
-      <button class="btn btn-purple" onclick="runAgent('pipeline')" {% if not agent_ready %}disabled{% endif %}>
-        Полный pipeline
+      <h3>Шаг 2 — Нормализатор</h3>
+      <p>Чистит и приводит к единому формату уже распарсенные данные. Запускается после Шага 1.</p>
+      <button class="btn btn-purple" id="btn-normalize" onclick="runNormalizeOnly()"
+              {% if not agent_ready %}disabled{% endif %} disabled>
+        Нормализовать
       </button>
     </div>
 
     <div class="agent-card">
-      <h3>Только верификатор</h3>
-      <p>Запускает только проверку качества на уже распарсенных данных (из текущей сессии).</p>
-      <button class="btn btn-green" onclick="runVerifyOnly()" {% if not agent_ready %}disabled{% endif %}
-              id="btn-verify">
+      <h3>Шаг 3 — Верификатор</h3>
+      <p>Проверяет полноту и качество данных, ставит оценку 0–100. Запускается после Шага 2.</p>
+      <button class="btn btn-green" id="btn-verify" onclick="runVerifyOnly()"
+              {% if not agent_ready %}disabled{% endif %} disabled>
         Верифицировать
       </button>
     </div>
@@ -170,6 +171,11 @@
 
   // Кэш распарсенных данных для повторного использования
   const sessionCache = {};
+
+  function toggleJson(cardId) {
+    const el = document.getElementById("raw-" + cardId);
+    el.style.display = el.style.display === "block" ? "none" : "block";
+  }
 
   function showProgress(label) {
     const w = document.getElementById("progress-wrap");
@@ -218,14 +224,21 @@
     // Только парсинг
     if (!data.verification) {
       const norm = data.parsed || data;
+      const cardId = "card-" + Math.random().toString(36).slice(2);
       const fields = Object.entries(LABELS)
         .filter(([k]) => norm[k])
         .map(([k, l]) => `<div class="r-field"><span class="r-label">${l}</span><span class="r-value">${norm[k]}</span></div>`)
         .join("");
+      const jsonStr = JSON.stringify(norm, null, 2);
       sessionCache[file] = norm;
-      area.innerHTML += `<div class="r-card">
-        <div class="r-card-header">${file} <span class="badge badge-step">PARSED</span></div>
-        <div class="r-grid">${fields}</div>
+      area.innerHTML += `<div class="r-card" id="${cardId}">
+        <div class="r-card-header">
+          ${file}
+          <span class="badge badge-step">PARSED</span>
+          <button class="toggle-raw" onclick="toggleJson('${cardId}')">{ } JSON</button>
+        </div>
+        <div class="r-grid">${fields || '<span style="color:#888">Данные не извлечены</span>'}</div>
+        <pre class="parse-raw" id="raw-${cardId}">${jsonStr}</pre>
       </div>`;
       return;
     }
@@ -267,28 +280,31 @@
     </div>`;
   }
 
+  function unlockNextStep(step) {
+    if (step >= 2) document.getElementById("btn-normalize").disabled = false;
+    if (step >= 3) document.getElementById("btn-verify").disabled = false;
+  }
+
   async function runAgent(type) {
-    const url = type === "parse" ? "/agents/stream/parse" : "/agents/stream/pipeline";
-    const label = type === "parse" ? "Парсер: читаю файлы..." : "Pipeline: парсинг → нормализация → верификация...";
-    showProgress(label);
+    const url = "/agents/stream/parse";
+    showProgress("Шаг 1 / Парсер: читаю файлы...");
+    document.getElementById("results-area").innerHTML = "";
+    Object.keys(sessionCache).forEach(k => delete sessionCache[k]);
 
     const es = new EventSource(url);
-    let total = 0;
 
     es.onmessage = (e) => {
       const msg = JSON.parse(e.data);
-
       if (msg.type === "start") {
-        total = msg.total;
+        // nothing
       } else if (msg.type === "progress") {
-        updateProgress(msg.index, msg.total, msg.step);
-        document.getElementById("progress-label").textContent =
-          `${msg.step === "parse" ? "Парсинг" : msg.step === "normalize" ? "Нормализация" : "Верификация"}: ${msg.file}`;
+        updateProgress(msg.index, msg.total, "parse");
+        document.getElementById("progress-label").textContent = `Парсинг: ${msg.file}`;
       } else if (msg.type === "result") {
         renderCard(msg.file, msg);
       } else if (msg.type === "done") {
         hideProgress();
-        if (msg.ok !== undefined) showSummary(msg.ok, msg.fail, msg.total);
+        unlockNextStep(2);
         es.close();
       } else if (msg.type === "error") {
         hideProgress();
@@ -298,34 +314,75 @@
       }
     };
 
-    es.onerror = () => {
-      hideProgress();
-      es.close();
-    };
+    es.onerror = () => { hideProgress(); es.close(); };
   }
 
-  async function runVerifyOnly() {
+  async function runNormalizeOnly() {
     const cached = Object.keys(sessionCache);
-    if (!cached.length) {
-      alert("Сначала запустите Парсер — нужны данные из отчётов.");
-      return;
-    }
+    if (!cached.length) { alert("Сначала запустите Парсер."); return; }
 
-    showProgress(`Верификация ${cached.length} отчётов...`);
+    showProgress(`Шаг 2 / Нормализация ${cached.length} отчётов...`);
     document.getElementById("results-area").innerHTML = "";
 
     for (let i = 0; i < cached.length; i++) {
       const file = cached[i];
+      updateProgress(i + 1, cached.length, "normalize");
+      document.getElementById("progress-label").textContent = `Нормализация: ${file}`;
+
+      const res = await fetch("/agents/normalize-one", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sessionCache[file]),
+      });
+      const norm = await res.json();
+      sessionCache[file] = norm;
+
+      // Показываем нормализованную карточку с JSON
+      const cardId = "card-norm-" + i;
+      const fields = Object.entries(LABELS)
+        .filter(([k]) => norm[k])
+        .map(([k, l]) => `<div class="r-field"><span class="r-label">${l}</span><span class="r-value">${norm[k]}</span></div>`)
+        .join("");
+      const jsonStr = JSON.stringify(norm, null, 2);
+      document.getElementById("results-area").innerHTML += `
+        <div class="r-card" id="${cardId}">
+          <div class="r-card-header">
+            ${file}
+            <span class="badge" style="background:#ede9fe;color:#6d28d9">NORMALIZED</span>
+            <button class="toggle-raw" onclick="toggleJson('${cardId}')">{ } JSON</button>
+          </div>
+          <div class="r-grid">${fields || '<span style="color:#888">Нет данных</span>'}</div>
+          <pre class="parse-raw" id="raw-${cardId}">${jsonStr}</pre>
+        </div>`;
+    }
+    hideProgress();
+    unlockNextStep(3);
+  }
+
+  async function runVerifyOnly() {
+    const cached = Object.keys(sessionCache);
+    if (!cached.length) { alert("Сначала запустите Нормализатор."); return; }
+
+    showProgress(`Шаг 3 / Верификация ${cached.length} отчётов...`);
+    document.getElementById("results-area").innerHTML = "";
+
+    let ok = 0, fail = 0;
+    for (let i = 0; i < cached.length; i++) {
+      const file = cached[i];
       updateProgress(i + 1, cached.length, "verify");
+      document.getElementById("progress-label").textContent = `Верификация: ${file}`;
+
       const res = await fetch("/agents/verify-one", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(sessionCache[file]),
       });
-      const data = await res.json();
-      renderCard(file, { normalized: sessionCache[file], verification: data });
+      const ver = await res.json();
+      if (ver.ok) ok++; else fail++;
+      renderCard(file, { normalized: sessionCache[file], verification: ver });
     }
     hideProgress();
+    showSummary(ok, fail, cached.length);
   }
 </script>
 </body>
