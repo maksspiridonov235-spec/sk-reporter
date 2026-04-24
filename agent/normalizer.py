@@ -6,8 +6,12 @@
 import os
 import re
 import json
+import time
 from typing import Optional
 import anthropic
+
+MAX_RETRIES = 3
+RETRY_DELAY = 5
 
 MODEL = "claude-sonnet-4-6"
 
@@ -37,24 +41,36 @@ def normalize(parsed: dict, api_key: Optional[str] = None) -> dict:
         print("[NORM] ANTHROPIC_API_KEY не задан — пропускаем нормализацию")
         return parsed
 
-    try:
-        client = anthropic.Anthropic(api_key=key)
-        response = client.messages.create(
-            model=MODEL,
-            max_tokens=1024,
-            system=PROMPT,
-            messages=[{
-                "role": "user",
-                "content": f"Нормализуй:\n{json.dumps(parsed, ensure_ascii=False, indent=2)}"
-            }],
-        )
-        raw = response.content[0].text.strip()
-        raw = re.sub(r"^```(?:json)?\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
-        result = json.loads(raw)
-        result["_source_file"] = parsed.get("_source_file")
-        print(f"[NORM] OK: {parsed.get('_source_file')}")
-        return result
-    except Exception as e:
-        print(f"[NORM] ERROR: {e}")
-        return parsed
+    client = anthropic.Anthropic(api_key=key)
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = client.messages.create(
+                model=MODEL,
+                max_tokens=1024,
+                system=PROMPT,
+                messages=[{
+                    "role": "user",
+                    "content": f"Нормализуй:\n{json.dumps(parsed, ensure_ascii=False, indent=2)}"
+                }],
+            )
+            raw = response.content[0].text.strip()
+            raw = re.sub(r"^```(?:json)?\s*", "", raw)
+            raw = re.sub(r"\s*```$", "", raw)
+            raw = raw.strip()
+            if not raw:
+                print(f"[NORM] Пустой ответ (попытка {attempt})")
+                if attempt < MAX_RETRIES:
+                    time.sleep(RETRY_DELAY)
+                    continue
+                return parsed
+            result = json.loads(raw)
+            result["_source_file"] = parsed.get("_source_file")
+            print(f"[NORM] OK: {parsed.get('_source_file')}")
+            return result
+        except Exception as e:
+            print(f"[NORM] ERROR (попытка {attempt}): {e}")
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+
+    return parsed

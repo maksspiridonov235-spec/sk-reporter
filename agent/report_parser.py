@@ -6,13 +6,17 @@
 import json
 import os
 import re
+import time
 from pathlib import Path
 from typing import Optional
 
 import anthropic
 from docx import Document
 
-MODEL = "claude-haiku-4-5"
+MAX_RETRIES = 3
+RETRY_DELAY = 5
+
+MODEL = "claude-sonnet-4-6"
 
 PARSE_PROMPT = """Ты — эксперт по разбору ежедневных отчётов строительного контроля (СК).
 
@@ -84,35 +88,47 @@ def parse_report(filepath: str, api_key: Optional[str] = None) -> Optional[dict]
     filename = Path(filepath).name
     print(f"[PARSE] Анализирую: {filename}")
 
-    try:
-        client = anthropic.Anthropic(api_key=key)
-        response = client.messages.create(
-            model=MODEL,
-            max_tokens=1024,
-            system=PARSE_PROMPT,
-            messages=[
-                {
+    client = anthropic.Anthropic(api_key=key)
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = client.messages.create(
+                model=MODEL,
+                max_tokens=1024,
+                system=PARSE_PROMPT,
+                messages=[{
                     "role": "user",
                     "content": f"Разбери отчёт:\n\nИмя файла: {filename}\n\n{text[:4000]}"
-                }
-            ],
-        )
+                }],
+            )
 
-        raw = response.content[0].text.strip()
-        raw = re.sub(r"^```(?:json)?\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
+            raw = response.content[0].text.strip()
+            raw = re.sub(r"^```(?:json)?\s*", "", raw)
+            raw = re.sub(r"\s*```$", "", raw)
+            raw = raw.strip()
+            if not raw:
+                print(f"[PARSE] Пустой ответ (попытка {attempt}): {filename}")
+                if attempt < MAX_RETRIES:
+                    time.sleep(RETRY_DELAY)
+                    continue
+                return None
 
-        data = json.loads(raw)
-        data["_source_file"] = filename
-        print(f"[PARSE] OK: {filename} → {data.get('company')} / {data.get('date')}")
-        return data
+            data = json.loads(raw)
+            data["_source_file"] = filename
+            print(f"[PARSE] OK: {filename} → {data.get('company')} / {data.get('date')}")
+            return data
 
-    except json.JSONDecodeError as e:
-        print(f"[ERROR] JSON parse failed for {filename}: {e}")
-        return None
-    except Exception as e:
-        print(f"[ERROR] Claude API error for {filename}: {e}")
-        return None
+        except json.JSONDecodeError as e:
+            print(f"[PARSE] JSON ошибка (попытка {attempt}): {e}")
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+        except Exception as e:
+            print(f"[PARSE] API ошибка (попытка {attempt}): {e}")
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+
+    print(f"[PARSE] Все попытки исчерпаны: {filename}")
+    return None
 
 
 def parse_reports_batch(filepaths: list[str], api_key: Optional[str] = None) -> list[dict]:
