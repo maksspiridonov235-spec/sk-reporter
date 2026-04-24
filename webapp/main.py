@@ -33,11 +33,12 @@ except ImportError as e:
     AGENT_ENABLED = False
     print(f"[WARNING] Agent not found: {e}")
 
-# Импорт парсера на Claude API
+# Импорт парсера и pipeline на Claude API
 try:
     from agent.report_parser import parse_reports_batch
+    from agent.pipeline import run_pipeline, pipeline_summary
     PARSER_ENABLED = True
-    print("[INFO] Claude API parser ready")
+    print("[INFO] Claude API parser + pipeline ready")
 except ImportError as e:
     PARSER_ENABLED = False
     print(f"[WARNING] Parser not found: {e}")
@@ -376,22 +377,35 @@ async def list_results():
 
 @app.post("/parse/reports")
 async def parse_reports_endpoint():
-    """Извлекает структурированные данные из загруженных отчётов через Claude API."""
+    """Только парсинг — без нормализации и верификации."""
     if not PARSER_ENABLED:
         raise HTTPException(status_code=503, detail="Парсер недоступен")
-
     if not os.environ.get("ANTHROPIC_API_KEY"):
         raise HTTPException(status_code=503, detail="ANTHROPIC_API_KEY не задан в окружении сервера")
 
-    files = [
-        str(f) for f in UPLOAD_DIR.iterdir()
-        if f.suffix.lower() in (".docx", ".doc")
-    ]
+    files = [str(f) for f in UPLOAD_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
     if not files:
         raise HTTPException(status_code=404, detail="Нет загруженных отчётов")
 
     results = parse_reports_batch(files)
     return {"parsed": results, "count": len(results)}
+
+
+@app.post("/pipeline/run")
+async def run_pipeline_endpoint():
+    """Полный pipeline: Парсер → Нормализатор → Верификатор."""
+    if not PARSER_ENABLED:
+        raise HTTPException(status_code=503, detail="Pipeline недоступен")
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        raise HTTPException(status_code=503, detail="ANTHROPIC_API_KEY не задан в окружении сервера")
+
+    files = [str(f) for f in UPLOAD_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
+    if not files:
+        raise HTTPException(status_code=404, detail="Нет загруженных отчётов")
+
+    results = run_pipeline(files)
+    summary = pipeline_summary(results)
+    return {"results": results, "summary": summary, "count": len(results)}
 
 
 # ── Очистить загруженные файлы ──────────────────────────────────────────────
