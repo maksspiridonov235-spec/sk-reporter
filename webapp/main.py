@@ -375,10 +375,13 @@ async def list_results():
 # ── Разбор отчётов через Claude API ────────────────────────────────────────
 
 @app.post("/parse/reports")
-async def parse_reports_endpoint(api_key: str = Form(...)):
+async def parse_reports_endpoint():
     """Извлекает структурированные данные из загруженных отчётов через Claude API."""
     if not PARSER_ENABLED:
         raise HTTPException(status_code=503, detail="Парсер недоступен")
+
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        raise HTTPException(status_code=503, detail="ANTHROPIC_API_KEY не задан в окружении сервера")
 
     files = [
         str(f) for f in UPLOAD_DIR.iterdir()
@@ -387,7 +390,7 @@ async def parse_reports_endpoint(api_key: str = Form(...)):
     if not files:
         raise HTTPException(status_code=404, detail="Нет загруженных отчётов")
 
-    results = parse_reports_batch(files, api_key=api_key)
+    results = parse_reports_batch(files)
     return {"parsed": results, "count": len(results)}
 
 
