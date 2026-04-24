@@ -85,15 +85,26 @@
     .log-panel .err { color: #fca5a5; }
     .log-panel .info{ color: #93c5fd; }
 
-    /* Карточка разобранного отчёта */
+    /* Карточка pipeline */
     .parsed-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
                    padding: 12px 14px; margin-bottom: 10px; font-size: 12px; }
-    .parsed-card h4 { font-size: 13px; color: #1a56a0; margin-bottom: 8px; font-weight: bold; }
+    .parsed-card h4 { font-size: 13px; color: #1a56a0; margin-bottom: 8px; font-weight: bold;
+                      display: flex; align-items: center; gap: 8px; }
     .parsed-card table { width: 100%; border-collapse: collapse; }
     .parsed-card td { padding: 3px 6px; vertical-align: top; }
     .parsed-card td:first-child { color: #666; width: 120px; white-space: nowrap; font-weight: bold; }
     .parsed-card td:last-child { color: #222; }
     .parsed-card .parse-err { color: #dc2626; font-style: italic; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; }
+    .badge-ok   { background: #d1fae5; color: #065f46; }
+    .badge-fail { background: #fee2e2; color: #991b1b; }
+    .score-bar { height: 4px; background: #e5e7eb; border-radius: 2px; margin: 6px 0 8px; }
+    .score-fill { height: 4px; border-radius: 2px; background: #1a56a0; }
+    .warnings-list { margin: 6px 0 0; padding-left: 14px; color: #b45309; }
+    .pipeline-summary { background: #1a56a0; color: #fff; border-radius: 8px; padding: 10px 14px;
+                        margin-bottom: 12px; font-size: 13px; display: flex; gap: 20px; align-items: center; }
+    .pipeline-summary span { opacity: .85; }
+    .pipeline-summary strong { font-size: 16px; }
 
     /* Спиннер */
     .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff;
@@ -160,8 +171,8 @@
     <hr class="divider"/>
 
     <div>
-      <div class="section-title">Разобрать отчёты (Claude AI)</div>
-      <button class="btn btn-blue" onclick="parseReports()">Извлечь структуру из отчётов</button>
+      <div class="section-title">AI Pipeline (Claude)</div>
+      <button class="btn btn-blue" onclick="runPipeline()">Разобрать → Проверить отчёты</button>
     </div>
 
     <hr class="divider"/>
@@ -365,57 +376,88 @@
     logLine("Загрузка архива началась.", "ok");
   }
 
-  // ── Claude API: разбор отчётов ────────────────────────────────────────────
+  // ── AI Pipeline ────────────────────────────────────────────────────────────
 
-  async function parseReports() {
-    logLine("Отправляю отчёты на анализ Claude AI...");
+  const LABELS = {
+    date: "Дата", company: "Компания", object: "Объект",
+    inspector: "Инспектор", weather: "Погода", work_done: "Выполнено",
+    violations: "Нарушения", conclusion: "Вывод",
+    report_number: "№ отчёта", work_volume: "Объём работ",
+  };
+
+  async function runPipeline() {
+    logLine("Запускаю pipeline: Парсер → Нормализатор → Верификатор...");
 
     let data;
     try {
-      const res = await fetch("/parse/reports", { method: "POST" });
+      const res = await fetch("/pipeline/run", { method: "POST" });
       data = await res.json();
       if (!res.ok) throw new Error(data.detail || res.statusText);
     } catch (e) {
-      logLine("Ошибка разбора: " + e.message, "err");
+      logLine("Ошибка pipeline: " + e.message, "err");
       return;
     }
 
-    logLine(`Разобрано ${data.count} файлов`, "ok");
+    const s = data.summary;
+    logLine(`Pipeline завершён. Всего: ${s.total}, OK: ${s.ok}, с замечаниями: ${s.fail}, средний балл: ${s.avg_score}`, "ok");
 
     const panel = document.getElementById("parsed-panel");
     const list  = document.getElementById("parsed-list");
     panel.style.display = "block";
 
-    const LABELS = {
-      date: "Дата",
-      company: "Компания",
-      object: "Объект",
-      inspector: "Инспектор",
-      weather: "Погода",
-      work_done: "Выполнено",
-      violations: "Нарушения",
-      conclusion: "Вывод",
-      report_number: "Номер отчёта",
-      work_volume: "Объём работ",
-    };
+    const summaryHtml = `
+      <div class="pipeline-summary">
+        <div>Файлов: <strong>${s.total}</strong></div>
+        <div>✓ Прошли: <strong>${s.ok}</strong></div>
+        <div>✗ Замечания: <strong>${s.fail}</strong></div>
+        <div>Средний балл: <strong>${s.avg_score}</strong></div>
+      </div>`;
 
-    list.innerHTML = data.parsed.map(r => {
-      if (r._parse_error) {
-        return `<div class="parsed-card"><h4>${r._source_file}</h4>
-          <span class="parse-err">Не удалось разобрать</span></div>`;
+    const cardsHtml = data.results.map(r => {
+      if (r._pipeline_error) {
+        return `<div class="parsed-card">
+          <h4>${r._source_file} <span class="badge badge-fail">ОШИБКА</span></h4>
+          <span class="parse-err">${r._pipeline_error}</span>
+        </div>`;
       }
+
+      const norm = r.normalized || {};
+      const ver  = r.verification || {};
+      const ok   = ver.ok;
+      const score = ver.score ?? 0;
+
       const rows = Object.entries(LABELS)
-        .filter(([k]) => r[k])
-        .map(([k, label]) => `<tr><td>${label}</td><td>${r[k]}</td></tr>`)
+        .filter(([k]) => norm[k])
+        .map(([k, label]) => `<tr><td>${label}</td><td>${norm[k]}</td></tr>`)
         .join("");
+
+      const warnings = (ver.warnings || []).length
+        ? `<ul class="warnings-list">${ver.warnings.map(w => `<li>${w}</li>`).join("")}</ul>`
+        : "";
+
+      const missing = (ver.missing || []).length
+        ? `<div style="color:#dc2626;font-size:11px;margin-top:4px">Не заполнено: ${ver.missing.join(", ")}</div>`
+        : "";
+
       return `<div class="parsed-card">
-        <h4>${r._source_file}</h4>
+        <h4>
+          ${r._source_file}
+          <span class="badge ${ok ? 'badge-ok' : 'badge-fail'}">${ok ? '✓ OK' : '✗ Замечания'}</span>
+          <span style="margin-left:auto;font-size:11px;color:#888">${score}/100</span>
+        </h4>
+        <div class="score-bar"><div class="score-fill" style="width:${score}%"></div></div>
+        ${ver.summary ? `<div style="color:#444;margin-bottom:6px;font-size:12px"><em>${ver.summary}</em></div>` : ""}
         <table>${rows}</table>
+        ${missing}
+        ${warnings}
       </div>`;
     }).join("");
 
+    list.innerHTML = summaryHtml + cardsHtml;
     logLine("Готово.", "ok");
   }
+
+  async function parseReports() { runPipeline(); }
 
   // ── Очистка ───────────────────────────────────────────────────────────────
 
