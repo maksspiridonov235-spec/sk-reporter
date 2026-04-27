@@ -16,6 +16,9 @@ from lxml import etree
 
 from docx import Document
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from companies import COMPANIES
 
 # Преобразуем в формат для агента: название → список ключевых слов
