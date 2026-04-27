@@ -7,6 +7,7 @@ import zipfile
 from pathlib import Path
 import sys
 import asyncio
+from typing import Literal
 from docx import Document
 
 # Добавляем корень проекта в путь, чтобы видеть agent
@@ -76,7 +77,13 @@ if PROJECT_TEMPLATES.exists():
 
 # ── Слияние: агент или fallback ────────────────────────────────────────────
 
-def _do_merge(template_path: str, report_paths: list[str], output_path: str) -> int:
+def _do_merge(template_path: str, report_paths: list[str], output_path: str, date_mode: Literal["today", "yesterday"] = "today") -> int:
+    # Меняем дату в шаблоне перед сборкой
+    from docx_processing import replace_date_in_report_line
+    template_doc = Document(template_path)
+    replace_date_in_report_line(template_doc, date_mode)
+    template_doc.save(template_path)
+
     if AGENT_ENABLED:
         import shutil
         shutil.copy2(template_path, output_path)
@@ -347,23 +354,16 @@ async def merge_all_stream():
         for name, keywords in COMPANIES:
             kw_lower = [k.lower() for k in keywords]
 
-            # Дебаг: выводим какие файлы есть в TEMPLATES_DIR
-            available_templates = list(TEMPLATES_DIR.iterdir())
-            print(f"[DEBUG] Ищу шаблон для '{name}', ключевые слова: {kw_lower}")
-            print(f"[DEBUG] Доступные шаблоны ({len(available_templates)}): {[f.name for f in available_templates[:3]]}")
-
             template = next(
-                (f for f in available_templates
+                (f for f in TEMPLATES_DIR.iterdir()
                  if any(k in f.name.lower() for k in kw_lower) and f.suffix.lower() in (".docx", ".doc")),
                 None
             )
             if not template:
                 msg = f"Шаблон для «{name}» не найден — пропущено"
-                print(f"[DEBUG] Шаблон не найден для {name}")
                 yield _sse({"type": "warning", "company": name, "msg": msg})
                 errors.append(msg)
                 continue
-            print(f"[DEBUG] ✓ Найден шаблон для {name}: {template.name}")
 
             # УМНЫЙ ПОИСК ОТЧЁТОВ
             reports = find_reports_for_company(name, keywords)
