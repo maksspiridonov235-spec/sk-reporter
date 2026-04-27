@@ -61,6 +61,15 @@ TEMPLATES_DIR = WORK_DIR / "contractor_templates"
 for d in (UPLOAD_DIR, RESULT_DIR, TEMPLATES_DIR):
     d.mkdir(exist_ok=True)
 
+# Автоматически копируем шаблоны из проекта при запуске
+PROJECT_TEMPLATES = Path(__file__).parent.parent / "contractor_report" / "болванки (шаблоны не вырезать только копировать)"
+if PROJECT_TEMPLATES.exists():
+    for template_file in PROJECT_TEMPLATES.glob("*.docx"):
+        dest = TEMPLATES_DIR / template_file.name
+        if not dest.exists():
+            shutil.copy2(template_file, dest)
+    print(f"[INFO] Loaded {len(list(TEMPLATES_DIR.glob('*.docx')))} templates from project")
+
 
 # ── Слияние: агент или fallback ────────────────────────────────────────────
 
@@ -148,6 +157,21 @@ async def upload_templates(files: list[UploadFile] = File(...)):
             shutil.copyfileobj(f.file, out)
         saved.append(f.filename)
     return {"uploaded": saved, "count": len(saved)}
+
+
+@app.post("/sync/templates")
+async def sync_templates():
+    """Синхронизирует шаблоны из проекта в рабочую директорию."""
+    if not PROJECT_TEMPLATES.exists():
+        return {"error": "Папка с шаблонами в проекте не найдена"}
+
+    synced = []
+    for template_file in PROJECT_TEMPLATES.glob("*.docx"):
+        dest = TEMPLATES_DIR / template_file.name
+        shutil.copy2(template_file, dest)
+        synced.append(template_file.name)
+
+    return {"synced": synced, "count": len(synced)}
 
 
 # ── Список загруженных файлов ───────────────────────────────────────────────
