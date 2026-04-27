@@ -595,12 +595,17 @@ def rename_templates(folder: str, mode: Literal["today", "yesterday"]) -> list[s
             for para in doc.paragraphs:
                 full_text = "".join(run.text for run in para.runs)
                 if old_date in full_text:
+                    print(f"  [FOUND] В параграфе найдена дата: '{old_date}'")
+                    print(f"  [BEFORE] {full_text[:100]}")
                     new_text = full_text.replace(old_date, new_date)
+                    print(f"  [AFTER] {new_text[:100]}")
                     if para.runs:
                         para.runs[0].text = new_text
                         for run in para.runs[1:]:
                             r = run._element
                             r.getparent().remove(r)
+                    else:
+                        print(f"  [ERROR] В параграфе нет runs!")
 
             # Меняем дату в таблицах
             for table in doc.tables:
