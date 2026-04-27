@@ -230,6 +230,22 @@ async def run_macro(macro_name: str):
 
 # ── Переименовать файлы шаблонов ────────────────────────────────────────────
 
+@app.post("/rename/templates/{mode}")
+async def rename_templates_only(mode: str):
+    if mode not in ("today", "yesterday"):
+        raise HTTPException(status_code=400, detail="mode должен быть today или yesterday")
+    log = rename_templates(str(TEMPLATES_DIR), mode)
+    return {"log": log}
+
+
+@app.post("/rename/results/{mode}")
+async def rename_results_only(mode: str):
+    if mode not in ("today", "yesterday"):
+        raise HTTPException(status_code=400, detail="mode должен быть today или yesterday")
+    log = rename_results(str(RESULT_DIR), mode)
+    return {"log": log}
+
+
 @app.post("/rename/{mode}")
 async def rename(mode: str):
     if mode not in ("today", "yesterday"):
