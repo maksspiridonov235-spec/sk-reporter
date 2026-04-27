@@ -50,13 +50,6 @@
     /* Центральная область */
     .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
-    /* Список компаний */
-    .companies-grid { padding: 16px; display: grid;
-                      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
-    .company-btn { padding: 10px 8px; background: #fff; border: 1px solid #cbd5e1;
-                   border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold;
-                   text-align: center; transition: background .15s, border-color .15s; }
-    .company-btn:hover { background: #e8f0fb; border-color: #1a56a0; color: #1a56a0; }
 
     /* Результаты */
     .results-panel { padding: 0 16px 16px; flex: 1; overflow-y: auto; }
@@ -192,13 +185,6 @@
   <!-- Основная область -->
   <div class="main">
 
-    <!-- Кнопки компаний -->
-    <div class="companies-grid">
-      {% for company in companies %}
-      <div class="company-btn" onclick="mergeOne('{{ company }}')">{{ company }}</div>
-      {% endfor %}
-    </div>
-
     <!-- Результаты -->
     <div class="results-panel">
       <div class="results-title">Готовые файлы</div>
@@ -311,14 +297,6 @@
   }
 
   // ── Объединение ───────────────────────────────────────────────────────────
-
-  async function mergeOne(company) {
-    logLine(`Формирую отчёт: ${company}...`);
-    const data = await apiFetch(`/merge/${encodeURIComponent(company)}`, { method: "POST" });
-    logLine(`${company}: вставлено ${data.inserted} отчётов → ${data.result}`, "ok");
-    logLine("Готово.", "ok");
-    refreshResults();
-  }
 
   async function mergeAll() {
     logLine("Формирую все отчёты...");
