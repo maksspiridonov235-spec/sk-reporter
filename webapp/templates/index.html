@@ -162,27 +162,7 @@
 
     <hr class="divider"/>
 
-    <div>
-      <div class="section-title">Дата для отчётов</div>
-      <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer;">
-        <input type="radio" name="merge-date" value="today" checked/>
-        <span style="font-size: 13px;">Сегодня</span>
-      </label>
-      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-        <input type="radio" name="merge-date" value="yesterday"/>
-        <span style="font-size: 13px;">Вчера</span>
-      </label>
-    </div>
-
     <button class="btn btn-green" onclick="mergeAll()">Сформировать все отчёты</button>
-
-    <div id="rename-results-buttons" style="display: none; margin-top: 12px;">
-      <div class="section-title">Переименовать результаты</div>
-      <button class="btn btn-orange" style="margin-bottom: 6px; font-size: 12px;"
-              onclick="renameResults('today')">Результаты → сегодня</button>
-      <button class="btn btn-orange" style="font-size: 12px;"
-              onclick="renameResults('yesterday')">Результаты → вчера</button>
-    </div>
 
     <hr class="divider"/>
 
@@ -314,15 +294,6 @@
     refreshResults();
   }
 
-  async function renameResults(mode) {
-    logLine(`Переименование результатов (дата → ${mode === "today" ? "сегодня" : "вчера"})...`);
-    const data = await apiFetch(`/rename/results/${mode}`, { method: "POST" });
-    data.log.forEach(line => logLine(line, line.startsWith("Ошибка") ? "err" : "ok"));
-    if (data.log.length === 0) logLine("Нет файлов для переименования.", "info");
-    logLine("Готово.", "ok");
-    refreshResults();
-  }
-
   // ── Объединение ───────────────────────────────────────────────────────────
 
   async function mergeOne(company) {
@@ -334,11 +305,10 @@
   }
 
   async function mergeAll() {
-    const dateMode = document.querySelector('input[name="merge-date"]:checked')?.value || "today";
-    logLine(`Формирую все отчёты (дата: ${dateMode === "today" ? "сегодня" : "вчера"})...`);
+    logLine("Формирую все отчёты...");
 
     try {
-      const response = await fetch(`/merge/all/stream?date=${dateMode}`);
+      const response = await fetch("/merge/all/stream");
       if (!response.ok) throw new Error(response.statusText);
 
       const reader = response.body.getReader();
@@ -385,11 +355,6 @@
               const summary = `Завершено. Собрано: ${data.results.length}, без болванки: ${(data.unmatched||[]).length}, не распознано: ${(data.unmatched_unknown||[]).length}`;
               logLine(summary, (data.unmatched_unknown||[]).length ? "err" : "ok");
               logLine("Готово.", "ok");
-
-              // Показываем кнопки для переименования результатов
-              if (data.results.length > 0) {
-                document.getElementById("rename-results-buttons").style.display = "block";
-              }
             }
           } catch (e) {
             console.error("Parse error:", e);
