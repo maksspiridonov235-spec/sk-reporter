@@ -27,6 +27,7 @@ from docx_processing import (
     merge_reports,
     rename_files,
     rename_results,
+    rename_templates,
 )
 
 # Импорт агента
@@ -226,8 +227,9 @@ async def run_macro(macro_name: str):
 async def rename(mode: str):
     if mode not in ("today", "yesterday"):
         raise HTTPException(status_code=400, detail="mode должен быть today или yesterday")
-    log = rename_results(str(RESULT_DIR), mode)
-    return {"log": log}
+    results_log = rename_results(str(RESULT_DIR), mode)
+    templates_log = rename_templates(str(TEMPLATES_DIR), mode)
+    return {"log": results_log + templates_log}
 
 
 # ── Сформировать сводный отчёт (все компании) ──────────────────────────────

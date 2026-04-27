@@ -545,6 +545,56 @@ def rename_results(folder: str, mode: Literal["today", "yesterday"]) -> list[str
     return log
 
 
+def rename_templates(folder: str, mode: Literal["today", "yesterday"]) -> list[str]:
+    """
+    Переименовывает шаблоны и меняет дату внутри них.
+    НГП_Ежедневный отчёт СК за 02.08.2025г.docx → НГП_Ежедневный отчёт СК за DD.MM.YYYY.docx
+    """
+    new_date = (
+        datetime.now().strftime("%d.%m.%Y")
+        if mode == "today"
+        else (datetime.now() - timedelta(days=1)).strftime("%d.%m.%Y")
+    )
+    log = []
+    for filename in os.listdir(folder):
+        if not filename.lower().endswith((".docx", ".doc")):
+            continue
+        filepath = os.path.join(folder, filename)
+        try:
+            doc = Document(filepath)
+            old_date = _find_template_date(filename)
+
+            if not old_date:
+                log.append(f"Пропущен (дата не найдена): {filename}")
+                continue
+
+            # Меняем дату в параграфах
+            for para in doc.paragraphs:
+                if old_date in para.text:
+                    para.text = para.text.replace(old_date, new_date)
+
+            # Меняем дату в таблицах
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for para in cell.paragraphs:
+                            if old_date in para.text:
+                                para.text = para.text.replace(old_date, new_date)
+
+            doc.save(filepath)
+
+            # Переименовываем файл
+            new_name = filename.replace(old_date, new_date)
+            new_filepath = os.path.join(folder, new_name)
+            if filepath != new_filepath:
+                os.rename(filepath, new_filepath)
+
+            log.append(f"Обновлён: {filename} → {new_name}")
+        except Exception as e:
+            log.append(f"Ошибка: {filename} — {e}")
+    return log
+
+
 # ── Применение макроса к файлу ──────────────────────────────────────────────
 
 def apply_macro_to_file(filepath: str, macro_name: str) -> tuple[bool, str]:
