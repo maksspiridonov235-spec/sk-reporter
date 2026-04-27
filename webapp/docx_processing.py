@@ -209,8 +209,8 @@ def format_document(doc: Document) -> None:
 
 def replace_date_in_report_line(doc: Document, mode: Literal["today", "yesterday"]) -> bool:
     """
-    Находит абзац с текстом 'Отчёт строительного контроля по',
-    внутри него заменяет любую дату вида DD.MM.YYYY на сегодняшнюю или вчерашнюю.
+    Заменяет дату в ячейке [2,1] таблицы на сегодняшнюю или вчерашнюю.
+    Работает для всех типов отчётов (геодезия, обычные, несгруппированные).
     Возвращает True если замена выполнена.
     """
     target_date = (
@@ -218,27 +218,19 @@ def replace_date_in_report_line(doc: Document, mode: Literal["today", "yesterday
         if mode == "today"
         else (datetime.now() - timedelta(days=1)).strftime("%d.%m.%Y")
     )
-    MARKER = "отчёт строительного контроля по"
 
-    for para in doc.paragraphs:
-        if MARKER in para.text.lower():
-            for run in para.runs:
-                new_text = _DATE_RE.sub(target_date, run.text)
-                if new_text != run.text:
-                    run.text = new_text
-            return True
-
-    # Ищем и внутри таблиц (на случай если строка в таблице)
-    for tbl in doc.tables:
-        for row in tbl.rows:
-            for cell in row.cells:
-                for para in cell.paragraphs:
-                    if MARKER in para.text.lower():
-                        for run in para.runs:
-                            new_text = _DATE_RE.sub(target_date, run.text)
-                            if new_text != run.text:
-                                run.text = new_text
+    # Заменяем дату в ячейке [2,1] первой таблицы
+    if len(doc.tables) > 0:
+        table = doc.tables[0]
+        if len(table.rows) > 2 and len(table.rows[2].cells) > 1:
+            cell = table.rows[2].cells[1]
+            for para in cell.paragraphs:
+                for run in para.runs:
+                    new_text = _DATE_RE.sub(target_date, run.text)
+                    if new_text != run.text:
+                        run.text = new_text
                         return True
+
     return False
 
 
