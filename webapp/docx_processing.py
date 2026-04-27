@@ -19,6 +19,9 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
 from lxml import etree
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from companies import COMPANIES
 
 # Шаблонное имя файла-болванки. Дата в имени определяется автоматически.
