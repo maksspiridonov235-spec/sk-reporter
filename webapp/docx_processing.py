@@ -39,9 +39,13 @@ _DATE_RE = re.compile(
 
 
 def _find_template_date(filename: str) -> str | None:
-    """Возвращает дату из имени файла вида 'XX.XX.XXXX'."""
+    """Возвращает дату из имени файла вида 'XX.XX.XXXX' (без точки в конце)."""
     m = _DATE_RE.search(filename)
-    return m.group() if m else None
+    if not m:
+        return None
+    date_str = m.group()
+    # Удаляем точку в конце если она есть
+    return date_str.rstrip('.')
 
 
 # ── Макрос 1: HighlightSecondRow_No5991 ────────────────────────────────────
