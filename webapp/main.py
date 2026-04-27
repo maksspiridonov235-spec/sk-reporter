@@ -66,8 +66,7 @@ PROJECT_TEMPLATES = Path(__file__).parent.parent / "contractor_report" / "бол
 if PROJECT_TEMPLATES.exists():
     for template_file in PROJECT_TEMPLATES.glob("*.docx"):
         dest = TEMPLATES_DIR / template_file.name
-        if not dest.exists():
-            shutil.copy2(template_file, dest)
+        shutil.copy2(template_file, dest)
     print(f"[INFO] Loaded {len(list(TEMPLATES_DIR.glob('*.docx')))} templates from project")
 
 
@@ -188,8 +187,7 @@ async def list_templates():
     if PROJECT_TEMPLATES.exists():
         for template_file in PROJECT_TEMPLATES.glob("*.docx"):
             dest = TEMPLATES_DIR / template_file.name
-            if not dest.exists():
-                shutil.copy2(template_file, dest)
+            shutil.copy2(template_file, dest)
 
     files = [f.name for f in TEMPLATES_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
     return {"files": sorted(files)}
