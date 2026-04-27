@@ -330,6 +330,112 @@ async def merge_all():
     }
 
 
+# ── Сформировать все отчёты (с SSE потоком логов) ────────────────────────────
+
+@app.get("/merge/all/stream")
+async def merge_all_stream():
+    """Сформировать все отчёты с потоковым выводом логов через SSE."""
+
+    async def _gen():
+        results = []
+        errors = []
+
+        yield _sse({"type": "start", "msg": "Начинаю формирование отчётов..."})
+
+        for name, keywords in COMPANIES:
+            kw_lower = [k.lower() for k in keywords]
+
+            template = next(
+                (f for f in TEMPLATES_DIR.iterdir()
+                 if any(k in f.name.lower() for k in kw_lower) and f.suffix.lower() in (".docx", ".doc")),
+                None
+            )
+            if not template:
+                msg = f"Template for '{name}' not found — skipped"
+                yield _sse({"type": "warning", "company": name, "msg": msg})
+                errors.append(msg)
+                continue
+
+            # УМНЫЙ ПОИСК ОТЧЁТОВ
+            reports = find_reports_for_company(name, keywords)
+            yield _sse({"type": "info", "company": name, "msg": f"Found {len(reports)} reports"})
+
+            if not reports:
+                yield _sse({"type": "info", "company": name, "msg": "No reports found, skipping"})
+                continue
+
+            output_path = RESULT_DIR / f"{name}_merged.docx"
+            try:
+                inserted = _do_merge(str(template), [str(r) for r in reports], str(output_path))
+                results.append({
+                    "company": name,
+                    "inserted": inserted,
+                    "file": f"{name}_merged.docx",
+                    "reports_count": len(reports)
+                })
+                yield _sse({"type": "success", "company": name, "msg": f"Merged: {inserted} reports → {name}_merged.docx"})
+            except Exception as e:
+                msg = f"'{name}': {str(e)}"
+                yield _sse({"type": "error", "company": name, "msg": msg})
+                errors.append(msg)
+
+        # Определяем какие файлы вошли в сборку
+        all_matched: set = set()
+        for r in results:
+            company_name = r["company"]
+            company = next((c for c in COMPANIES if c[0] == company_name), None)
+            if company:
+                for f in UPLOAD_DIR.iterdir():
+                    if f.suffix.lower() not in (".docx", ".doc"):
+                        continue
+                    if AGENT_ENABLED:
+                        detected = detect_company(str(f))
+                        if detected and detected == company_name:
+                            all_matched.add(f)
+                    else:
+                        kw_lower = [k.lower() for k in company[1]]
+                        if any(k in f.name.lower() for k in kw_lower):
+                            all_matched.add(f)
+
+        # Файлы которые не попали ни в одну компанию — копируем как есть
+        unmatched = []
+        unmatched_unknown = []
+        for f in UPLOAD_DIR.iterdir():
+            if f.suffix.lower() not in (".docx", ".doc"):
+                continue
+            if f in all_matched:
+                continue
+            dest = RESULT_DIR / f.name
+            shutil.copy2(f, dest)
+            # Пробуем определить компанию через AI для лога
+            if AGENT_ENABLED:
+                detected = detect_company(str(f))
+                if detected:
+                    unmatched.append({"file": f.name, "company": detected, "reason": "нет болванки"})
+                    yield _sse({"type": "info", "msg": f"No template for '{detected}', copied: {f.name}"})
+                else:
+                    unmatched_unknown.append(f.name)
+                    yield _sse({"type": "warning", "msg": f"Company not detected, copied: {f.name}"})
+            else:
+                unmatched_unknown.append(f.name)
+
+        yield _sse({
+            "type": "done",
+            "results": results,
+            "errors": errors,
+            "total_merged": len(results),
+            "unmatched": unmatched,
+            "unmatched_unknown": unmatched_unknown,
+            "ai_agent_active": AGENT_ENABLED
+        })
+
+    return StreamingResponse(
+        _gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 # ── Объединить отчёты для одной компании ───────────────────────────────────
 
 @app.post("/merge/{company_name}")
