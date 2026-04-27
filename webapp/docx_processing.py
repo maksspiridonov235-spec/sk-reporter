@@ -24,29 +24,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from companies import COMPANIES
 
-# Regex для поиска дат в разных форматах (порядок важен!)
-# Сначала 4-digit год, потом 2-digit, чтобы не обрезать YYYY на YY
+# Regex для поиска дат в разных форматах
 _DATE_RE = re.compile(
-    r"\d{1,2}\s*[./\-]\s*\d{1,2}\s*[./\-]\s*\d{4}\s*г\.?|"  # DD.MM.YYYY с буквой г (с пробелами)
+    r"\d{1,2}\s*[./\-]\s*\d{1,2}\s*[./\-]\s*\d{4}\s*г\.?|"  # DD.MM.YYYY с буквой г
     r"\d{1,2}[./\-]\d{1,2}[./\-]\d{4}\s*г\.?|"               # DD.MM.YYYY с буквой г
-    r"\d{1,2}\s*[./\-]\s*\d{1,2}\s*[./\-]\s*\d{4}|"          # DD.MM.YYYY (с пробелами)
+    r"\d{1,2}\s*[./\-]\s*\d{1,2}\s*[./\-]\s*\d{4}|"          # DD.MM.YYYY
     r"\d{1,2}[./\-]\d{1,2}[./\-]\d{4}|"                      # DD.MM.YYYY
-    r"\d{1,2}\s*[./\-]\s*\d{1,2}\s*[./\-]\s*\d{2}\s*г\.?|"   # DD.MM.YY с буквой г (с пробелами)
+    r"\d{1,2}\s*[./\-]\s*\d{1,2}\s*[./\-]\s*\d{2}\s*г\.?|"   # DD.MM.YY с буквой г
     r"\d{1,2}[./\-]\d{1,2}[./\-]\d{2}\s*г\.?|"               # DD.MM.YY с буквой г
-    r"\d{1,2}\s*[./\-]\s*\d{1,2}\s*[./\-]\s*\d{2}|"          # DD.MM.YY (с пробелами)
+    r"\d{1,2}\s*[./\-]\s*\d{1,2}\s*[./\-]\s*\d{2}|"          # DD.MM.YY
     r"\d{1,2}[./\-]\d{1,2}[./\-]\d{2}"                       # DD.MM.YY
 )
-
-
-def _find_template_date(filename: str) -> str | None:
-    """Возвращает дату из имени файла вида 'XX.XX.XXXX' (без точки в конце)."""
-    m = _DATE_RE.search(filename)
-    if not m:
-        return None
-    date_str = m.group()
-    # Удаляем точку в конце если она есть
-    return date_str.rstrip('.')
-
 
 # ── Макрос 1: HighlightSecondRow_No5991 ────────────────────────────────────
 
@@ -573,8 +561,8 @@ def rename_results(folder: str, mode: Literal["today", "yesterday"]) -> list[str
 
 def rename_templates(folder: str, mode: Literal["today", "yesterday"]) -> list[str]:
     """
-    Переименовывает шаблоны и меняет дату внутри них.
-    НГП_Ежедневный отчёт СК за 02.08.2025г.docx → НГП_Ежедневный отчёт СК за DD.MM.YYYY.docx
+    Добавляет дату в конец первого параграфа каждого шаблона.
+    Шаблоны заканчиваются на "за " без даты.
     """
     new_date = (
         datetime.now().strftime("%d.%m.%Y")
@@ -588,45 +576,26 @@ def rename_templates(folder: str, mode: Literal["today", "yesterday"]) -> list[s
         filepath = os.path.join(folder, filename)
         try:
             doc = Document(filepath)
-            old_date = _find_template_date(filename)
-            print(f"[DEBUG] {filename} → old_date={old_date}, new_date={new_date}")
+            found = False
 
-            if not old_date:
-                log.append(f"Пропущен (дата не найдена): {filename}")
+            # Ищем первый параграф заканчивающийся на "за"
+            for para in doc.paragraphs:
+                para_text = para.text.strip()
+                if para_text.endswith("за"):
+                    # Добавляем дату в конец
+                    if para.runs:
+                        para.runs[-1].text += new_date + "г"
+                    else:
+                        para.add_run(new_date + "г")
+                    found = True
+                    break
+
+            if not found:
+                log.append(f"Пропущен (не найден параграф с 'за'): {filename}")
                 continue
 
-            # Меняем дату в параграфах
-            for para in doc.paragraphs:
-                full_text = "".join(run.text for run in para.runs)
-                if old_date in full_text:
-                    print(f"  [FOUND] В параграфе найдена дата: '{old_date}'")
-                    print(f"  [BEFORE] {full_text[:100]}")
-                    new_text = full_text.replace(old_date, new_date)
-                    print(f"  [AFTER] {new_text[:100]}")
-                    if para.runs:
-                        para.runs[0].text = new_text
-                        for run in para.runs[1:]:
-                            r = run._element
-                            r.getparent().remove(r)
-                    else:
-                        print(f"  [ERROR] В параграфе нет runs!")
-
-            # Меняем дату в таблицах
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        for para in cell.paragraphs:
-                            full_text = "".join(run.text for run in para.runs)
-                            if old_date in full_text:
-                                new_text = full_text.replace(old_date, new_date)
-                                if para.runs:
-                                    para.runs[0].text = new_text
-                                    for run in para.runs[1:]:
-                                        r = run._element
-                                        r.getparent().remove(r)
-
             doc.save(filepath)
-            log.append(f"Обновлён (дата внутри): {filename}")
+            log.append(f"Добавлена дата: {filename} → {new_date}г")
         except Exception as e:
             log.append(f"Ошибка: {filename} — {e}")
     return log
