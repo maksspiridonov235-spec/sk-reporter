@@ -136,15 +136,6 @@
       <div id="list-reports" class="file-list" style="margin-top:6px">Нет файлов</div>
     </div>
 
-    <div>
-      <div class="section-title">2. Шаблоны подрядчиков</div>
-      <div class="upload-zone" onclick="document.getElementById('inp-templates').click()">
-        <input type="file" id="inp-templates" multiple accept=".docx,.doc" onchange="uploadTemplates(this)"/>
-        <span>Болванки для каждой компании</span>
-      </div>
-      <div id="list-templates" class="file-list" style="margin-top:6px">Нет файлов</div>
-    </div>
-
     <hr class="divider"/>
 
     <div>
@@ -259,16 +250,6 @@
     logLine(`Загружено: ${data.count} файлов`, "ok");
     logLine("Готово.", "ok");
     refreshReportsList();
-  }
-
-  async function uploadTemplates(input) {
-    const fd = new FormData();
-    for (const f of input.files) fd.append("files", f);
-    logLine(`Загружаю ${input.files.length} шаблонов...`);
-    const data = await apiFetch("/upload/templates", { method: "POST", body: fd });
-    logLine(`Загружено: ${data.count} шаблонов`, "ok");
-    logLine("Готово.", "ok");
-    refreshTemplatesList();
   }
 
   async function refreshReportsList() {
@@ -467,12 +448,11 @@
   // ── Очистка ───────────────────────────────────────────────────────────────
 
   async function resetAll() {
-    if (!confirm("Сбросить всё? Удалятся отчёты, шаблоны и результаты.")) return;
+    if (!confirm("Сбросить всё? Удалятся отчёты и результаты.")) return;
     await apiFetch("/clear/all", { method: "DELETE" });
     document.getElementById("log").innerHTML = "";
     logLine("Все файлы удалены. Можно начинать заново.", "ok");
     refreshReportsList();
-    refreshTemplatesList();
     refreshResults();
   }
 
@@ -494,7 +474,6 @@
   }
 
   setupDrop("zone-reports", "inp-reports");
-  setupDrop("zone-templates", "inp-templates");
 
   // ── Растягивание лога ─────────────────────────────────────────────────────
   (function() {
@@ -526,7 +505,6 @@
 
   // Загружаем списки при старте
   refreshReportsList();
-  refreshTemplatesList();
   refreshResults();
 </script>
 </body>
