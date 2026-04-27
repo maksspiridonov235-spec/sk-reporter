@@ -58,9 +58,46 @@ def extract_text(filepath: str) -> str:
         return ""
 
 
+def detect_geodesy(filepath: str) -> Optional[str]:
+    """
+    Проверяет, является ли отчёт геодезическим контролем.
+    Ищет в таблице ячейку [2,3] (Направление контроля).
+    """
+    try:
+        doc = Document(filepath)
+        if len(doc.tables) == 0:
+            return None
+
+        table = doc.tables[0]
+        if len(table.rows) < 3:
+            return None
+
+        # Проверяем ячейку [2,3] — "Направление контроля"
+        row = table.rows[2]
+        if len(row.cells) < 4:
+            return None
+
+        direction_cell = row.cells[3].text.strip().lower()
+
+        if "геодезический" in direction_cell:
+            filename = Path(filepath).name
+            print(f"[GEODESY] {filename} → Геодезический контроль")
+            return "Геодезический контроль"
+
+        return None
+    except Exception as e:
+        print(f"[ERROR] detect_geodesy {filepath}: {e}")
+        return None
+
+
 def detect_company(filepath: str) -> Optional[str]:
     filename = Path(filepath).name
     filename_lower = filename.lower()
+
+    # Шаг 0: проверка геодезии (специальный случай)
+    geodesy = detect_geodesy(filepath)
+    if geodesy:
+        return geodesy
 
     # Шаг 1: проверка по всем вариантам написания в имени файла
     for company, keywords in COMPANIES_MAP.items():
