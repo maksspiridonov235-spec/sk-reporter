@@ -77,13 +77,7 @@ if PROJECT_TEMPLATES.exists():
 
 # ── Слияние: агент или fallback ────────────────────────────────────────────
 
-def _do_merge(template_path: str, report_paths: list[str], output_path: str, date_mode: Literal["today", "yesterday"] = "today") -> int:
-    # Меняем дату в шаблоне перед сборкой
-    from docx_processing import replace_date_in_report_line
-    template_doc = Document(template_path)
-    replace_date_in_report_line(template_doc, date_mode)
-    template_doc.save(template_path)
-
+def _do_merge(template_path: str, report_paths: list[str], output_path: str) -> int:
     if AGENT_ENABLED:
         import shutil
         shutil.copy2(template_path, output_path)

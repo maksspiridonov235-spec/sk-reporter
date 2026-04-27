@@ -585,6 +585,7 @@ def rename_templates(folder: str, mode: Literal["today", "yesterday"]) -> list[s
         try:
             doc = Document(filepath)
             old_date = _find_template_date(filename)
+            print(f"[DEBUG] {filename} → old_date={old_date}, new_date={new_date}")
 
             if not old_date:
                 log.append(f"Пропущен (дата не найдена): {filename}")
