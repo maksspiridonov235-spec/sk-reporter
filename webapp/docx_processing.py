@@ -543,11 +543,14 @@ def rename_results(folder: str, mode: Literal["today", "yesterday"]) -> list[str
         company = filename.replace("_merged.docx", "").replace("_merged.doc", "")
         ext = ".docx" if filename.lower().endswith(".docx") else ".doc"
         new_name = f"{company}_Ежедневный отчёт СК за {new_date}{ext}"
+        filepath = os.path.join(folder, filename)
         try:
-            os.rename(
-                os.path.join(folder, filename),
-                os.path.join(folder, new_name),
-            )
+            # Заменяем дату внутри документа
+            doc = Document(filepath)
+            replace_date_in_report_line(doc, mode)
+            doc.save(filepath)
+            # Переименовываем файл
+            os.rename(filepath, os.path.join(folder, new_name))
             log.append(f"Переименован: {filename} → {new_name}")
         except Exception as e:
             log.append(f"Ошибка: {filename} — {e}")
