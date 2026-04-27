@@ -616,14 +616,7 @@ def rename_templates(folder: str, mode: Literal["today", "yesterday"]) -> list[s
                                         r.getparent().remove(r)
 
             doc.save(filepath)
-
-            # Переименовываем файл
-            new_name = filename.replace(old_date, new_date)
-            new_filepath = os.path.join(folder, new_name)
-            if filepath != new_filepath:
-                os.rename(filepath, new_filepath)
-
-            log.append(f"Обновлён: {filename} → {new_name}")
+            log.append(f"Обновлён (дата внутри): {filename}")
         except Exception as e:
             log.append(f"Ошибка: {filename} — {e}")
     return log
