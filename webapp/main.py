@@ -234,6 +234,13 @@ async def run_macro(macro_name: str):
 async def rename_templates_only(mode: str):
     if mode not in ("today", "yesterday"):
         raise HTTPException(status_code=400, detail="mode должен быть today или yesterday")
+
+    # Синхронизируем шаблоны перед переименованием
+    if PROJECT_TEMPLATES.exists():
+        for template_file in PROJECT_TEMPLATES.glob("*.docx"):
+            dest = TEMPLATES_DIR / template_file.name
+            shutil.copy2(template_file, dest)
+
     log = rename_templates(str(TEMPLATES_DIR), mode)
     return {"log": log}
 
