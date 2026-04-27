@@ -239,14 +239,6 @@ async def rename(mode: str):
     return {"log": results_log + templates_log}
 
 
-@app.post("/rename/results/{mode}")
-async def rename_results_only(mode: str):
-    if mode not in ("today", "yesterday"):
-        raise HTTPException(status_code=400, detail="mode должен быть today или yesterday")
-    log = rename_results(str(RESULT_DIR), mode)
-    return {"log": log}
-
-
 # ── Сформировать сводный отчёт (все компании) ──────────────────────────────
 
 @app.post("/merge/all")
@@ -350,7 +342,7 @@ async def merge_all():
 # ── Сформировать все отчёты (с SSE потоком логов) ────────────────────────────
 
 @app.get("/merge/all/stream")
-async def merge_all_stream(date: Literal["today", "yesterday"] = "today"):
+async def merge_all_stream():
     """Сформировать все отчёты с потоковым выводом логов через SSE."""
 
     async def _gen():
@@ -383,7 +375,7 @@ async def merge_all_stream(date: Literal["today", "yesterday"] = "today"):
 
             output_path = RESULT_DIR / f"{name}_merged.docx"
             try:
-                inserted = _do_merge(str(template), [str(r) for r in reports], str(output_path), date)
+                inserted = _do_merge(str(template), [str(r) for r in reports], str(output_path))
                 results.append({
                     "company": name,
                     "inserted": inserted,
