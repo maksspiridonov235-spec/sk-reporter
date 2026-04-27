@@ -630,3 +630,51 @@ def apply_macro_to_file(filepath: str, macro_name: str) -> tuple[bool, str]:
 
     doc.save(filepath)
     return True, msg
+
+
+def extract_report_data(filepath: str) -> dict:
+    """Извлекает данные из отчёта для проверки описаний работ."""
+    try:
+        doc = Document(filepath)
+        if not doc.tables:
+            return None
+
+        table = doc.tables[0]
+        report_data = {
+            "filename": Path(filepath).name,
+            "works": []
+        }
+
+        # Парсим таблицу и ищем описания работ
+        for row_idx, row in enumerate(table.rows):
+            cells = [cell.text.strip() for cell in row.cells]
+
+            # Проверяем на признаки строки с работой (начинается с номера)
+            if cells and cells[0] and cells[0][0].isdigit() and "." in cells[0][:5]:
+                work = {
+                    "row": row_idx,
+                    "description": cells[0] if cells else "",
+                    "volumes": {}
+                }
+
+                # Ищем объёмы в этой строке
+                full_text = "".join(cells)
+                if "Проектный объем" in full_text:
+                    work["volumes"]["project"] = _extract_volume(full_text, "Проектный объем")
+                if "Объем за сутки" in full_text:
+                    work["volumes"]["daily"] = _extract_volume(full_text, "Объем за сутки")
+                if "Накопительный объем" in full_text:
+                    work["volumes"]["cumulative"] = _extract_volume(full_text, "Накопительный объем")
+
+                report_data["works"].append(work)
+
+        return report_data
+    except Exception as e:
+        return {"error": str(e), "filename": Path(filepath).name}
+
+
+def _extract_volume(text: str, label: str) -> str:
+    """Извлекает значение объёма из текста."""
+    pattern = rf"{label}\s*[–-]?\s*([^\.;,\n]+)"
+    match = re.search(pattern, text)
+    return match.group(1).strip() if match else ""
