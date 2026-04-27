@@ -347,16 +347,23 @@ async def merge_all_stream():
         for name, keywords in COMPANIES:
             kw_lower = [k.lower() for k in keywords]
 
+            # Дебаг: выводим какие файлы есть в TEMPLATES_DIR
+            available_templates = list(TEMPLATES_DIR.iterdir())
+            print(f"[DEBUG] Ищу шаблон для '{name}', ключевые слова: {kw_lower}")
+            print(f"[DEBUG] Доступные шаблоны ({len(available_templates)}): {[f.name for f in available_templates[:3]]}")
+
             template = next(
-                (f for f in TEMPLATES_DIR.iterdir()
+                (f for f in available_templates
                  if any(k in f.name.lower() for k in kw_lower) and f.suffix.lower() in (".docx", ".doc")),
                 None
             )
             if not template:
                 msg = f"Шаблон для «{name}» не найден — пропущено"
+                print(f"[DEBUG] Шаблон не найден для {name}")
                 yield _sse({"type": "warning", "company": name, "msg": msg})
                 errors.append(msg)
                 continue
+            print(f"[DEBUG] ✓ Найден шаблон для {name}: {template.name}")
 
             # УМНЫЙ ПОИСК ОТЧЁТОВ
             reports = find_reports_for_company(name, keywords)
