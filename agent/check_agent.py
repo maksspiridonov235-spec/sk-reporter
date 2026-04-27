@@ -6,154 +6,91 @@
 """
 
 import re
-import json
-from typing import Optional, List, Dict, Any
 from pathlib import Path
 from docx import Document
 
 MODEL = "gemma4:31b-cloud"
 
-SYSTEM_PROMPT = """Ты — помощник инженера, который переписывает его отчеты правильно.
+SYSTEM_PROMPT = """Ты — помощник инженера, который проверяет и переписывает его отчеты правильно.
 
-ПРАВИЛА:
+ПРАВИЛА ПРОВЕРКИ:
 1. ОБЪЕМЫ: накопительный объем должен быть ≤ проектному
 2. НУЛЕВЫЕ ОБЪЕМЫ: если суточный объем = 0, работу удалить
-3. ОПИСАНИЯ: только тип работы (без цифр объемов)
+3. ОПИСАНИЯ: только описание работы БЕЗ цифр объемов
 
-ФОРМАТ ОТВЕТА - для каждой работы показывай:
+ФОРМАТ ОТВЕТА - для каждой найденной ОШИБКИ:
 
-**БЫЛО (ошибки):**
-[показать что было неправильно]
+**БЫЛО (ошибка):**
+[точно что было]
 
 **ИСПРАВИТЬ НА:**
-[показать правильный вариант]
+[как правильно, с цифрами]
 
-Будь конкретен с цифрами и примерами."""
+Если ошибок нет - напиши: Ошибок не найдено.
+Будь конкретен и точен."""
 
 
-def extract_report_data(filepath: str) -> Dict[str, Any]:
+def extract_full_text(filepath: str) -> str:
     """
-    Извлекает данные о работах из DOCX отчета.
-    Возвращает структурированные данные о работах с объемами.
+    Извлекает весь текст из DOCX файла.
     """
     try:
         doc = Document(filepath)
-        works = []
-        work_counter = 0
+        parts = []
 
-        # Ищем в таблицах и тексте работы с объемами
+        # Вытаскиваем все параграфы
+        for para in doc.paragraphs:
+            text = para.text.strip()
+            if text:
+                parts.append(text)
+
+        # Вытаскиваем все таблицы
         for table in doc.tables:
             for row in table.rows:
-                cells = [cell.text.strip() for cell in row.cells]
-                row_text = " ".join(cells)
+                row_text = " | ".join(cell.text.strip() for cell in row.cells)
+                if row_text.strip():
+                    parts.append(row_text)
 
-                # Пытаемся найти паттерн: РАБОТА: 1. ... Проектный объем – X ... Объем за сутки – Y ...
-                if "Проектный объем" in row_text or "проектный объем" in row_text.lower():
-                    work_counter += 1
-                    # Собираем данные о работе
-                    work_data = {
-                        "id": work_counter,
-                        "description": cells[0] if cells else "",
-                        "project_volume": None,
-                        "daily_volume": None,
-                        "cumulative_volume": None,
-                    }
-
-                    # Парсим объемы
-                    project_match = re.search(r"Проектный объем[:\s–]+([0-9.,]+)", row_text)
-                    daily_match = re.search(r"Объем за сутки[:\s–]+([0-9.,]+)", row_text)
-                    cumul_match = re.search(r"Накопительный объем[:\s–]+([0-9.,]+)", row_text)
-
-                    if project_match:
-                        work_data["project_volume"] = float(project_match.group(1).replace(",", "."))
-                    if daily_match:
-                        work_data["daily_volume"] = float(daily_match.group(1).replace(",", "."))
-                    if cumul_match:
-                        work_data["cumulative_volume"] = float(cumul_match.group(1).replace(",", "."))
-
-                    works.append(work_data)
-
-        # Если в таблицах не нашли, парсим текст параграфов
-        if not works:
-            text_parts = []
-            for para in doc.paragraphs:
-                text_parts.append(para.text)
-            full_text = "\n".join(text_parts)
-
-            # Ищем все работы в формате "РАБОТА: N. ..."
-            work_sections = re.split(r"РАБОТА:\s*\d+\.", full_text)
-            for i, section in enumerate(work_sections[1:], 1):
-                work_data = {
-                    "id": i,
-                    "description": section[:100],  # первые 100 символов
-                    "project_volume": None,
-                    "daily_volume": None,
-                    "cumulative_volume": None,
-                }
-
-                project_match = re.search(r"Проектный объем[:\s–]+([0-9.,]+)", section)
-                daily_match = re.search(r"Объем за сутки[:\s–]+([0-9.,]+)", section)
-                cumul_match = re.search(r"Накопительный объем[:\s–]+([0-9.,]+)", section)
-
-                if project_match:
-                    work_data["project_volume"] = float(project_match.group(1).replace(",", "."))
-                if daily_match:
-                    work_data["daily_volume"] = float(daily_match.group(1).replace(",", "."))
-                if cumul_match:
-                    work_data["cumulative_volume"] = float(cumul_match.group(1).replace(",", "."))
-
-                works.append(work_data)
-
-        return {
-            "filepath": filepath,
-            "filename": Path(filepath).name,
-            "works": works,
-            "_source_file": Path(filepath).name,
-        }
+        return "\n".join(parts)
     except Exception as e:
-        print(f"[CHECK_AGENT] extract_report_data error: {e}")
-        return {
-            "filepath": filepath,
-            "filename": Path(filepath).name,
-            "works": [],
-            "error": str(e),
-            "_source_file": Path(filepath).name,
-        }
+        print(f"[CHECK_AGENT] extract_full_text error: {e}")
+        return ""
 
 
 def check_report(filepath: str) -> dict:
     """
     Основная функция агента.
-    Читает отчет, проверяет его и возвращает результаты.
+    Читает весь текст отчета и проверяет его.
     """
-    # Извлекаем данные
-    report_data = extract_report_data(filepath)
-    works = report_data.get("works", [])
+    filename = Path(filepath).name
 
-    if not works:
+    # Извлекаем весь текст
+    full_text = extract_full_text(filepath)
+
+    if not full_text:
         return {
             "ok": False,
-            "errors": [{"type": "parse_error", "message": "Не удалось распарсить работы из отчета"}],
-            "recommendations": ["Проверьте формат документа"],
-            "summary": "Ошибка парсинга",
-            "_source_file": report_data.get("_source_file"),
+            "report": "Не удалось прочитать содержимое отчета",
+            "_source_file": filename,
         }
 
-    # Подготавливаем промпт для агента
-    works_text = json.dumps(works, ensure_ascii=False, indent=2)
+    # Создаем промпт для LLM с полным текстом отчета
+    user_prompt = f"""Проверь этот отчет строительного контроля:
 
-    # Создаем промпт для LLM
-    user_prompt = f"""Вот данные работ из отчета:
+---ТЕКСТ ОТЧЕТА---
+{full_text}
+---КОНЕЦ ТЕКСТА---
 
-{works_text}
+Проверь по ПРАВИЛАМ:
+1. Объемы работ (нет ли превышения накопительного над проектным)
+2. Работы с нулевым суточным объемом (их нужно удалить)
+3. Описания (не содержат ли лишние цифры объемов)
 
-Проверь по правилам и покажи ДО/ПОСЛЕ для каждой работы с ошибками:
+Для каждой ОШИБКИ покажи:
+**БЫЛО:** [ошибка из отчета]
+**ИСПРАВИТЬ НА:** [правильный вариант]
 
-**БЫЛО:**
-[ошибки]
-
-**ИСПРАВИТЬ НА:**
-[правильный вариант с цифрами]"""
+Если ошибок нет - напиши только: Ошибок не найдено."""
 
     # Вызываем ollama
     try:
@@ -173,27 +110,25 @@ def check_report(filepath: str) -> dict:
             return {
                 "ok": False,
                 "report": "Ошибка: пустой ответ модели",
-                "_source_file": report_data.get("_source_file"),
+                "_source_file": filename,
             }
 
-        # Проверяем есть ли ошибки по ключевым словам
-        has_errors = any(word in report_text.lower() for word in ["ошибка", "проблема", "некорректно", "неправильно", "превышает", "удалить"])
+        # Проверяем есть ли ошибки
+        has_errors = "ошибок не найдено" not in report_text.lower()
 
         result = {
             "ok": not has_errors,
             "report": report_text,
-            "_source_file": report_data.get("_source_file"),
+            "_source_file": filename,
         }
 
-        print(f"[CHECK_AGENT] {'OK' if result['ok'] else 'ERRORS'}: {report_data.get('filename')}")
+        print(f"[CHECK_AGENT] {'OK' if result['ok'] else 'ERRORS'}: {filename}")
         return result
 
     except Exception as e:
         print(f"[CHECK_AGENT] Error calling ollama: {e}")
         return {
             "ok": False,
-            "errors": [{"type": "model_error", "message": str(e)}],
-            "recommendations": ["Попробуйте позже"],
-            "summary": f"Ошибка модели: {e}",
-            "_source_file": report_data.get("_source_file"),
+            "report": f"Ошибка проверки: {str(e)}",
+            "_source_file": filename,
         }
