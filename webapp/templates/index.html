@@ -104,6 +104,27 @@
                border-top-color: transparent; border-radius: 50%; animation: spin .6s linear infinite;
                vertical-align: middle; margin-left: 6px; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Вкладки */
+    .tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; background: #fafafa; }
+    .tab-btn { padding: 10px 16px; background: none; border: none; cursor: pointer;
+               font-size: 13px; color: #666; font-weight: bold; border-bottom: 2px solid transparent;
+               transition: color .2s; }
+    .tab-btn:hover { color: #1a56a0; }
+    .tab-btn.active { color: #1a56a0; border-bottom-color: #1a56a0; }
+
+    /* Контент вкладок */
+    .tab-content { display: none; flex: 1; overflow-y: auto; }
+    .tab-content.active { display: flex; flex-direction: column; }
+
+    /* Результаты проверки */
+    .check-results { padding: 16px; }
+    .check-report { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;
+                    padding: 14px; margin-bottom: 12px; }
+    .check-report h3 { font-size: 13px; color: #1a56a0; margin-bottom: 10px; font-weight: bold; }
+    .check-report-content { font-size: 12px; line-height: 1.6; color: #333; white-space: pre-wrap; font-family: 'Courier New', monospace; }
+    .check-report.ok { border-left: 4px solid #1e8c45; }
+    .check-report.error { border-left: 4px solid #dc2626; }
   </style>
 </head>
 <body>
@@ -192,15 +213,34 @@
   <!-- Основная область -->
   <div class="main">
 
-    <!-- Результаты -->
-    <div class="results-panel">
-      <div class="results-title">Готовые файлы</div>
-      <div id="results-list"></div>
+    <!-- Вкладки -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('results')">Готовые файлы</button>
+      <button class="tab-btn" onclick="switchTab('parsed')">Структура отчётов</button>
+      <button class="tab-btn" onclick="switchTab('check')">Результаты проверки</button>
+    </div>
 
-      <!-- Распарсенные данные из отчётов -->
-      <div id="parsed-panel" style="display:none;margin-top:16px">
-        <div class="results-title" style="margin-bottom:8px">Структура отчётов (Claude AI)</div>
+    <!-- Вкладка "Готовые файлы" -->
+    <div class="tab-content active" id="tab-results">
+      <div class="results-panel">
+        <div class="results-title">Готовые файлы</div>
+        <div id="results-list"></div>
+      </div>
+    </div>
+
+    <!-- Вкладка "Структура отчётов" -->
+    <div class="tab-content" id="tab-parsed">
+      <div class="results-panel">
+        <div class="results-title">Структура отчётов (Claude AI)</div>
         <div id="parsed-list"></div>
+      </div>
+    </div>
+
+    <!-- Вкладка "Результаты проверки" -->
+    <div class="tab-content" id="tab-check">
+      <div class="check-results">
+        <div class="results-title">Результаты проверки отчётов</div>
+        <div id="check-list"></div>
       </div>
     </div>
 
@@ -271,8 +311,22 @@
 
   // ── Проверка описаний ──────────────────────────────────────────────────────
 
+  // ── Переключение вкладок ──────────────────────────────────────────────────
+  function switchTab(tabName) {
+    // Скрываем все вкладки
+    document.querySelectorAll(".tab-content").forEach(tab => tab.classList.remove("active"));
+    document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+
+    // Показываем выбранную вкладку
+    document.getElementById(`tab-${tabName}`).classList.add("active");
+    event.target.classList.add("active");
+  }
+
   async function checkDescriptions() {
     logLine("Проверка описания действий в отчётах...", "info");
+    const checkList = document.getElementById("check-list");
+    checkList.innerHTML = ""; // Очищаем предыдущие результаты
+
     try {
       const response = await fetch("/check/descriptions/stream", { method: "POST" });
       if (!response.ok) throw new Error(response.statusText);
@@ -299,13 +353,23 @@
             } else if (data.type === "report") {
               logLine(data.filename, "info");
               logLine(data.msg, data.hasErrors ? "err" : "ok");
+
+              // Добавляем в вкладку "Результаты проверки"
               if (data.result && data.result.report) {
-                logLine(data.result.report, data.hasErrors ? "err" : "ok");
+                const reportEl = document.createElement("div");
+                reportEl.className = `check-report ${data.hasErrors ? "error" : "ok"}`;
+                reportEl.innerHTML = `
+                  <h3>${data.filename}</h3>
+                  <div class="check-report-content">${data.result.report}</div>
+                `;
+                checkList.appendChild(reportEl);
               }
             } else if (data.type === "error") {
               logLine(data.msg, "err");
             } else if (data.type === "done") {
               logLine("Проверка завершена.", "ok");
+              // Автоматически переходим на вкладку результатов
+              switchTab("check");
               if (data.summary) {
                 logLine(`Всего отчётов проверено: ${data.summary.total}`, "info");
                 logLine(`С ошибками: ${data.summary.errors}`, data.summary.errors > 0 ? "err" : "ok");
