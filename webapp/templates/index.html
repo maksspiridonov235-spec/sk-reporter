@@ -297,7 +297,11 @@
             if (data.type === "start") {
               logLine(data.msg, "info");
             } else if (data.type === "report") {
+              logLine(data.filename, "info");
               logLine(data.msg, data.hasErrors ? "err" : "ok");
+              if (data.result && data.result.report) {
+                logLine(data.result.report, data.hasErrors ? "err" : "ok");
+              }
             } else if (data.type === "error") {
               logLine(data.msg, "err");
             } else if (data.type === "done") {
