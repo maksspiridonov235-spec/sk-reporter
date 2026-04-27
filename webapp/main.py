@@ -198,6 +198,56 @@ async def list_templates():
     return {"files": sorted(files)}
 
 
+# ── Проверка описаний работ в отчётах ──────────────────────────────────────
+
+@app.post("/check/descriptions/stream")
+async def check_descriptions_stream():
+    """Проверяет загруженные отчёты через агента check_agent."""
+    from agent.check_agent import check_report
+
+    async def event_generator():
+        yield "data: " + json.dumps({"type": "start", "msg": "Начинаю проверку отчётов..."}) + "\n\n"
+
+        report_files = list(UPLOAD_DIR.glob("*.docx"))
+        if not report_files:
+            yield "data: " + json.dumps({"type": "error", "msg": "Отчёты не загружены"}) + "\n\n"
+            return
+
+        total = len(report_files)
+        errors_count = 0
+
+        for file_path in report_files:
+            try:
+                result = check_report(str(file_path))
+                has_errors = not result.get("ok", False)
+
+                if has_errors:
+                    errors_count += 1
+
+                yield "data: " + json.dumps({
+                    "type": "report",
+                    "filename": Path(file_path).name,
+                    "msg": f"{Path(file_path).name}: " + ("⚠️ найдены проблемы" if has_errors else "✓ ОК"),
+                    "hasErrors": has_errors,
+                    "result": result
+                }) + "\n\n"
+            except Exception as e:
+                yield "data: " + json.dumps({
+                    "type": "error",
+                    "msg": f"Ошибка проверки {Path(file_path).name}: {str(e)}"
+                }) + "\n\n"
+
+        yield "data: " + json.dumps({
+            "type": "done",
+            "summary": {
+                "total": total,
+                "errors": errors_count
+            }
+        }) + "\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
 # ── Применить макрос ко всем шаблонам ──────────────────────────────────────
 
 @app.post("/macro/{macro_name}")
