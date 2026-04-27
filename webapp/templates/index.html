@@ -274,7 +274,7 @@
   async function checkDescriptions() {
     logLine("Проверка описания действий в отчётах...", "info");
     try {
-      const response = await fetch("/check/descriptions/stream");
+      const response = await fetch("/check/descriptions/stream", { method: "POST" });
       if (!response.ok) throw new Error(response.statusText);
 
       const reader = response.body.getReader();
