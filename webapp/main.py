@@ -18,8 +18,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
 
+from companies import COMPANIES
 from docx_processing import (
-    COMPANIES,
     apply_macro_to_file,
     merge_reports,
     rename_files,
