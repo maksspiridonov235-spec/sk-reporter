@@ -592,16 +592,28 @@ def rename_templates(folder: str, mode: Literal["today", "yesterday"]) -> list[s
 
             # Меняем дату в параграфах
             for para in doc.paragraphs:
-                if old_date in para.text:
-                    para.text = para.text.replace(old_date, new_date)
+                full_text = "".join(run.text for run in para.runs)
+                if old_date in full_text:
+                    new_text = full_text.replace(old_date, new_date)
+                    if para.runs:
+                        para.runs[0].text = new_text
+                        for run in para.runs[1:]:
+                            r = run._element
+                            r.getparent().remove(r)
 
             # Меняем дату в таблицах
             for table in doc.tables:
                 for row in table.rows:
                     for cell in row.cells:
                         for para in cell.paragraphs:
-                            if old_date in para.text:
-                                para.text = para.text.replace(old_date, new_date)
+                            full_text = "".join(run.text for run in para.runs)
+                            if old_date in full_text:
+                                new_text = full_text.replace(old_date, new_date)
+                                if para.runs:
+                                    para.runs[0].text = new_text
+                                    for run in para.runs[1:]:
+                                        r = run._element
+                                        r.getparent().remove(r)
 
             doc.save(filepath)
 
