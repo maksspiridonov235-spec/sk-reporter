@@ -373,8 +373,14 @@
               logLine("Готово.", "ok");
 
               // Показываем кнопки для переименования результатов
-              if (data.results.length > 0) {
-                document.getElementById("rename-results-buttons").style.display = "block";
+              console.log("data.results:", data.results, "length:", data.results?.length);
+              if (data.results && data.results.length > 0) {
+                const btn = document.getElementById("rename-results-buttons");
+                console.log("Found button:", btn);
+                if (btn) {
+                  btn.style.display = "block";
+                  console.log("Buttons shown");
+                }
               }
             }
           } catch (e) {
