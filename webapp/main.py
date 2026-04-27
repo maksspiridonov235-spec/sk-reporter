@@ -28,7 +28,6 @@ from docx_processing import (
     rename_files,
     rename_results,
     rename_templates,
-    prepare_template_with_date,
 )
 
 # Импорт агента
@@ -78,12 +77,9 @@ if PROJECT_TEMPLATES.exists():
 # ── Слияние: агент или fallback ────────────────────────────────────────────
 
 def _do_merge(template_path: str, report_paths: list[str], output_path: str) -> int:
-    # Подготавливаем шаблон с актуальной датой
-    updated_template = prepare_template_with_date(template_path, str(RESULT_DIR))
-
     if AGENT_ENABLED:
         import shutil
-        shutil.copy2(updated_template, output_path)
+        shutil.copy2(template_path, output_path)
         inserted = 0
         for i, rp in enumerate(sorted(report_paths)):
             # Начиная со второго отчёта добавляем разрыв страницы
@@ -97,13 +93,9 @@ def _do_merge(template_path: str, report_paths: list[str], output_path: str) -> 
             import os; os.remove(tmp)
             if ok:
                 inserted += 1
-        # Удаляем временный шаблон
-        import os; os.remove(updated_template)
         return inserted
     else:
-        result = merge_reports(updated_template, report_paths, output_path)
-        import os; os.remove(updated_template)
-        return result
+        return merge_reports(template_path, report_paths, output_path)
 
 
 # ── Вспомогательная функция: Умный поиск отчётов ───────────────────────────
