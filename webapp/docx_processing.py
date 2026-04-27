@@ -24,8 +24,18 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from companies import COMPANIES
 
-# Шаблонное имя файла-болванки. Дата в имени определяется автоматически.
-_DATE_RE = re.compile(r"\d{2}\.\d{2}\.\d{4}")
+# Regex для поиска дат в разных форматах (порядок важен!)
+# Сначала 4-digit год, потом 2-digit, чтобы не обрезать YYYY на YY
+_DATE_RE = re.compile(
+    r"\d{1,2}\s*[./\-]\s*\d{1,2}\s*[./\-]\s*\d{4}\s*г\.?|"  # DD.MM.YYYY с буквой г (с пробелами)
+    r"\d{1,2}[./\-]\d{1,2}[./\-]\d{4}\s*г\.?|"               # DD.MM.YYYY с буквой г
+    r"\d{1,2}\s*[./\-]\s*\d{1,2}\s*[./\-]\s*\d{4}|"          # DD.MM.YYYY (с пробелами)
+    r"\d{1,2}[./\-]\d{1,2}[./\-]\d{4}|"                      # DD.MM.YYYY
+    r"\d{1,2}\s*[./\-]\s*\d{1,2}\s*[./\-]\s*\d{2}\s*г\.?|"   # DD.MM.YY с буквой г (с пробелами)
+    r"\d{1,2}[./\-]\d{1,2}[./\-]\d{2}\s*г\.?|"               # DD.MM.YY с буквой г
+    r"\d{1,2}\s*[./\-]\s*\d{1,2}\s*[./\-]\s*\d{2}|"          # DD.MM.YY (с пробелами)
+    r"\d{1,2}[./\-]\d{1,2}[./\-]\d{2}"                       # DD.MM.YY
+)
 
 
 def _find_template_date(filename: str) -> str | None:
@@ -225,11 +235,18 @@ def replace_date_in_report_line(doc: Document, mode: Literal["today", "yesterday
         if len(table.rows) > 2 and len(table.rows[2].cells) > 1:
             cell = table.rows[2].cells[1]
             for para in cell.paragraphs:
-                for run in para.runs:
-                    new_text = _DATE_RE.sub(target_date, run.text)
-                    if new_text != run.text:
-                        run.text = new_text
-                        return True
+                # Собираем весь текст параграфа (дата может быть разбита на много runs)
+                full_text = "".join(run.text for run in para.runs)
+                if _DATE_RE.search(full_text):
+                    # Заменяем дату, очищаем все runs и пишем результат в первый run
+                    new_text = _DATE_RE.sub(target_date, full_text)
+                    if para.runs:
+                        para.runs[0].text = new_text
+                        # Удаляем остальные runs
+                        for run in para.runs[1:]:
+                            r = run._element
+                            r.getparent().remove(r)
+                    return True
 
     return False
 
