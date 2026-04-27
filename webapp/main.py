@@ -351,17 +351,17 @@ async def merge_all_stream():
                 None
             )
             if not template:
-                msg = f"Template for '{name}' not found — skipped"
+                msg = f"Шаблон для «{name}» не найден — пропущено"
                 yield _sse({"type": "warning", "company": name, "msg": msg})
                 errors.append(msg)
                 continue
 
             # УМНЫЙ ПОИСК ОТЧЁТОВ
             reports = find_reports_for_company(name, keywords)
-            yield _sse({"type": "info", "company": name, "msg": f"Found {len(reports)} reports"})
+            yield _sse({"type": "info", "company": name, "msg": f"Найдено {len(reports)} отчётов"})
 
             if not reports:
-                yield _sse({"type": "info", "company": name, "msg": "No reports found, skipping"})
+                yield _sse({"type": "info", "company": name, "msg": "Отчёты не найдены, пропускаю"})
                 continue
 
             output_path = RESULT_DIR / f"{name}_merged.docx"
@@ -373,7 +373,7 @@ async def merge_all_stream():
                     "file": f"{name}_merged.docx",
                     "reports_count": len(reports)
                 })
-                yield _sse({"type": "success", "company": name, "msg": f"Merged: {inserted} reports → {name}_merged.docx"})
+                yield _sse({"type": "success", "company": name, "msg": f"Объединено: {inserted} отчётов → {name}_merged.docx"})
             except Exception as e:
                 msg = f"'{name}': {str(e)}"
                 yield _sse({"type": "error", "company": name, "msg": msg})
@@ -412,10 +412,10 @@ async def merge_all_stream():
                 detected = detect_company(str(f))
                 if detected:
                     unmatched.append({"file": f.name, "company": detected, "reason": "нет болванки"})
-                    yield _sse({"type": "info", "msg": f"No template for '{detected}', copied: {f.name}"})
+                    yield _sse({"type": "info", "msg": f"Нет шаблона для «{detected}», скопирован: {f.name}"})
                 else:
                     unmatched_unknown.append(f.name)
-                    yield _sse({"type": "warning", "msg": f"Company not detected, copied: {f.name}"})
+                    yield _sse({"type": "warning", "msg": f"Компания не определена, скопирован: {f.name}"})
             else:
                 unmatched_unknown.append(f.name)
 
