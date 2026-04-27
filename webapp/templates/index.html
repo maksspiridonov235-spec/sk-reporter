@@ -164,6 +164,14 @@
 
     <button class="btn btn-green" onclick="mergeAll()">Сформировать все отчёты</button>
 
+    <div id="rename-results-buttons" style="display: none; margin-top: 12px;">
+      <div class="section-title">Переименовать результаты</div>
+      <button class="btn btn-orange" style="margin-bottom: 6px; font-size: 12px;"
+              onclick="renameResults('today')">Результаты → сегодня</button>
+      <button class="btn btn-orange" style="font-size: 12px;"
+              onclick="renameResults('yesterday')">Результаты → вчера</button>
+    </div>
+
     <hr class="divider"/>
 
     <div>
@@ -286,8 +294,16 @@
   // ── Переименование ────────────────────────────────────────────────────────
 
   async function renameFiles(mode) {
-    logLine(`Переименование готовых файлов (дата → ${mode === "today" ? "сегодня" : "вчера"})...`);
-    const data = await apiFetch(`/rename/${mode}`, { method: "POST" });
+    logLine(`Обновление даты в шаблонах (дата → ${mode === "today" ? "сегодня" : "вчера"})...`);
+    const data = await apiFetch(`/rename/templates/${mode}`, { method: "POST" });
+    data.log.forEach(line => logLine(line, line.startsWith("Ошибка") ? "err" : "ok"));
+    if (data.log.length === 0) logLine("Нет шаблонов для переименования.", "info");
+    logLine("Готово.", "ok");
+  }
+
+  async function renameResults(mode) {
+    logLine(`Переименование результатов (дата → ${mode === "today" ? "сегодня" : "вчера"})...`);
+    const data = await apiFetch(`/rename/results/${mode}`, { method: "POST" });
     data.log.forEach(line => logLine(line, line.startsWith("Ошибка") ? "err" : "ok"));
     if (data.log.length === 0) logLine("Нет файлов для переименования.", "info");
     logLine("Готово.", "ok");
@@ -355,6 +371,11 @@
               const summary = `Завершено. Собрано: ${data.results.length}, без болванки: ${(data.unmatched||[]).length}, не распознано: ${(data.unmatched_unknown||[]).length}`;
               logLine(summary, (data.unmatched_unknown||[]).length ? "err" : "ok");
               logLine("Готово.", "ok");
+
+              // Показываем кнопки для переименования результатов
+              if (data.results.length > 0) {
+                document.getElementById("rename-results-buttons").style.display = "block";
+              }
             }
           } catch (e) {
             console.error("Parse error:", e);
