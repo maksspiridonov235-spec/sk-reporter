@@ -251,6 +251,28 @@ def replace_date_in_report_line(doc: Document, mode: Literal["today", "yesterday
     return False
 
 
+def prepare_template_with_date(template_path: str, work_dir: str | None = None) -> str:
+    """
+    Копирует шаблон и меняет в нём дату на сегодняшнюю.
+    Возвращает путь к обновленному временному шаблону.
+    """
+    import tempfile
+
+    if work_dir is None:
+        work_dir = tempfile.gettempdir()
+
+    # Копируем шаблон во временный файл
+    temp_template = os.path.join(work_dir, f"template_{os.path.basename(template_path)}")
+    shutil.copy2(template_path, temp_template)
+
+    # Меняем дату в копии
+    doc = Document(temp_template)
+    replace_date_in_report_line(doc, "today")
+    doc.save(temp_template)
+
+    return temp_template
+
+
 # ── Объединение отчётов ─────────────────────────────────────────────────────
 
 def _zip_replace(zip_path: str, inner_name: str, new_data: bytes) -> None:
