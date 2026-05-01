@@ -1,5 +1,4 @@
-"""
-AI Агент переключения руководителя через Ollama.
+"""AI Агент переключения руководителя через Ollama.
 Использует LLM для анализа и замены.
 """
 
@@ -49,7 +48,7 @@ def extract_text_from_docx(filepath: str) -> str:
                     if text and len(text) > 2:
                         parts.append(text)
         
-        return "\n".join(parts[:100])  # Первые 100 ячеек
+        return "\n".join(parts[:100])
     except Exception as e:
         return f"Error: {e}"
 
@@ -57,7 +56,6 @@ def extract_text_from_docx(filepath: str) -> str:
 def analyze_with_ai(filepath: str, to_leader: str) -> dict:
     """Анализирует документ через Ollama."""
     
-    # Определяем направление замены
     if to_leader == "aniskov":
         old_fio = "Манджиев Игорь Александрович"
         new_fio = "Аниськов Владимир Иванович"
@@ -73,20 +71,19 @@ def analyze_with_ai(filepath: str, to_leader: str) -> dict:
         old_project = "Руководитель проекта СК"
         new_project = "И.О. Руководителя проекта СК"
     
-    prompt = f"""Проанализируй текст отчёта и найди все места где нужно заменить руководителя.
+    prompt = f"""Проанализируй текст и найди все места для замены руководителя.
 
 ЗАМЕНИТЬ:
 - "{old_fio}" → "{new_fio}"
 - "{old_title}" → "{new_title}"
 - "{old_project}" → "{new_project}"
 
-Текст документа:
+Текст:
 {extract_text_from_docx(filepath)}
 
-Ответь только JSON:
+Ответь JSON:
 {{
-  "found_patterns": ["список найденных паттернов"],
-  "cells_to_modify": [{"row": 0, "col": 0, "old_text": "...", "new_text": "..."}],
+  "found_patterns": ["..."],
   "confidence": 95
 }}"""
     
@@ -102,11 +99,9 @@ def analyze_with_ai(filepath: str, to_leader: str) -> dict:
         
         answer = response["message"]["content"]
         
-        # Парсим JSON из ответа
         import json
         import re
         
-        # Ищем JSON в ответе
         json_match = re.search(r'\{.*\}', answer, re.DOTALL)
         if json_match:
             return json.loads(json_match.group())
@@ -117,17 +112,14 @@ def analyze_with_ai(filepath: str, to_leader: str) -> dict:
         return {"error": str(e)}
 
 
-def switch_leader_ai(filepath: str, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
-    """
-    AI-агент переключения руководителя.
-    """
+def _switch_single_file(filepath: str, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
+    """Обрабатывает один файл."""
     try:
         doc = Document(filepath)
         
         if not doc.tables:
             return False, "Нет таблиц в документе"
         
-        # Определяем направление
         if leader == "aniskov":
             old_fio = "Манджиев Игорь Александрович"
             new_fio = "Аниськов Владимир Иванович"
@@ -135,7 +127,6 @@ def switch_leader_ai(filepath: str, leader: Literal["aniskov", "mandzhiev"]) -> 
             new_title = "Руководитель"
             old_project = "И.О. Руководителя проекта СК"
             new_project = "Руководитель проекта СК"
-            target = "Аниськов В.И."
         else:
             old_fio = "Аниськов Владимир Иванович"
             new_fio = "Манджиев Игорь Александрович"
@@ -143,63 +134,66 @@ def switch_leader_ai(filepath: str, leader: Literal["aniskov", "mandzhiev"]) -> 
             new_title = "И.О. Руководителя"
             old_project = "Руководитель проекта СК"
             new_project = "И.О. Руководителя проекта СК"
-            target = "Манджиев И.А."
         
-        changes = []
+        changes = 0
         
-        # Заменяем напрямую без AI (быстрее и надёжнее)
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
                     original = cell.text.strip()
                     new_text = original
                     
-                    # ФИО
                     if old_fio in original:
                         new_text = new_text.replace(old_fio, new_fio)
                     
-                    # Заголовок проекта
                     if old_project in original:
                         new_text = new_text.replace(old_project, new_project)
                     
-                    # Общий заголовок (только полное совпадение)
                     if original == old_title:
                         new_text = new_title
                     
                     if new_text != original:
                         cell.text = new_text
-                        changes.append(f"{original[:30]}... -> {new_text[:30]}...")
+                        changes += 1
         
-        if not changes:
-            # AI анализ если прямой замены не было
+        if changes == 0:
             ai_result = analyze_with_ai(filepath, leader)
-            return False, f"Прямая замена не сработала. AI анализ: {ai_result}"
+            return False, f"Прямая замена не сработала. AI: {ai_result}"
         
         doc.save(filepath)
         
-        return True, f"AI-агент: установлен {target}. Замен: {len(changes)}"
+        filename = Path(filepath).name
+        return True, f"→ {filename}: замен {changes}"
         
     except Exception as e:
-        return False, f"AI-агент ошибка: {str(e)}"
+        filename = Path(filepath).name
+        return False, f"→ {filename}: ошибка - {str(e)}"
+
 
 def switch_leader_ai(filepaths: list, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
-    """Обрабатывает ВСЕ загруженные файлы."""
+    """Обрабатывает список файлов."""
+    if not filepaths:
+        return False, "Нет файлов для обработки"
+    
     results = []
     success_count = 0
     total_changes = 0
     
     for filepath in filepaths:
-        try:
-            ok, msg = switch_leader_ai_single(filepath, leader)
-            results.append(f"→ {Path(filepath).name}: {msg}")
-            if ok:
-                success_count += 1
-                total_changes += int(msg.split('Замен: ')[1].split()[0]) if 'Замен:' in msg else 1
-        except Exception as e:
-            results.append(f"→ {Path(filepath).name}: ошибка - {e}")
+        ok, msg = _switch_single_file(filepath, leader)
+        results.append(msg)
+        if ok:
+            success_count += 1
+            try:
+                if "замен " in msg:
+                    changes_str = msg.split("замен ")[-1].strip()
+                    total_changes += int(changes_str)
+            except:
+                pass
     
-    if success_count > 0:
-        output = "\n".join(results) + f"\nОбработано: {success_count}/{len(filepaths)} файлов, замен: {total_changes}"
-        return True, output
-    else:
-        return False, "Ни один файл не обработан: " + "; ".join(results[:3])
+    if success_count == 0:
+        return False, "Ни один файл не обработан: " + "; ".join(results)
+    
+    output = "\n".join(results)
+    output += f"\nОбработано: {success_count}/{len(filepaths)} файлов, замен: {total_changes}"
+    return True, output
