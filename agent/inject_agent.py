@@ -26,7 +26,7 @@ def _extract_cells(doc: Document) -> list:
 
 
 def _ask_llm_for_cells(cells: list, corrected_text: str) -> dict:
-    """Ask LLM to identify which cell indices contain ЧАСТЬ 1 and ЧАСТЬ 2 content."""
+    """Ask LLM to identify which cell indices contain part1 and part2 content."""
     import ollama
 
     cell_list = "\n".join(
@@ -34,15 +34,14 @@ def _ask_llm_for_cells(cells: list, corrected_text: str) -> dict:
         for ti, ri, ci, preview in cells
     )
 
-    # Extract the corrected sections to give LLM context about what to match
-    part1_preview = ""
-    part2_preview = ""
-    p1 = re.search(r"ЧАСТЬ\s*1[^:\n]*[:\n](.*?)(?=ЧАСТЬ\s*2|$)", corrected_text, re.DOTALL | re.IGNORECASE)
-    p2 = re.search(r"ЧАСТЬ\s*2[^:\n]*[:\n](.*?)$", corrected_text, re.DOTALL | re.IGNORECASE)
-    if p1:
-        part1_preview = p1.group(1).strip()[:200]
-    if p2:
-        part2_preview = p2.group(1).strip()[:200]
+    # Extract previews for context — works with or without ЧАСТЬ headers
+    p2_start = re.search(r"(Наряд.допуск|Работы ведутся)", corrected_text, re.IGNORECASE)
+    if p2_start:
+        part1_preview = corrected_text[:p2_start.start()].strip()[-200:]
+        part2_preview = corrected_text[p2_start.start():p2_start.start()+200]
+    else:
+        part1_preview = corrected_text[:200]
+        part2_preview = ""
 
     prompt = f"""Ниже — список ячеек таблицы из документа docx. Каждая запись: [таблица,строка,столбец]: "начало текста ячейки".
 
@@ -73,20 +72,42 @@ def _ask_llm_for_cells(cells: list, corrected_text: str) -> dict:
 
 
 def _parse_parts(corrected_text: str):
-    """Parse ЧАСТЬ 1 and ЧАСТЬ 2 content from LLM output."""
+    """Parse part1 and part2 from LLM output.
+
+    LLM may or may not output ЧАСТЬ 1 / ЧАСТЬ 2 headers.
+    Part 1 starts at 'Инспекционный контроль' (or first numbered item with volumes).
+    Part 2 starts at 'Наряд-допуск' or 'Работы ведутся'.
+    """
     cleaned = re.sub(r"\*\*([^*]+)\*\*", r"\1", corrected_text)
 
+    # Get text after ## ИСПРАВЛЕННЫЙ ОТЧЁТ if present
     section_match = re.search(
         r"##\s*ИСПРАВЛЕННЫЙ\s*ОТЧЁТ[^\n]*\n(.*?)$", cleaned, re.DOTALL | re.IGNORECASE
     )
-    search_text = section_match.group(1) if section_match else cleaned
+    search_text = section_match.group(1).strip() if section_match else cleaned.strip()
 
+    # Try explicit ЧАСТЬ markers first
     part1_match = re.search(
         r"ЧАСТЬ\s*1[^:\n]*[:\n](.*?)(?=ЧАСТЬ\s*2\b|$)", search_text, re.DOTALL | re.IGNORECASE
     )
     part2_match = re.search(
         r"ЧАСТЬ\s*2[^:\n]*[:\n](.*?)$", search_text, re.DOTALL | re.IGNORECASE
     )
+
+    # Fallback: split by part2 start marker
+    if not part1_match or not part2_match:
+        p2_start = re.search(
+            r"(Наряд.допуск|Работы ведутся)", search_text, re.IGNORECASE
+        )
+        if p2_start:
+            raw_part1 = search_text[:p2_start.start()].strip()
+            raw_part2 = search_text[p2_start.start():].strip()
+            # Strip any ЧАСТЬ 1 header line from part1
+            raw_part1 = re.sub(r"^ЧАСТЬ\s*1[^\n]*\n", "", raw_part1, flags=re.IGNORECASE).strip()
+            part1_lines = [l.rstrip() for l in raw_part1.splitlines()] if raw_part1 else []
+            part2_lines = [l.rstrip() for l in raw_part2.splitlines()] if raw_part2 else []
+            print(f"[INJECT_AGENT] fallback parse: part1={len(part1_lines)} lines, part2={len(part2_lines)} lines")
+            return part1_lines, part2_lines
 
     part1_lines = []
     part2_lines = []
