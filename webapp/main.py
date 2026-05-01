@@ -93,6 +93,10 @@ def find_reports_for_company(company_name: str, keywords: list[str]):
                 found_reports.append(f)
     return found_reports
 
+@app.get("/check", response_class=HTMLResponse)
+async def check_page(request: Request):
+    return templates.TemplateResponse("check.html", {"request": request})
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     companies = [name for name, _ in COMPANIES]
@@ -152,6 +156,8 @@ async def list_templates():
 @app.post("/check/descriptions/stream")
 async def check_descriptions_stream():
     from agent.check_agent import check_report
+    from agent.extract_agent import extract_html
+    from agent.inject_agent import inject_corrections
     async def event_generator():
         yield f"data: {json.dumps({'type': 'start', 'msg': 'Начинаю проверку отчётов...'})}\n\n"
         report_files = list(UPLOAD_DIR.glob("*.docx"))
@@ -162,11 +168,35 @@ async def check_descriptions_stream():
         errors_count = 0
         for file_path in report_files:
             try:
+                filename = Path(file_path).name
+
+                extract_result = extract_html(str(file_path))
+                if not extract_result.get("ok"):
+                    yield f"data: {json.dumps({'type': 'error', 'msg': f'Ошибка извлечения HTML: {filename}'})}\n\n"
+                    errors_count += 1
+                    continue
+                original_html = extract_result["html"]
+
+                yield f"data: {json.dumps({'type': 'info', 'filename': filename, 'msg': f'{filename}: HTML извлечён, проверяю...'})}\n\n"
+
                 result = check_report(str(file_path))
                 has_errors = not result.get("ok", False)
                 if has_errors:
                     errors_count += 1
-                yield f"data: {json.dumps({'type': 'report', 'filename': Path(file_path).name, 'msg': f'{Path(file_path).name}: ' + ('⚠️ найдены проблемы' if has_errors else '✓ ОК'), 'hasErrors': has_errors, 'result': result})}\n\n"
+
+                yield f"data: {json.dumps({'type': 'report', 'filename': filename, 'msg': f'{filename}: ' + ('⚠️ найдены проблемы' if has_errors else '✓ ОК'), 'hasErrors': has_errors, 'result': result})}\n\n"
+
+                corrected_text = result.get("report", "")
+                if corrected_text:
+                    yield f"data: {json.dumps({'type': 'info', 'filename': filename, 'msg': f'{filename}: вставляю исправления...'})}\n\n"
+                    inject_result = inject_corrections(original_html, corrected_text, filename)
+                    if inject_result.get("ok"):
+                        docx_path = inject_result["docx_path"]
+                        dl_name = Path(docx_path).name
+                        yield f"data: {json.dumps({'type': 'fixed', 'filename': filename, 'msg': f'{filename}: исправлен → {dl_name}', 'download': f'/download/fixed/{dl_name}'})}\n\n"
+                    else:
+                        yield f"data: {json.dumps({'type': 'error', 'msg': f'Ошибка inject для {filename}: {inject_result.get(\"error\")}'})}\n\n"
+
             except Exception as e:
                 yield f"data: {json.dumps({'type': 'error', 'msg': f'Ошибка проверки {Path(file_path).name}: {str(e)}'})}\n\n"
         yield f"data: {json.dumps({'type': 'done', 'summary': {'total': total, 'errors': errors_count}})}\n\n"
@@ -375,6 +405,16 @@ async def download_all():
             zf.write(f, f.name)
     buf.seek(0)
     return StreamingResponse(buf, media_type="application/zip", headers={"Content-Disposition": "attachment; filename*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82%D1%8B.zip"})
+
+@app.get("/download/fixed/{filename}")
+async def download_fixed(filename: str):
+    output_dir = Path(__file__).parent.parent / "output"
+    path = (output_dir / filename).resolve()
+    if not str(path).startswith(str(output_dir.resolve())):
+        raise HTTPException(status_code=400, detail="Недопустимый путь")
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    return FileResponse(path=str(path), filename=filename, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 @app.get("/download/{filename}")
 async def download(filename: str):
