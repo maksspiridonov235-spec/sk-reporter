@@ -156,8 +156,7 @@ async def list_templates():
 @app.post("/check/descriptions/stream")
 async def check_descriptions_stream():
     from agent.check_agent import check_report
-    from agent.extract_agent import extract_html
-    from agent.inject_agent import inject_corrections
+    from agent.inject_agent import inject_into_docx
     async def event_generator():
         yield f"data: {json.dumps({'type': 'start', 'msg': 'Начинаю проверку отчётов...'})}\n\n"
         report_files = list(UPLOAD_DIR.glob("*.docx"))
@@ -170,14 +169,7 @@ async def check_descriptions_stream():
             try:
                 filename = Path(file_path).name
 
-                extract_result = extract_html(str(file_path))
-                if not extract_result.get("ok"):
-                    yield f"data: {json.dumps({'type': 'error', 'msg': f'Ошибка извлечения HTML: {filename}'})}\n\n"
-                    errors_count += 1
-                    continue
-                original_html = extract_result["html"]
-
-                yield f"data: {json.dumps({'type': 'info', 'filename': filename, 'msg': f'{filename}: HTML извлечён, проверяю...'})}\n\n"
+                yield f"data: {json.dumps({'type': 'info', 'filename': filename, 'msg': f'{filename}: проверяю...'})}\n\n"
 
                 result = check_report(str(file_path))
                 has_errors = not result.get("ok", False)
@@ -189,7 +181,7 @@ async def check_descriptions_stream():
                 corrected_text = result.get("report", "")
                 if corrected_text:
                     yield f"data: {json.dumps({'type': 'info', 'filename': filename, 'msg': f'{filename}: вставляю исправления...'})}\n\n"
-                    inject_result = inject_corrections(original_html, corrected_text, filename)
+                    inject_result = inject_into_docx(str(file_path), corrected_text, filename)
                     if inject_result.get("ok"):
                         docx_path = inject_result["docx_path"]
                         dl_name = Path(docx_path).name

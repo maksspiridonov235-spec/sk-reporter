@@ -1,97 +1,122 @@
 """
-Агент инъекции: берёт оригинальный HTML отчёта + исправленный текст от check_agent,
-через LLM вставляет исправления в HTML, затем конвертирует обратно в docx через pandoc.
+Агент инъекции: берёт оригинальный docx + исправленный текст от check_agent,
+парсит ЧАСТЬ 1 и ЧАСТЬ 2 и вставляет их в нужные ячейки таблицы через python-docx.
 """
 
-import subprocess
+import re
+import shutil
 import tempfile
-import os
 from pathlib import Path
+from docx import Document
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
 
-MODEL = "gemma4:31b-cloud"
 
-INJECT_SYSTEM_PROMPT = """Ты — редактор HTML-документа. Тебе дают:
-1. Оригинальный HTML отчёта строительного контроля (таблица)
-2. Исправленный текст — ЧАСТЬ 1 (работы с объёмами) и ЧАСТЬ 2 (описания)
+def _clear_cell(cell):
+    for para in cell.paragraphs[1:]:
+        p = para._element
+        p.getparent().remove(p)
+    cell.paragraphs[0].clear()
 
-Твоя задача: вернуть ПОЛНЫЙ оригинальный HTML, заменив только содержимое двух ячеек:
-- Ячейка с работами (содержит «Инспекционный контроль» и объёмы) — замени на ЧАСТЬ 1
-- Ячейка с описаниями (содержит «Наряд-допуск проверен») — замени на ЧАСТЬ 2
 
-Правила:
-- Не меняй структуру таблицы, теги, атрибуты, colspan, стили
-- Не трогай шапку, подписи, статусы, даты и прочие ячейки
-- Сохраняй <br> для переносов строк внутри ячеек
-- Возвращай ТОЛЬКО полный HTML без markdown-обёрток и пояснений"""
+def _add_paragraph(cell, text: str, first: bool = False):
+    if first:
+        para = cell.paragraphs[0]
+        para.clear()
+    else:
+        para = cell.add_paragraph()
+    para.add_run(text)
+    return para
+
+
+def _find_target_cells(doc: Document):
+    part1_cell = None
+    part2_cell = None
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                txt = cell.text
+                if "Инспекционный контроль" in txt and part1_cell is None:
+                    part1_cell = cell
+                if ("Наряд-допуск проверен" in txt or "Наряд - допуск проверен" in txt) and part2_cell is None:
+                    part2_cell = cell
+    return part1_cell, part2_cell
+
+
+def _parse_corrected(corrected_text: str):
+    part1_lines = []
+    part2_lines = []
+
+    part1_match = re.search(
+        r"ЧАСТЬ\s*1[^\n]*\n(.*?)(?=ЧАСТЬ\s*2|$)", corrected_text, re.DOTALL | re.IGNORECASE
+    )
+    part2_match = re.search(
+        r"ЧАСТЬ\s*2[^\n]*\n(.*?)$", corrected_text, re.DOTALL | re.IGNORECASE
+    )
+
+    if part1_match:
+        part1_lines = [l.rstrip() for l in part1_match.group(1).strip().splitlines()]
+    if part2_match:
+        part2_lines = [l.rstrip() for l in part2_match.group(1).strip().splitlines()]
+
+    return part1_lines, part2_lines
+
+
+def _write_lines_to_cell(cell, lines: list):
+    _clear_cell(cell)
+    first = True
+    for line in lines:
+        _add_paragraph(cell, line, first=first)
+        first = False
 
 
 def inject_corrections(original_html: str, corrected_text: str, source_filename: str) -> dict:
-    filename = Path(source_filename).stem
+    filepath = _find_source_docx(source_filename)
+    if not filepath:
+        return {"ok": False, "error": f"Исходный docx не найден: {source_filename}", "docx_path": None}
 
-    user_prompt = f"""Вот оригинальный HTML отчёта:
+    return inject_into_docx(filepath, corrected_text, source_filename)
 
-{original_html}
 
----ИСПРАВЛЕННЫЙ ТЕКСТ---
-{corrected_text}
----КОНЕЦ ИСПРАВЛЕННОГО ТЕКСТА---
+def _find_source_docx(source_filename: str) -> str | None:
+    import tempfile
+    work_dir = Path(tempfile.gettempdir()) / "sk_reports_work" / "uploads"
+    candidate = work_dir / source_filename
+    if candidate.exists():
+        return str(candidate)
+    return None
 
-Верни полный HTML с заменёнными ячейками."""
 
+def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -> dict:
+    stem = Path(source_filename).stem
     try:
-        import ollama
-        response = ollama.chat(
-            model=MODEL,
-            messages=[
-                {"role": "system", "content": INJECT_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-            stream=False,
-        )
-        fixed_html = response.get("message", {}).get("content", "").strip()
+        part1_lines, part2_lines = _parse_corrected(corrected_text)
 
-        if not fixed_html:
-            return {"ok": False, "error": "Пустой ответ модели", "docx_path": None}
+        if not part1_lines and not part2_lines:
+            return {"ok": False, "error": "Не удалось распарсить ЧАСТЬ 1 / ЧАСТЬ 2 из ответа агента", "docx_path": None}
 
-        # Убираем markdown-обёртку если модель её добавила
-        if fixed_html.startswith("```"):
-            lines = fixed_html.split("\n")
-            fixed_html = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
-
-        return html_to_docx(fixed_html, filename)
-
-    except Exception as e:
-        print(f"[INJECT_AGENT] LLM error: {e}")
-        return {"ok": False, "error": str(e), "docx_path": None}
-
-
-def html_to_docx(html: str, stem: str) -> dict:
-    try:
         with tempfile.TemporaryDirectory() as tmpdir:
-            html_path = os.path.join(tmpdir, "report.html")
-            docx_path = os.path.join(tmpdir, f"{stem}_исправлен.docx")
+            tmp_path = Path(tmpdir) / Path(filepath).name
+            shutil.copy2(filepath, tmp_path)
 
-            with open(html_path, "w", encoding="utf-8") as f:
-                f.write(f"<html><head><meta charset='utf-8'></head><body>{html}</body></html>")
+            doc = Document(str(tmp_path))
+            part1_cell, part2_cell = _find_target_cells(doc)
 
-            result = subprocess.run(
-                ["pandoc", html_path, "-o", docx_path, "--from=html", "--to=docx"],
-                capture_output=True, text=True
-            )
+            if part1_cell and part1_lines:
+                _write_lines_to_cell(part1_cell, part1_lines)
 
-            if result.returncode != 0:
-                return {"ok": False, "error": result.stderr, "docx_path": None}
+            if part2_cell and part2_lines:
+                _write_lines_to_cell(part2_cell, part2_lines)
 
             output_dir = Path(__file__).parent.parent / "output"
             output_dir.mkdir(exist_ok=True)
             final_path = output_dir / f"{stem}_исправлен.docx"
+            doc.save(str(final_path))
 
-            with open(docx_path, "rb") as src, open(final_path, "wb") as dst:
-                dst.write(src.read())
-
-            print(f"[INJECT_AGENT] Saved: {final_path}")
-            return {"ok": True, "docx_path": str(final_path)}
+        print(f"[INJECT_AGENT] Saved: {final_path}")
+        return {"ok": True, "docx_path": str(final_path)}
 
     except Exception as e:
-        print(f"[INJECT_AGENT] pandoc error: {e}")
+        print(f"[INJECT_AGENT] error: {e}")
         return {"ok": False, "error": str(e), "docx_path": None}
+
