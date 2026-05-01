@@ -181,3 +181,24 @@ def switch_leader_ai_single(filepath: str, leader: Literal["aniskov", "mandzhiev
         
     except Exception as e:
         return False, f"AI-агент ошибка: {str(e)}"
+
+def switch_leader_ai(filepaths: list, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
+    """Обрабатывает ВСЕ загруженные файлы (10, 50, 100 - любое количество)."""
+    results = []
+    total_changes = 0
+    
+    for filepath in filepaths:
+        try:
+            ok, msg = switch_leader_ai_single(filepath, leader)
+            results.append(f"{Path(filepath).name}: {msg}")
+            if ok:
+                # Извлекаем число замен из сообщения
+                import re
+                match = re.search(r'Замен: (\d+)', msg)
+                if match:
+                    total_changes += int(match.group(1))
+        except Exception as e:
+            results.append(f"{Path(filepath).name}: Ошибка - {e}")
+    
+    summary = f"Обработано файлов: {len(filepaths)}, всего замен: {total_changes}"
+    return True, summary + " | " + "; ".join(results[:5])  # Первые 5 результатов
