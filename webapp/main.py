@@ -14,7 +14,7 @@ from docx import Document
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from apply_template_layout import read_template_layout, apply_layout
+from apply_template_layout import apply_layout
 
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
@@ -204,26 +204,13 @@ async def run_macro(macro_name: str):
         raise HTTPException(status_code=400, detail="Неизвестный макрос")
 
     if macro_name == "ApplyTemplateLayout":
-        template_name = "Ежедневный отчет Шаблон.docx"
-        candidate_dirs = [
-            Path(__file__).parent.parent,
-            Path(__file__).parent,
-            Path(os.environ.get("SK_TEMPLATE_DIR", "")),
-        ]
-        template_path = next(
-            (d / template_name for d in candidate_dirs if (d / template_name).exists()),
-            None,
-        )
-        if template_path is None:
-            return {"log": [f"[ERR] Шаблон «{template_name}» не найден. Положите его в папку репозитория или задайте SK_TEMPLATE_DIR."]}
-        layout = read_template_layout(template_path)
         log = []
         for f in UPLOAD_DIR.iterdir():
             if f.suffix.lower() != ".docx":
                 continue
             try:
                 doc = Document(str(f))
-                apply_layout(doc, layout)
+                apply_layout(doc)
                 doc.save(str(f))
                 log.append(f"[OK] {f.name}")
             except Exception as e:
