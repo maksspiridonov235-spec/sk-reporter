@@ -204,7 +204,18 @@ async def run_macro(macro_name: str):
         raise HTTPException(status_code=400, detail="Неизвестный макрос")
 
     if macro_name == "ApplyTemplateLayout":
-        template_path = Path(__file__).parent.parent / "Ежедневный отчет Шаблон.docx"
+        template_name = "Ежедневный отчет Шаблон.docx"
+        candidate_dirs = [
+            Path(__file__).parent.parent,
+            Path(__file__).parent,
+            Path(os.environ.get("SK_TEMPLATE_DIR", "")),
+        ]
+        template_path = next(
+            (d / template_name for d in candidate_dirs if (d / template_name).exists()),
+            None,
+        )
+        if template_path is None:
+            return {"log": [f"[ERR] Шаблон «{template_name}» не найден. Положите его в папку репозитория или задайте SK_TEMPLATE_DIR."]}
         layout = read_template_layout(template_path)
         log = []
         for f in UPLOAD_DIR.iterdir():
