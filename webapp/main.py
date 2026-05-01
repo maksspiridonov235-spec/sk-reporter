@@ -195,7 +195,8 @@ async def check_descriptions_stream():
                         dl_name = Path(docx_path).name
                         yield f"data: {json.dumps({'type': 'fixed', 'filename': filename, 'msg': f'{filename}: исправлен → {dl_name}', 'download': f'/download/fixed/{dl_name}'})}\n\n"
                     else:
-                        yield f"data: {json.dumps({'type': 'error', 'msg': f'Ошибка inject для {filename}: {inject_result.get(\"error\")}'})}\n\n"
+                        inject_error = inject_result.get("error")
+                        yield f"data: {json.dumps({'type': 'error', 'msg': f'Ошибка inject для {filename}: {inject_error}'})}\n\n"
 
             except Exception as e:
                 yield f"data: {json.dumps({'type': 'error', 'msg': f'Ошибка проверки {Path(file_path).name}: {str(e)}'})}\n\n"
