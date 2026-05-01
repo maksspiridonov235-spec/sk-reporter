@@ -204,8 +204,20 @@ def switch_leader_ai(filepaths: list, leader: Literal["aniskov", "mandzhiev"]) -
     
     summary = f"Обработано: {success_count}/{len(filepaths)} файлов, замен: {total_changes}"
     
+    # Формируем детальный отчет для журнала
+    details = []
+    for r in results:
+        if ": AI-агент:" in r:
+            # Извлекаем имя файла и количество замен
+            fname = r.split(":")[0]
+            match = re.search(r'Замен: (\d+)', r)
+            if match:
+                details.append(f"→ {fname}: замен {match.group(1)}")
+    
     # Если хотя бы один успешно - возвращаем True
     if success_count > 0:
-        return True, summary + " | " + "; ".join(results[:3])
+        return True, summary + "
+" + "
+".join(details[:10])  # Первые 10 файлов
     else:
-        return False, "Ни один файл не обработан: " + "; ".join(results[:3])
+        return False, "Ни один файл не обработан"
