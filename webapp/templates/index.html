@@ -382,20 +382,7 @@
 
   // ── Переключение руководителя ────────────────────────────────────────────
 
-  async function loadCurrentLeader() {
-    try {
-      const data = await apiFetch('/detect-leader');
-      const el = document.getElementById('current-leader');
-      if (data.leader === 'aniskov') {
-        el.textContent = 'Текущий: Аниськов В.И.';
-        el.style.color = '#1e8c45';
-      } else if (data.leader === 'mandzhiev') {
-        el.textContent = 'Текущий: Манджиев И.А. (И.О.)';
-        el.style.color = '#d97706';
-      } else if (data.leader === 'unknown') {
-        el.textContent = 'Текущий: не определён';
-        el.style.color = '#888';
-      } else {
+   else {
         el.textContent = data.message || 'Нет данных';
         el.style.color = '#888';
       }
