@@ -159,6 +159,15 @@
     <hr class="divider"/>
 
     <div>
+      <div class="section-title">Руководитель отчёта</div>
+      <div id="current-leader" style="font-size: 12px; color: #666; margin-bottom: 8px;">Загрузка...</div>
+      <button class="btn btn-blue" style="margin-bottom:6px" onclick="switchLeader('aniskov')">Аниськов В.И.</button>
+      <button class="btn btn-orange" onclick="switchLeader('mandzhiev')">Манджиев И.А. (И.О.)</button>
+    </div>
+
+    <hr class="divider"/>
+
+    <div>
       <div class="section-title">Макросы (к отчётам, до сборки)</div>
       <button class="btn btn-blue" style="margin-bottom:6px"
               onclick="runMacro('HighlightSecondRow_No5991')">Выделить 2-ю строку таблиц</button>
@@ -371,6 +380,45 @@
     }
   }
 
+  // ── Переключение руководителя ────────────────────────────────────────────
+
+  async function loadCurrentLeader() {
+    try {
+      const data = await apiFetch('/detect-leader');
+      const el = document.getElementById('current-leader');
+      if (data.leader === 'aniskov') {
+        el.textContent = 'Текущий: Аниськов В.И.';
+        el.style.color = '#1e8c45';
+      } else if (data.leader === 'mandzhiev') {
+        el.textContent = 'Текущий: Манджиев И.А. (И.О.)';
+        el.style.color = '#d97706';
+      } else if (data.leader === 'unknown') {
+        el.textContent = 'Текущий: не определён';
+        el.style.color = '#888';
+      } else {
+        el.textContent = data.message || 'Нет данных';
+        el.style.color = '#888';
+      }
+    } catch (e) {
+      console.error('Failed to load leader:', e);
+    }
+  }
+
+  async function switchLeader(leader) {
+    const names = {
+      'aniskov': 'Аниськов Владимир Иванович',
+      'mandzhiev': 'Манджиев Игорь Александрович (И.О.)'
+    };
+    logLine(`Переключаю руководителя на: ${names[leader]}...`);
+    try {
+      const data = await apiFetch(`/switch-leader/${leader}`, { method: 'POST' });
+      logLine(data.message, 'ok');
+      await loadCurrentLeader();
+    } catch (e) {
+      logLine(, 'err');
+    }
+  }
+
   // ── Макросы ───────────────────────────────────────────────────────────────
 
   async function runMacro(name) {
@@ -571,6 +619,7 @@
   // Загружаем списки при старте
   refreshReportsList();
   refreshResults();
+  loadCurrentLeader();
 </script>
 </body>
 </html>
