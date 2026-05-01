@@ -458,3 +458,25 @@ async def detect_leader():
     }
     
     return {"leader": leader, "name": names.get(leader, "Неизвестно")}
+
+# ── AI Агент переключения руководителя ────────────────────────────────────
+
+@app.post("/switch-leader-ai/{leader}")
+async def switch_leader_ai_endpoint(leader: str):
+    """AI-агент переключения руководителя через Ollama."""
+    from agent.leader_ai_agent import switch_leader_ai
+    
+    if leader not in ("aniskov", "mandzhiev"):
+        raise HTTPException(status_code=400, detail="leader должен быть 'aniskov' или 'mandzhiev'")
+    
+    report_files = list(UPLOAD_DIR.glob("*.docx"))
+    if not report_files:
+        raise HTTPException(status_code=404, detail="Отчёты не загружены")
+    
+    filepath = str(report_files[0])
+    ok, msg = switch_leader_ai(filepath, leader)
+    
+    if not ok:
+        raise HTTPException(status_code=500, detail=msg)
+    
+    return {"ok": True, "message": msg}
