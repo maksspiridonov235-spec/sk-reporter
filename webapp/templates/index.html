@@ -131,7 +131,6 @@
 
 <header style="display:flex;align-items:center;justify-content:space-between">
   <span>Объединение отчётов СК</span>
-  <a href="/agents" style="color:#a8c8ff;font-size:13px;font-weight:normal;text-decoration:none">
     AI Агенты →
   </a>
 </header>
@@ -193,12 +192,7 @@
               onclick="renameResults('yesterday')">Результаты → вчера</button>
     </div>
 
-    <hr class="divider"/>
-
-    <div>
-      <div class="section-title">AI Pipeline (Claude)</div>
-      <button class="btn btn-blue" onclick="runPipeline()">Разобрать → Проверить отчёты</button>
-    </div>
+    
 
     <hr class="divider"/>
 
@@ -216,7 +210,7 @@
     <!-- Вкладки -->
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('results')">Готовые файлы</button>
-      <button class="tab-btn" onclick="switchTab('parsed')">Структура отчётов</button>
+      
       <button class="tab-btn" onclick="switchTab('check')">Результаты проверки</button>
     </div>
 
@@ -225,14 +219,6 @@
       <div class="results-panel">
         <div class="results-title">Готовые файлы</div>
         <div id="results-list"></div>
-      </div>
-    </div>
-
-    <!-- Вкладка "Структура отчётов" -->
-    <div class="tab-content" id="tab-parsed">
-      <div class="results-panel">
-        <div class="results-title">Структура отчётов (Claude AI)</div>
-        <div id="parsed-list"></div>
       </div>
     </div>
 
@@ -523,89 +509,6 @@
     document.body.removeChild(a);
     logLine("Загрузка архива началась.", "ok");
   }
-
-  // ── AI Pipeline ────────────────────────────────────────────────────────────
-
-  const LABELS = {
-    date: "Дата", company: "Компания", object: "Объект",
-    inspector: "Инспектор", weather: "Погода", work_done: "Выполнено",
-    violations: "Нарушения", conclusion: "Вывод",
-    report_number: "№ отчёта", work_volume: "Объём работ",
-  };
-
-  async function runPipeline() {
-    logLine("Запускаю pipeline: Парсер → Нормализатор → Верификатор...");
-
-    let data;
-    try {
-      const res = await fetch("/pipeline/run", { method: "POST" });
-      data = await res.json();
-      if (!res.ok) throw new Error(data.detail || res.statusText);
-    } catch (e) {
-      logLine("Ошибка pipeline: " + e.message, "err");
-      return;
-    }
-
-    const s = data.summary;
-    logLine(`Pipeline завершён. Всего: ${s.total}, OK: ${s.ok}, с замечаниями: ${s.fail}, средний балл: ${s.avg_score}`, "ok");
-
-    const panel = document.getElementById("parsed-panel");
-    const list  = document.getElementById("parsed-list");
-    panel.style.display = "block";
-
-    const summaryHtml = `
-      <div class="pipeline-summary">
-        <div>Файлов: <strong>${s.total}</strong></div>
-        <div>✓ Прошли: <strong>${s.ok}</strong></div>
-        <div>✗ Замечания: <strong>${s.fail}</strong></div>
-        <div>Средний балл: <strong>${s.avg_score}</strong></div>
-      </div>`;
-
-    const cardsHtml = data.results.map(r => {
-      if (r._pipeline_error) {
-        return `<div class="parsed-card">
-          <h4>${r._source_file} <span class="badge badge-fail">ОШИБКА</span></h4>
-          <span class="parse-err">${r._pipeline_error}</span>
-        </div>`;
-      }
-
-      const norm = r.normalized || {};
-      const ver  = r.verification || {};
-      const ok   = ver.ok;
-      const score = ver.score ?? 0;
-
-      const rows = Object.entries(LABELS)
-        .filter(([k]) => norm[k])
-        .map(([k, label]) => `<tr><td>${label}</td><td>${norm[k]}</td></tr>`)
-        .join("");
-
-      const warnings = (ver.warnings || []).length
-        ? `<ul class="warnings-list">${ver.warnings.map(w => `<li>${w}</li>`).join("")}</ul>`
-        : "";
-
-      const missing = (ver.missing || []).length
-        ? `<div style="color:#dc2626;font-size:11px;margin-top:4px">Не заполнено: ${ver.missing.join(", ")}</div>`
-        : "";
-
-      return `<div class="parsed-card">
-        <h4>
-          ${r._source_file}
-          <span class="badge ${ok ? 'badge-ok' : 'badge-fail'}">${ok ? '✓ OK' : '✗ Замечания'}</span>
-          <span style="margin-left:auto;font-size:11px;color:#888">${score}/100</span>
-        </h4>
-        <div class="score-bar"><div class="score-fill" style="width:${score}%"></div></div>
-        ${ver.summary ? `<div style="color:#444;margin-bottom:6px;font-size:12px"><em>${ver.summary}</em></div>` : ""}
-        <table>${rows}</table>
-        ${missing}
-        ${warnings}
-      </div>`;
-    }).join("");
-
-    list.innerHTML = summaryHtml + cardsHtml;
-    logLine("Готово.", "ok");
-  }
-
-  async function parseReports() { runPipeline(); }
 
   // ── Очистка ───────────────────────────────────────────────────────────────
 
