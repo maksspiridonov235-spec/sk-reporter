@@ -415,7 +415,7 @@
       logLine(data.message, 'ok');
       await loadCurrentLeader();
     } catch (e) {
-      logLine(, 'err');
+      logLine('Ошибка: ' + e.message, 'err');
     }
   }
 
