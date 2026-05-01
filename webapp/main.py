@@ -426,6 +426,8 @@ async def switch_leader_endpoint(leader: str, filename: str = None):
     if filename:
         filepath = str(UPLOAD_DIR / filename)
         if not Path(filepath).exists():
+
+            
             raise HTTPException(status_code=404, detail=f"Файл не найден: {filename}")
     else:
         report_files = list(UPLOAD_DIR.glob("*.docx"))
