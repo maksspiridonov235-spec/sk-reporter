@@ -411,15 +411,18 @@
     };
     logLine(`Переключаю руководителя на: ${names[leader]}...`);
     try {
-      // Получаем список файлов и берем первый
-      const filesData = await apiFetch('/files/reports');
-      if (!filesData.files || filesData.files.length === 0) {
-        logLine('Нет загруженных отчётов', 'err');
-        return;
+      const data = await apiFetch(`/switch-leader-ai/${leader}`, { method: 'POST' });
+      
+      // Выводим результат как в других функциях
+      if (data.ok) {
+        logLine('Результат:', 'info');
+        logLine(data.message, 'ok');
+        logLine('Готово.', 'ok');
+      } else {
+        logLine(`Ошибка: ${data.message || 'Неизвестная ошибка'}`, 'err');
       }
-      const filename = filesData.files[0];
-      const data = await apiFetch(`/switch-leader-ai/${leader}?filename=${encodeURIComponent(filename)}`, { method: 'POST' });
-      logLine(data.message, 'ok');
+      
+      await loadCurrentLeader();
       await loadCurrentLeader();
     } catch (e) {
       logLine('Ошибка: ' + e.message, 'err');
