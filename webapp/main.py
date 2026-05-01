@@ -1,4 +1,6 @@
 import os
+
+
 import io
 import json
 import shutil
@@ -442,7 +444,7 @@ async def switch_leader_endpoint(leader: str, filename: str = None):
 @app.get("/detect-leader")
 async def detect_leader():
     """Определяет текущего руководителя в загруженном отчёте."""
-    from agent.leader_switcher import detect_current_leader
+    from agent.leader_ai_agent import detect_current_leader
     
     report_files = list(UPLOAD_DIR.glob("*.docx"))
     if not report_files:
