@@ -181,3 +181,25 @@ def switch_leader_ai(filepath: str, leader: Literal["aniskov", "mandzhiev"]) -> 
         
     except Exception as e:
         return False, f"AI-агент ошибка: {str(e)}"
+
+def switch_leader_ai(filepaths: list, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
+    """Обрабатывает ВСЕ загруженные файлы."""
+    results = []
+    success_count = 0
+    total_changes = 0
+    
+    for filepath in filepaths:
+        try:
+            ok, msg = switch_leader_ai_single(filepath, leader)
+            results.append(f"→ {Path(filepath).name}: {msg}")
+            if ok:
+                success_count += 1
+                total_changes += int(msg.split('Замен: ')[1].split()[0]) if 'Замен:' in msg else 1
+        except Exception as e:
+            results.append(f"→ {Path(filepath).name}: ошибка - {e}")
+    
+    if success_count > 0:
+        output = "\n".join(results) + f"\nОбработано: {success_count}/{len(filepaths)} файлов, замен: {total_changes}"
+        return True, output
+    else:
+        return False, "Ни один файл не обработан: " + "; ".join(results[:3])
