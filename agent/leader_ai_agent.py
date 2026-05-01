@@ -186,12 +186,14 @@ def switch_leader_ai(filepaths: list, leader: Literal["aniskov", "mandzhiev"]) -
     """Обрабатывает ВСЕ загруженные файлы (10, 50, 100 - любое количество)."""
     results = []
     total_changes = 0
+    success_count = 0
     
     for filepath in filepaths:
         try:
             ok, msg = switch_leader_ai_single(filepath, leader)
             results.append(f"{Path(filepath).name}: {msg}")
             if ok:
+                success_count += 1
                 # Извлекаем число замен из сообщения
                 import re
                 match = re.search(r'Замен: (\d+)', msg)
@@ -200,5 +202,10 @@ def switch_leader_ai(filepaths: list, leader: Literal["aniskov", "mandzhiev"]) -
         except Exception as e:
             results.append(f"{Path(filepath).name}: Ошибка - {e}")
     
-    summary = f"Обработано файлов: {len(filepaths)}, всего замен: {total_changes}"
-    return True, summary + " | " + "; ".join(results[:5])  # Первые 5 результатов
+    summary = f"Обработано: {success_count}/{len(filepaths)} файлов, замен: {total_changes}"
+    
+    # Если хотя бы один успешно - возвращаем True
+    if success_count > 0:
+        return True, summary + " | " + "; ".join(results[:3])
+    else:
+        return False, "Ни один файл не обработан: " + "; ".join(results[:3])
