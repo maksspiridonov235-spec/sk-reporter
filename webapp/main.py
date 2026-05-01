@@ -48,17 +48,14 @@ WORK_DIR.mkdir(exist_ok=True)
 
 UPLOAD_DIR = WORK_DIR / "uploads"
 RESULT_DIR = WORK_DIR / "results"
-TEMPLATES_DIR = WORK_DIR / "contractor_templates"
 
-for d in (UPLOAD_DIR, RESULT_DIR, TEMPLATES_DIR):
+for d in (UPLOAD_DIR, RESULT_DIR):
     d.mkdir(exist_ok=True)
 
-PROJECT_TEMPLATES = Path(__file__).parent.parent / "contractor_report" / "болванки (шаблоны не вырезать только копировать)"
-if PROJECT_TEMPLATES.exists():
-    for template_file in PROJECT_TEMPLATES.glob("*.docx"):
-        dest = TEMPLATES_DIR / template_file.name
-        shutil.copy2(template_file, dest)
-    print(f"[INFO] Loaded {len(list(TEMPLATES_DIR.glob('*.docx')))} templates from project")
+TEMPLATES_DIR = Path(__file__).parent.parent / "contractor_report" / "болванки (шаблоны не вырезать только копировать)"
+if not TEMPLATES_DIR.exists():
+    raise RuntimeError(f"Папка с болванками не найдена: {TEMPLATES_DIR}")
+print(f"[INFO] Templates dir: {TEMPLATES_DIR} ({len(list(TEMPLATES_DIR.glob('*.docx')))} шаблонов)")
 
 def _do_merge(template_path: str, report_paths: list[str], output_path: str) -> int:
     if AGENT_ENABLED:
@@ -132,14 +129,8 @@ async def upload_templates(files: list[UploadFile] = File(...)):
 
 @app.post("/sync/templates")
 async def sync_templates():
-    if not PROJECT_TEMPLATES.exists():
-        return {"error": "Папка с шаблонами в проекте не найдена"}
-    synced = []
-    for template_file in PROJECT_TEMPLATES.glob("*.docx"):
-        dest = TEMPLATES_DIR / template_file.name
-        shutil.copy2(template_file, dest)
-        synced.append(template_file.name)
-    return {"synced": synced, "count": len(synced)}
+    files = [f.name for f in TEMPLATES_DIR.glob("*.docx")]
+    return {"synced": files, "count": len(files)}
 
 @app.get("/files/reports")
 async def list_reports():
@@ -148,10 +139,6 @@ async def list_reports():
 
 @app.get("/files/templates")
 async def list_templates():
-    if PROJECT_TEMPLATES.exists():
-        for template_file in PROJECT_TEMPLATES.glob("*.docx"):
-            dest = TEMPLATES_DIR / template_file.name
-            shutil.copy2(template_file, dest)
     files = [f.name for f in TEMPLATES_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
     return {"files": sorted(files)}
 
@@ -232,10 +219,6 @@ async def run_macro(macro_name: str):
 async def rename_templates_only(mode: str):
     if mode not in ("today", "yesterday"):
         raise HTTPException(status_code=400, detail="mode должен быть today или yesterday")
-    if PROJECT_TEMPLATES.exists():
-        for template_file in PROJECT_TEMPLATES.glob("*.docx"):
-            dest = TEMPLATES_DIR / template_file.name
-            shutil.copy2(template_file, dest)
     log = rename_templates(str(TEMPLATES_DIR), mode)
     return {"log": log}
 
@@ -456,7 +439,7 @@ async def clear_results():
 
 @app.delete("/clear/all")
 async def clear_all():
-    for d in (UPLOAD_DIR, RESULT_DIR, TEMPLATES_DIR):
+    for d in (UPLOAD_DIR, RESULT_DIR):
         shutil.rmtree(d)
         d.mkdir()
     return {"ok": True}
