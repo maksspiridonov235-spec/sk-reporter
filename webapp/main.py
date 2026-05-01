@@ -421,7 +421,7 @@ async def switch_leader_endpoint(leader: str, filename: str = None):
     if leader not in ("aniskov", "mandzhiev"):
         raise HTTPException(status_code=400, detail="leader должен быть 'aniskov' или 'mandzhiev'")
     
-    from agent.leader_switcher import switch_leader
+    from agent.leader_ai_agent import switch_leader
     
     if filename:
         filepath = str(UPLOAD_DIR / filename)
