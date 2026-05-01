@@ -1,13 +1,102 @@
 """
 Агент инъекции: берёт оригинальный docx + исправленный текст от check_agent,
-парсит ЧАСТЬ 1 и ЧАСТЬ 2 и вставляет их в нужные ячейки таблицы через python-docx.
+использует LLM для нахождения нужных ячеек таблицы и вставляет исправленный текст.
 """
 
+import json
 import re
 import shutil
 import tempfile
 from pathlib import Path
 from docx import Document
+
+MODEL = "gemma4:31b-cloud"
+
+
+def _extract_cells(doc: Document) -> list:
+    """Returns list of (table_idx, row_idx, col_idx, text_preview)."""
+    cells = []
+    for ti, table in enumerate(doc.tables):
+        for ri, row in enumerate(table.rows):
+            for ci, cell in enumerate(row.cells):
+                txt = cell.text.strip()
+                if txt:
+                    cells.append((ti, ri, ci, txt[:300]))
+    return cells
+
+
+def _ask_llm_for_cells(cells: list, corrected_text: str) -> dict:
+    """Ask LLM to identify which cell indices contain ЧАСТЬ 1 and ЧАСТЬ 2 content."""
+    import ollama
+
+    cell_list = "\n".join(
+        f"[{ti},{ri},{ci}]: {preview[:150]!r}"
+        for ti, ri, ci, preview in cells
+    )
+
+    # Extract the corrected sections to give LLM context about what to match
+    part1_preview = ""
+    part2_preview = ""
+    p1 = re.search(r"ЧАСТЬ\s*1[^:\n]*[:\n](.*?)(?=ЧАСТЬ\s*2|$)", corrected_text, re.DOTALL | re.IGNORECASE)
+    p2 = re.search(r"ЧАСТЬ\s*2[^:\n]*[:\n](.*?)$", corrected_text, re.DOTALL | re.IGNORECASE)
+    if p1:
+        part1_preview = p1.group(1).strip()[:200]
+    if p2:
+        part2_preview = p2.group(1).strip()[:200]
+
+    prompt = f"""Ниже — список ячеек таблицы из документа docx. Каждая запись: [таблица,строка,столбец]: "начало текста ячейки".
+
+{cell_list}
+
+Тебе нужно найти:
+1. Ячейку, содержащую ЧАСТЬ 1 отчёта — список видов работ с объёмами (начинается примерно с «Инспекционный контроль по» или содержит «Проектный объем», «Объем за сутки»). Начало ожидаемого нового содержимого: {part1_preview[:100]!r}
+2. Ячейку, содержащую ЧАСТЬ 2 отчёта — описания выполненных работ (начинается примерно с «Наряд-допуск» или «Работы ведутся»). Начало ожидаемого нового содержимого: {part2_preview[:100]!r}
+
+Ответь ТОЛЬКО JSON без пояснений:
+{{"part1": [таблица, строка, столбец], "part2": [таблица, строка, столбец]}}
+
+Если ячейка не найдена — используй null вместо массива."""
+
+    response = ollama.chat(
+        model=MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        stream=False,
+    )
+    raw = response.get("message", {}).get("content", "").strip()
+    print(f"[INJECT_AGENT] LLM cell response: {raw[:300]}")
+
+    # Extract JSON from response
+    json_match = re.search(r"\{[^{}]*\}", raw, re.DOTALL)
+    if not json_match:
+        return {}
+    return json.loads(json_match.group())
+
+
+def _parse_parts(corrected_text: str):
+    """Parse ЧАСТЬ 1 and ЧАСТЬ 2 content from LLM output."""
+    cleaned = re.sub(r"\*\*([^*]+)\*\*", r"\1", corrected_text)
+
+    section_match = re.search(
+        r"##\s*ИСПРАВЛЕННЫЙ\s*ОТЧЁТ[^\n]*\n(.*?)$", cleaned, re.DOTALL | re.IGNORECASE
+    )
+    search_text = section_match.group(1) if section_match else cleaned
+
+    part1_match = re.search(
+        r"ЧАСТЬ\s*1[^:\n]*[:\n](.*?)(?=ЧАСТЬ\s*2\b|$)", search_text, re.DOTALL | re.IGNORECASE
+    )
+    part2_match = re.search(
+        r"ЧАСТЬ\s*2[^:\n]*[:\n](.*?)$", search_text, re.DOTALL | re.IGNORECASE
+    )
+
+    part1_lines = []
+    part2_lines = []
+    if part1_match:
+        part1_lines = [l.rstrip() for l in part1_match.group(1).strip().splitlines()]
+    if part2_match:
+        part2_lines = [l.rstrip() for l in part2_match.group(1).strip().splitlines()]
+
+    print(f"[INJECT_AGENT] parsed part1={len(part1_lines)} lines, part2={len(part2_lines)} lines")
+    return part1_lines, part2_lines
 
 
 def _clear_cell(cell):
@@ -17,88 +106,58 @@ def _clear_cell(cell):
     cell.paragraphs[0].clear()
 
 
-def _add_paragraph(cell, text: str, first: bool = False):
-    if first:
-        para = cell.paragraphs[0]
-        para.clear()
-    else:
-        para = cell.add_paragraph()
-    para.add_run(text)
-    return para
-
-
-def _find_target_cells(doc: Document):
-    part1_cell = None
-    part2_cell = None
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                txt = cell.text
-                if "Инспекционный контроль" in txt and part1_cell is None:
-                    part1_cell = cell
-                if ("Наряд-допуск проверен" in txt or "Наряд - допуск проверен" in txt) and part2_cell is None:
-                    part2_cell = cell
-    return part1_cell, part2_cell
-
-
-def _parse_corrected(corrected_text: str):
-    part1_lines = []
-    part2_lines = []
-
-    # Strip markdown bold markers around ЧАСТЬ labels
-    cleaned = re.sub(r"\*\*([^*]+)\*\*", r"\1", corrected_text)
-
-    # Look inside ## ИСПРАВЛЕННЫЙ ОТЧЁТ section if present
-    section_match = re.search(
-        r"##\s*ИСПРАВЛЕННЫЙ\s*ОТЧЁТ[^\n]*\n(.*?)$", cleaned, re.DOTALL | re.IGNORECASE
-    )
-    search_text = section_match.group(1) if section_match else cleaned
-
-    part1_match = re.search(
-        r"ЧАСТЬ\s*1\b[^\n]*\n(.*?)(?=ЧАСТЬ\s*2\b|$)", search_text, re.DOTALL | re.IGNORECASE
-    )
-    part2_match = re.search(
-        r"ЧАСТЬ\s*2\b[^\n]*\n(.*?)$", search_text, re.DOTALL | re.IGNORECASE
-    )
-
-    if part1_match:
-        part1_lines = [l.rstrip() for l in part1_match.group(1).strip().splitlines()]
-    if part2_match:
-        part2_lines = [l.rstrip() for l in part2_match.group(1).strip().splitlines()]
-
-    print(f"[INJECT_AGENT] parsed part1_lines={len(part1_lines)}, part2_lines={len(part2_lines)}")
-    return part1_lines, part2_lines
-
-
 def _write_lines_to_cell(cell, lines: list):
     _clear_cell(cell)
     first = True
     for line in lines:
-        _add_paragraph(cell, line, first=first)
-        first = False
+        if first:
+            para = cell.paragraphs[0]
+            para.clear()
+            para.add_run(line)
+            first = False
+        else:
+            para = cell.add_paragraph()
+            para.add_run(line)
 
 
 def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -> dict:
     stem = Path(source_filename).stem
     try:
-        print(f"[INJECT_AGENT] === FULL corrected_text ===\n{corrected_text}\n=== END ===")
-        part1_lines, part2_lines = _parse_corrected(corrected_text)
+        print(f"[INJECT_AGENT] === FULL corrected_text ===\n{corrected_text[:500]}\n... (truncated) ===")
+        part1_lines, part2_lines = _parse_parts(corrected_text)
 
         if not part1_lines and not part2_lines:
-            return {"ok": False, "error": "Не удалось распарсить ЧАСТЬ 1 / ЧАСТЬ 2 из ответа агента", "docx_path": None}
+            return {
+                "ok": False,
+                "error": "Не удалось распарсить ЧАСТЬ 1 / ЧАСТЬ 2 из ответа агента",
+                "docx_path": None,
+            }
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir) / Path(filepath).name
             shutil.copy2(filepath, tmp_path)
 
             doc = Document(str(tmp_path))
-            part1_cell, part2_cell = _find_target_cells(doc)
+            cells = _extract_cells(doc)
+            print(f"[INJECT_AGENT] Total cells extracted: {len(cells)}")
 
-            if part1_cell and part1_lines:
-                _write_lines_to_cell(part1_cell, part1_lines)
+            cell_coords = _ask_llm_for_cells(cells, corrected_text)
+            print(f"[INJECT_AGENT] LLM identified cells: {cell_coords}")
 
-            if part2_cell and part2_lines:
-                _write_lines_to_cell(part2_cell, part2_lines)
+            p1_coord = cell_coords.get("part1")
+            p2_coord = cell_coords.get("part2")
+
+            if p1_coord and isinstance(p1_coord, list) and len(p1_coord) == 3 and part1_lines:
+                ti, ri, ci = p1_coord
+                target = doc.tables[ti].rows[ri].cells[ci]
+                _write_lines_to_cell(target, part1_lines)
+                print(f"[INJECT_AGENT] Wrote ЧАСТЬ 1 to cell [{ti},{ri},{ci}]")
+
+            if p2_coord and isinstance(p2_coord, list) and len(p2_coord) == 3 and part2_lines:
+                ti, ri, ci = p2_coord
+                target = doc.tables[ti].rows[ri].cells[ci]
+                _write_lines_to_cell(target, part2_lines)
+                print(f"[INJECT_AGENT] Wrote ЧАСТЬ 2 to cell [{ti},{ri},{ci}]")
 
             output_dir = Path(__file__).parent.parent / "output"
             output_dir.mkdir(exist_ok=True)
@@ -109,6 +168,6 @@ def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -
         return {"ok": True, "docx_path": str(final_path)}
 
     except Exception as e:
-        print(f"[INJECT_AGENT] error: {e}")
+        import traceback
+        print(f"[INJECT_AGENT] error: {e}\n{traceback.format_exc()}")
         return {"ok": False, "error": str(e), "docx_path": None}
-
