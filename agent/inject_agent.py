@@ -8,8 +8,6 @@ import shutil
 import tempfile
 from pathlib import Path
 from docx import Document
-from docx.oxml.ns import qn
-from docx.oxml import OxmlElement
 
 
 def _clear_cell(cell):
@@ -47,11 +45,20 @@ def _parse_corrected(corrected_text: str):
     part1_lines = []
     part2_lines = []
 
+    # Strip markdown bold markers around ЧАСТЬ labels
+    cleaned = re.sub(r"\*\*([^*]+)\*\*", r"\1", corrected_text)
+
+    # Look inside ## ИСПРАВЛЕННЫЙ ОТЧЁТ section if present
+    section_match = re.search(
+        r"##\s*ИСПРАВЛЕННЫЙ\s*ОТЧЁТ[^\n]*\n(.*?)$", cleaned, re.DOTALL | re.IGNORECASE
+    )
+    search_text = section_match.group(1) if section_match else cleaned
+
     part1_match = re.search(
-        r"ЧАСТЬ\s*1[^\n]*\n(.*?)(?=ЧАСТЬ\s*2|$)", corrected_text, re.DOTALL | re.IGNORECASE
+        r"ЧАСТЬ\s*1\b[^\n]*\n(.*?)(?=ЧАСТЬ\s*2\b|$)", search_text, re.DOTALL | re.IGNORECASE
     )
     part2_match = re.search(
-        r"ЧАСТЬ\s*2[^\n]*\n(.*?)$", corrected_text, re.DOTALL | re.IGNORECASE
+        r"ЧАСТЬ\s*2\b[^\n]*\n(.*?)$", search_text, re.DOTALL | re.IGNORECASE
     )
 
     if part1_match:
@@ -59,6 +66,7 @@ def _parse_corrected(corrected_text: str):
     if part2_match:
         part2_lines = [l.rstrip() for l in part2_match.group(1).strip().splitlines()]
 
+    print(f"[INJECT_AGENT] parsed part1_lines={len(part1_lines)}, part2_lines={len(part2_lines)}")
     return part1_lines, part2_lines
 
 
@@ -70,26 +78,10 @@ def _write_lines_to_cell(cell, lines: list):
         first = False
 
 
-def inject_corrections(original_html: str, corrected_text: str, source_filename: str) -> dict:
-    filepath = _find_source_docx(source_filename)
-    if not filepath:
-        return {"ok": False, "error": f"Исходный docx не найден: {source_filename}", "docx_path": None}
-
-    return inject_into_docx(filepath, corrected_text, source_filename)
-
-
-def _find_source_docx(source_filename: str) -> str | None:
-    import tempfile
-    work_dir = Path(tempfile.gettempdir()) / "sk_reports_work" / "uploads"
-    candidate = work_dir / source_filename
-    if candidate.exists():
-        return str(candidate)
-    return None
-
-
 def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -> dict:
     stem = Path(source_filename).stem
     try:
+        print(f"[INJECT_AGENT] corrected_text preview:\n{corrected_text[:800]}\n---")
         part1_lines, part2_lines = _parse_corrected(corrected_text)
 
         if not part1_lines and not part2_lines:
