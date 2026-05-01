@@ -197,36 +197,3 @@ def switch_leader_ai(filepaths: list, leader: Literal["aniskov", "mandzhiev"]) -
     output = "\n".join(results)
     output += f"\nОбработано: {success_count}/{len(filepaths)} файлов, замен: {total_changes}"
     return True, output
-
-
-def switch_leader(filepath: str, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
-    """Переключает руководителя в одном файле (совместимость со старым API)."""
-    return _switch_single_file(filepath, leader)
-
-
-def detect_current_leader(filepath: str) -> str:
-    """Определяет текущего руководителя в документе."""
-    try:
-        doc = Document(filepath)
-        
-        aniskov_count = 0
-        mandzhiev_count = 0
-        
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    text = cell.text
-                    if "Аниськов" in text or "Аниськова" in text:
-                        aniskov_count += 1
-                    if "Манджиев" in text or "Манджиева" in text:
-                        mandzhiev_count += 1
-        
-        if aniskov_count > mandzhiev_count:
-            return "aniskov"
-        elif mandzhiev_count > aniskov_count:
-            return "mandzhiev"
-        else:
-            return "unknown"
-            
-    except Exception as e:
-        return "unknown"
