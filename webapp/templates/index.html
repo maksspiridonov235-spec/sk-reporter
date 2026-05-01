@@ -418,7 +418,7 @@
         return;
       }
       const filename = filesData.files[0];
-      const data = await apiFetch(`/switch-leader/${leader}?filename=${encodeURIComponent(filename)}`, { method: 'POST' });
+      const data = await apiFetch(`/switch-leader-ai/${leader}?filename=${encodeURIComponent(filename)}`, { method: 'POST' });
       logLine(data.message, 'ok');
       await loadCurrentLeader();
     } catch (e) {
