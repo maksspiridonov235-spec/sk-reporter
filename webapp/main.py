@@ -473,8 +473,8 @@ async def switch_leader_ai_endpoint(leader: str):
     if not report_files:
         raise HTTPException(status_code=404, detail="Отчёты не загружены")
     
-    filepath = str(report_files[0])
-    ok, msg = switch_leader_ai(filepath, leader)
+    filepaths = [str(f) for f in report_files]
+    ok, msg = switch_leader_ai(filepaths, leader)
     
     if not ok:
         raise HTTPException(status_code=500, detail=msg)

@@ -117,7 +117,7 @@ def analyze_with_ai(filepath: str, to_leader: str) -> dict:
         return {"error": str(e)}
 
 
-def switch_leader_ai(filepath: str, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
+def switch_leader_ai_single(filepath: str, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
     """
     AI-агент переключения руководителя.
     """
