@@ -202,8 +202,6 @@ def switch_leader_ai(filepaths: list, leader: Literal["aniskov", "mandzhiev"]) -
         except Exception as e:
             results.append(f"{Path(filepath).name}: Ошибка - {e}")
     
-    summary = f"Обработано: {success_count}/{len(filepaths)} файлов, замен: {total_changes}"
-    
     # Формируем детальный отчет для журнала
     details = []
     for r in results:
@@ -214,10 +212,13 @@ def switch_leader_ai(filepaths: list, leader: Literal["aniskov", "mandzhiev"]) -
             if match:
                 details.append(f"→ {fname}: замен {match.group(1)}")
     
+    # Итог в конце
+    summary = f"Обработано: {success_count}/{len(filepaths)} файлов, замен: {total_changes}"
+    
     # Если хотя бы один успешно - возвращаем True
     if success_count > 0:
-        return True, summary + "
-" + "
-".join(details[:10])  # Первые 10 файлов
+        return True, "
+".join(details[:10]) + "
+" + summary  # Сначала детали, потом итог
     else:
         return False, "Ни один файл не обработан"
