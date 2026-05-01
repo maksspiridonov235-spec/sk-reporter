@@ -136,25 +136,26 @@ def _switch_single_file(filepath: str, leader: Literal["aniskov", "mandzhiev"]) 
             new_project = "И.О. Руководителя проекта СК"
         
         changes = 0
-        
+
+        replacements = [
+            (old_fio, new_fio),
+            (old_project, new_project),
+            (old_title, new_title),
+        ]
+
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
-                    original = cell.text.strip()
-                    new_text = original
-                    
-                    if old_fio in original:
-                        new_text = new_text.replace(old_fio, new_fio)
-                    
-                    if old_project in original:
-                        new_text = new_text.replace(old_project, new_project)
-                    
-                    if original == old_title:
-                        new_text = new_title
-                    
-                    if new_text != original:
-                        cell.text = new_text
-                        changes += 1
+                    for para in cell.paragraphs:
+                        for run in para.runs:
+                            original_run = run.text
+                            new_run = original_run
+                            for old_val, new_val in replacements:
+                                if old_val in new_run:
+                                    new_run = new_run.replace(old_val, new_val)
+                            if new_run != original_run:
+                                run.text = new_run
+                                changes += 1
         
         if changes == 0:
             ai_result = analyze_with_ai(filepath, leader)
