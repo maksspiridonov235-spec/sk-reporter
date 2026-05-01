@@ -204,7 +204,7 @@ async def run_macro(macro_name: str):
         raise HTTPException(status_code=400, detail="Неизвестный макрос")
 
     if macro_name == "ApplyTemplateLayout":
-        template_path = Path(__file__).parent.parent / "Ежедневный отчет Шаблон.docx"
+        template_path = Path(__file__).parent.parent / "contractor_report" / "болванки (шаблоны не вырезать только копировать)" / "Ежедневный отчет Шаблон.docx"
         layout = read_template_layout(template_path)
         log = []
         for f in UPLOAD_DIR.iterdir():

@@ -4,23 +4,15 @@
 """
 
 import sys
-from copy import deepcopy
 from pathlib import Path
 from docx import Document
 from docx.oxml.ns import qn
 from lxml import etree
 
-TEMPLATE_PATH = Path(__file__).parent / "Ежедневный отчет Шаблон.docx"
+TEMPLATE_PATH = Path(__file__).parent / "contractor_report" / "болванки (шаблоны не вырезать только копировать)" / "Ежедневный отчет Шаблон.docx"
 
 
 def read_template_layout(template_path: Path) -> list:
-    """
-    Возвращает list[table_idx] -> list[row_idx] -> {
-        'height': str | None,
-        'hRule': str | None,
-        'cells': list[col_idx] -> {'w': str | None, 'type': str | None}
-    }
-    """
     doc = Document(str(template_path))
     layout = []
     for table in doc.tables:
@@ -37,17 +29,20 @@ def read_template_layout(template_path: Path) -> list:
                     height_rule = trH.get(qn('w:hRule'))
 
             cells_layout = []
-            for cell in row.cells:
-                tc = cell._tc
+            for tc in tr.findall(qn('w:tc')):
                 tcPr = tc.find(qn('w:tcPr'))
                 w_val = None
-                w_type = None
+                w_type = 'dxa'
+                grid_span = None
                 if tcPr is not None:
                     tcW = tcPr.find(qn('w:tcW'))
                     if tcW is not None:
                         w_val = tcW.get(qn('w:w'))
-                        w_type = tcW.get(qn('w:type'))
-                cells_layout.append({'w': w_val, 'type': w_type or 'dxa'})
+                        w_type = tcW.get(qn('w:type')) or 'dxa'
+                    gs = tcPr.find(qn('w:gridSpan'))
+                    if gs is not None:
+                        grid_span = gs.get(qn('w:val'))
+                cells_layout.append({'w': w_val, 'type': w_type, 'gridSpan': grid_span})
 
             table_layout.append({
                 'height': height_val,
@@ -74,38 +69,44 @@ def apply_layout(doc: Document, layout: list):
                 trPr = etree.SubElement(tr, qn('w:trPr'))
                 tr.insert(0, trPr)
 
-            # Применяем высоту строки
             if row_layout['height'] is not None:
                 trH = trPr.find(qn('w:trHeight'))
                 if trH is None:
                     trH = etree.SubElement(trPr, qn('w:trHeight'))
                 trH.set(qn('w:val'), row_layout['height'])
-                # hRule не задан в шаблоне → atLeast (Word по умолчанию)
                 if row_layout['hRule']:
                     trH.set(qn('w:hRule'), row_layout['hRule'])
                 else:
-                    # явно убираем hRule если был, чтобы Word использовал atLeast
                     if qn('w:hRule') in trH.attrib:
                         del trH.attrib[qn('w:hRule')]
 
-            # Применяем ширины ячеек
+            tcs = tr.findall(qn('w:tc'))
             cells_layout = row_layout['cells']
-            for ci, cell in enumerate(row.cells):
-                if ci >= len(cells_layout):
-                    break
-                cl = cells_layout[ci]
+            if len(tcs) != len(cells_layout):
+                continue
+
+            for tc, cl in zip(tcs, cells_layout):
                 if cl['w'] is None:
                     continue
-                tc = cell._tc
                 tcPr = tc.find(qn('w:tcPr'))
                 if tcPr is None:
                     tcPr = etree.SubElement(tc, qn('w:tcPr'))
                     tc.insert(0, tcPr)
+
                 tcW = tcPr.find(qn('w:tcW'))
                 if tcW is None:
                     tcW = etree.SubElement(tcPr, qn('w:tcW'))
                 tcW.set(qn('w:w'), cl['w'])
                 tcW.set(qn('w:type'), cl['type'])
+
+                gs_el = tcPr.find(qn('w:gridSpan'))
+                if cl['gridSpan'] is not None:
+                    if gs_el is None:
+                        gs_el = etree.SubElement(tcPr, qn('w:gridSpan'))
+                    gs_el.set(qn('w:val'), cl['gridSpan'])
+                else:
+                    if gs_el is not None:
+                        tcPr.remove(gs_el)
 
 
 def main():
@@ -133,3 +134,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
