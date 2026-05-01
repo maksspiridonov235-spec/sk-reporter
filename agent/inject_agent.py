@@ -81,7 +81,7 @@ def _write_lines_to_cell(cell, lines: list):
 def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -> dict:
     stem = Path(source_filename).stem
     try:
-        print(f"[INJECT_AGENT] corrected_text preview:\n{corrected_text[:800]}\n---")
+        print(f"[INJECT_AGENT] === FULL corrected_text ===\n{corrected_text}\n=== END ===")
         part1_lines, part2_lines = _parse_corrected(corrected_text)
 
         if not part1_lines and not part2_lines:
