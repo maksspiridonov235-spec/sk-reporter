@@ -14,6 +14,8 @@ from docx import Document
 
 sys.path.append(str(Path(__file__).parent.parent))
 
+from apply_template_layout import read_template_layout, apply_layout
+
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
@@ -197,9 +199,26 @@ async def check_descriptions_stream():
 
 @app.post("/macro/{macro_name}")
 async def run_macro(macro_name: str):
-    allowed = {"HighlightSecondRow_No5991", "NewMacros", "ReplaceDateInReportLine", "ReplaceDateInReportLine2"}
+    allowed = {"HighlightSecondRow_No5991", "NewMacros", "ReplaceDateInReportLine", "ReplaceDateInReportLine2", "ApplyTemplateLayout"}
     if macro_name not in allowed:
         raise HTTPException(status_code=400, detail="Неизвестный макрос")
+
+    if macro_name == "ApplyTemplateLayout":
+        template_path = Path(__file__).parent.parent / "Ежедневный отчет Шаблон.docx"
+        layout = read_template_layout(template_path)
+        log = []
+        for f in UPLOAD_DIR.iterdir():
+            if f.suffix.lower() != ".docx":
+                continue
+            try:
+                doc = Document(str(f))
+                apply_layout(doc, layout)
+                doc.save(str(f))
+                log.append(f"[OK] {f.name}")
+            except Exception as e:
+                log.append(f"[ERR] {f.name}: {e}")
+        return {"log": log}
+
     log = []
     for f in UPLOAD_DIR.iterdir():
         if f.suffix.lower() not in (".docx", ".doc"):
