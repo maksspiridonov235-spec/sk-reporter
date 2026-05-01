@@ -411,7 +411,14 @@
     };
     logLine(`Переключаю руководителя на: ${names[leader]}...`);
     try {
-      const data = await apiFetch(`/switch-leader/${leader}`, { method: 'POST' });
+      // Получаем список файлов и берем первый
+      const filesData = await apiFetch('/files/reports');
+      if (!filesData.files || filesData.files.length === 0) {
+        logLine('Нет загруженных отчётов', 'err');
+        return;
+      }
+      const filename = filesData.files[0];
+      const data = await apiFetch(`/switch-leader/${leader}?filename=${encodeURIComponent(filename)}`, { method: 'POST' });
       logLine(data.message, 'ok');
       await loadCurrentLeader();
     } catch (e) {

@@ -414,20 +414,23 @@ if __name__ == "__main__":
 # ── Переключение руководителя ───────────────────────────────────────────────
 
 @app.post("/switch-leader/{leader}")
-async def switch_leader_endpoint(leader: str):
+async def switch_leader_endpoint(leader: str, filename: str = None):
     """Переключает руководителя в загруженном отчёте."""
     if leader not in ("aniskov", "mandzhiev"):
         raise HTTPException(status_code=400, detail="leader должен быть 'aniskov' или 'mandzhiev'")
     
     from agent.leader_switcher import switch_leader
     
-    report_files = list(UPLOAD_DIR.glob("*.docx"))
-    if not report_files:
-        raise HTTPException(status_code=404, detail="Отчёты не загружены")
-    
-    # Берём первый файл (или можно передать имя файла)
-    filepath = str(report_files[0])
-    filename = report_files[0].name
+    if filename:
+        filepath = str(UPLOAD_DIR / filename)
+        if not Path(filepath).exists():
+            raise HTTPException(status_code=404, detail=f"Файл не найден: {filename}")
+    else:
+        report_files = list(UPLOAD_DIR.glob("*.docx"))
+        if not report_files:
+            raise HTTPException(status_code=404, detail="Отчёты не загружены")
+        filepath = str(report_files[0])
+        filename = report_files[0].name
     
     ok, msg = switch_leader(filepath, leader)
     
