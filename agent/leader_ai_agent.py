@@ -143,19 +143,27 @@ def _switch_single_file(filepath: str, leader: Literal["aniskov", "mandzhiev"]) 
             (old_title, new_title),
         ]
 
+        def replace_in_para(para):
+            nonlocal changes
+            full_text = para.text
+            new_text = full_text
+            for old_val, new_val in replacements:
+                if old_val in new_text:
+                    new_text = new_text.replace(old_val, new_val)
+            if new_text == full_text:
+                return
+            # Склеиваем все runs в первый, остальные очищаем
+            if para.runs:
+                para.runs[0].text = new_text
+                for run in para.runs[1:]:
+                    run.text = ""
+            changes += 1
+
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
                     for para in cell.paragraphs:
-                        for run in para.runs:
-                            original_run = run.text
-                            new_run = original_run
-                            for old_val, new_val in replacements:
-                                if old_val in new_run:
-                                    new_run = new_run.replace(old_val, new_val)
-                            if new_run != original_run:
-                                run.text = new_run
-                                changes += 1
+                        replace_in_para(para)
         
         if changes == 0:
             ai_result = analyze_with_ai(filepath, leader)
