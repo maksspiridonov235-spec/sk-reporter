@@ -550,6 +550,7 @@
     if (!confirm("Сбросить всё? Удалятся отчёты и результаты.")) return;
     await apiFetch("/clear/all", { method: "DELETE" });
     document.getElementById("log").innerHTML = "";
+    document.getElementById("check-list").innerHTML = "";
     logLine("Все файлы удалены. Можно начинать заново.", "ok");
     refreshReportsList();
     refreshResults();
