@@ -382,15 +382,6 @@
 
   // ── Переключение руководителя ────────────────────────────────────────────
 
-   else {
-        el.textContent = data.message || 'Нет данных';
-        el.style.color = '#888';
-      }
-    } catch (e) {
-      console.error('Failed to load leader:', e);
-    }
-  }
-
   async function switchLeader(leader) {
     const names = {
       'aniskov': 'Аниськов Владимир Иванович',
