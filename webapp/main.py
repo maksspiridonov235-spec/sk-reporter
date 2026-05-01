@@ -14,7 +14,7 @@ from docx import Document
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from apply_template_layout import apply_layout
+from apply_template_layout import read_template_layout, apply_layout
 
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
@@ -204,13 +204,15 @@ async def run_macro(macro_name: str):
         raise HTTPException(status_code=400, detail="Неизвестный макрос")
 
     if macro_name == "ApplyTemplateLayout":
+        template_path = Path(__file__).parent.parent / "Ежедневный отчет Шаблон.docx"
+        layout = read_template_layout(template_path)
         log = []
         for f in UPLOAD_DIR.iterdir():
             if f.suffix.lower() != ".docx":
                 continue
             try:
                 doc = Document(str(f))
-                apply_layout(doc)
+                apply_layout(doc, layout)
                 doc.save(str(f))
                 log.append(f"[OK] {f.name}")
             except Exception as e:
