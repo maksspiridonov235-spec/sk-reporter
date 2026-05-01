@@ -393,8 +393,9 @@
       
       // Выводим результат как в других функциях
       if (data.ok) {
-        logLine('Результат:', 'info');
-        logLine(data.message, 'ok');
+        data.message.split('\n').forEach(line => {
+          if (line.trim()) logLine(line.trim(), 'ok');
+        });
         logLine('Готово.', 'ok');
       } else {
         logLine(`Ошибка: ${data.message || 'Неизвестная ошибка'}`, 'err');
