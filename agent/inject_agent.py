@@ -7,10 +7,8 @@ import json
 import re
 import shutil
 import tempfile
-from copy import deepcopy
 from pathlib import Path
 from docx import Document
-from docx.table import _Row
 
 MODEL = "gemma4:31b-cloud"
 
@@ -177,12 +175,12 @@ def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -
                     break
             
             if target_cell and (part1_lines or part2_lines):
-                # Find the table and row index of target_cell
+                # Find table and row index
                 target_table = None
                 target_row_idx = None
                 for ti, table in enumerate(doc.tables):
                     for ri, row in enumerate(table.rows):
-                        for cell in row.cells:
+                        for ci, cell in enumerate(row.cells):
                             if cell == target_cell:
                                 target_table = table
                                 target_row_idx = ri
@@ -192,48 +190,39 @@ def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -
                     if target_row_idx is not None:
                         break
                 
-                if target_table is not None and target_row_idx is not None:
-                    # Insert new row for Part 1 after the target row
-                    new_row_1 = target_table.rows[target_row_idx]._element
-                    new_row_1_elem = target_table._element.addnext(new_row_1.getparent().makeelement('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}tr'))
+                if target_table is not None:
+                    # Add two new rows
+                    col_count = len(target_table.rows[0].cells) if target_table.rows else 0
                     
-                    # Actually, proper way: add row at specific position
-                    from docx.table import _Row
+                    # Add row for Part 1
+                    new_row_1 = target_table.add_row()
+                    if part1_lines and col_count > 0:
+                        new_row_1.cells[0].text = "\n".join(part1_lines)
                     
-                    # Insert Part 1 row
+                    # Add row for Part 2  
+                    new_row_2 = target_table.add_row()
+                    if part2_lines and col_count > 0:
+                        new_row_2.cells[0].text = "\n".join(part2_lines)
+                    
+                    # Move new rows to correct position (after target_row_idx)
                     tbl = target_table._tbl
-                    tr = target_cell._element.getparent()  # current row element
+                    tr_elements = list(tbl.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}tr'))
                     
-                    # Create new row for Part 1
-                    new_tr_1 = deepcopy(tr)
-                    # Clear cells in new row
-                    for tc in new_tr_1.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}tc'):
-                        for p in tc.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p'):
-                            for r in p.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}r'):
-                                p.remove(r)
-                    # Insert after current row
-                    tr.addnext(new_tr_1)
+                    if len(tr_elements) >= 2 and target_row_idx < len(tr_elements) - 2:
+                        # Get the rows we just added (last two)
+                        tr_1 = tr_elements[-2]
+                        tr_2 = tr_elements[-1]
+                        ref_tr = tr_elements[target_row_idx]
+                        
+                        # Remove from end
+                        tbl.remove(tr_2)
+                        tbl.remove(tr_1)
+                        
+                        # Insert after reference row
+                        ref_tr.addnext(tr_2)
+                        ref_tr.addnext(tr_1)
                     
-                    # Write Part 1 to first cell of new row
-                    new_row_1_obj = _Row(new_tr_1, target_table)
-                    if part1_lines:
-                        cell_1 = new_row_1_obj.cells[0]
-                        cell_1.text = '\n'.join(part1_lines)
-                    
-                    # Insert new row for Part 2 after Part 1 row
-                    new_tr_2 = deepcopy(tr)
-                    for tc in new_tr_2.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}tc'):
-                        for p in tc.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p'):
-                            for r in p.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}r'):
-                                p.remove(r)
-                    new_tr_1.addnext(new_tr_2)
-                    
-                    new_row_2_obj = _Row(new_tr_2, target_table)
-                    if part2_lines:
-                        cell_2 = new_row_2_obj.cells[0]
-                        cell_2.text = '\n'.join(part2_lines)
-                    
-                    print(f"[INJECT_AGENT] Inserted 2 new rows with Part 1 and Part 2 after 'Описание действий'")
+                    print(f"[INJECT_AGENT] Inserted 2 new rows with Part 1 and Part 2")
 
             output_dir = Path(__file__).parent.parent / "output"
             output_dir.mkdir(exist_ok=True)
