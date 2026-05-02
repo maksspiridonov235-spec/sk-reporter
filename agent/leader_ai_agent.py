@@ -2,149 +2,172 @@
 Использует LLM для анализа и замены.
 """
 
-import json
-import re
 import ollama
 from docx import Document
 from pathlib import Path
 from typing import Literal
 
-MODEL = "gemma4:31b-cloud"
+MODEL = "qwen3.5:cloud"
+
+SYSTEM_PROMPT = """Ты - агент для редактирования отчётов строительного контроля.
+
+Твоя задача: найти и заменить данные руководителя в документе.
+
+ПРАВИЛА:
+1. Найди все упоминания текущего руководителя (ФИО, должность)
+2. Замени на нового руководителя
+3. Сохрани форматирование документа
+
+СТАРЫЙ РУКОВОДИТЕЛЬ (заменить):
+- ФИО: Аниськов Владимир Иванович
+- Должность: Руководитель проекта СК
+- Заголовок: Руководитель
+
+НОВЫЙ РУКОВОДИТЕЛЬ (вставить):
+- ФИО: Манджиев Игорь Александрович  
+- Должность: И.О. Руководителя проекта СК
+- Заголовок: И.О. Руководителя
+
+Ответь JSON:
+{
+  "found": ["список найденных текстов для замены"],
+  "confidence": 0-100
+}"""
 
 
-def _ask_llm_for_leader_cells(cells_text: list) -> dict:
-    """Ask LLM to find cells containing leader FIO and title/position."""
-    cell_list = "\n".join(
-        f"[{ti},{ri},{ci}]: {preview[:120]!r}"
-        for ti, ri, ci, preview in cells_text
-    )
-
-    prompt = f"""В документе отчёта строительного контроля есть ячейки таблицы.
-Найди ячейки, содержащие:
-1. ФИО руководителя (фамилия имя отчество, например "Аниськов Владимир Иванович" или "Манджиев Игорь Александрович" — может быть написано с опечатками)
-2. Должность/заголовок руководителя (например "Руководитель", "И.О. Руководителя", "Руководитель проекта СК", "И.О. Руководителя проекта СК" — может быть написано с опечатками или в нижнем регистре)
-
-Список ячеек:
-{cell_list}
-
-Ответь ТОЛЬКО JSON без пояснений:
-{{"fio_cell": [таблица, строка, столбец], "title_cell": [таблица, строка, столбец], "project_cell": [таблица, строка, столбец]}}
-
-Примечания:
-- fio_cell — ячейка с ФИО руководителя (не инженера!)
-- title_cell — ячейка с заголовком ("Руководитель" / "И.О. Руководителя") — краткий вариант без "проекта СК"
-- project_cell — ячейка с должностью ("Руководитель проекта СК" / "И.О. Руководителя проекта СК")
-- Если ячейка не найдена — используй null
-- title_cell и project_cell могут быть одной и той же ячейкой или разными"""
-
-    response = ollama.chat(
-        model=MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        options={"temperature": 0.0},
-        stream=False,
-    )
-    raw = response.get("message", {}).get("content", "").strip()
-    print(f"[LEADER_AGENT] LLM cell response: {raw[:400]}")
-
-    json_match = re.search(r"\{[^{}]*\}", raw, re.DOTALL)
-    if not json_match:
-        return {}
+def extract_text_from_docx(filepath: str) -> str:
+    """Извлекает текст из DOCX для анализа."""
     try:
-        return json.loads(json_match.group())
-    except Exception:
-        return {}
+        doc = Document(filepath)
+        parts = []
+        
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    text = cell.text.strip()
+                    if text and len(text) > 2:
+                        parts.append(text)
+        
+        return "\n".join(parts[:100])
+    except Exception as e:
+        return f"Error: {e}"
 
 
-def _force_write_para(cell, new_text: str):
-    """Overwrite first paragraph of cell with new_text, preserve run formatting."""
-    if not cell.paragraphs:
-        return
-    para = cell.paragraphs[0]
-    if para.runs:
-        para.runs[0].text = new_text
-        for run in para.runs[1:]:
-            run.text = ""
+def analyze_with_ai(filepath: str, to_leader: str) -> dict:
+    """Анализирует документ через Ollama."""
+    
+    if to_leader == "aniskov":
+        old_fio = "Манджиев Игорь Александрович"
+        new_fio = "Аниськов Владимир Иванович"
+        old_title = "И.О. Руководителя"
+        new_title = "Руководитель"
+        old_project = "И.О. Руководителя проекта СК"
+        new_project = "Руководитель проекта СК"
     else:
-        para.add_run(new_text)
+        old_fio = "Аниськов Владимир Иванович"
+        new_fio = "Манджиев Игорь Александрович"
+        old_title = "Руководитель"
+        new_title = "И.О. Руководителя"
+        old_project = "Руководитель проекта СК"
+        new_project = "И.О. Руководителя проекта СК"
+    
+    prompt = f"""Проанализируй текст и найди все места для замены руководителя.
+
+ЗАМЕНИТЬ:
+- "{old_fio}" → "{new_fio}"
+- "{old_title}" → "{new_title}"
+- "{old_project}" → "{new_project}"
+
+Текст:
+{extract_text_from_docx(filepath)}
+
+Ответь JSON:
+{{
+  "found_patterns": ["..."],
+  "confidence": 95
+}}"""
+    
+    try:
+        response = ollama.chat(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt}
+            ],
+            options={"temperature": 0.0, "num_predict": 500},
+        )
+        
+        answer = response["message"]["content"]
+        
+        import json
+        import re
+        
+        json_match = re.search(r'\{.*\}', answer, re.DOTALL)
+        if json_match:
+            return json.loads(json_match.group())
+        
+        return {"error": "No JSON found", "raw": answer}
+        
+    except Exception as e:
+        return {"error": str(e)}
 
 
 def _switch_single_file(filepath: str, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
-    """Обрабатывает один файл — LLM находит нужные ячейки, принудительно записывает значения."""
+    """Обрабатывает один файл."""
     try:
         doc = Document(filepath)
-
+        
         if not doc.tables:
             return False, "Нет таблиц в документе"
-
+        
         if leader == "aniskov":
-            target_fio = "Аниськов Владимир Иванович"
-            target_title = "Руководитель"
-            target_project = "Руководитель проекта СК"
+            old_fio = "Манджиев Игорь Александрович"
+            new_fio = "Аниськов Владимир Иванович"
+            old_title = "И.О. Руководителя"
+            new_title = "Руководитель"
+            old_project = "И.О. Руководителя проекта СК"
+            new_project = "Руководитель проекта СК"
         else:
-            target_fio = "Манджиев Игорь Александрович"
-            target_title = "И.О. Руководителя"
-            target_project = "И.О. Руководителя проекта СК"
-
-        cells = []
-        for ti, table in enumerate(doc.tables):
-            for ri, row in enumerate(table.rows):
-                for ci, cell in enumerate(row.cells):
-                    txt = cell.text.strip()
-                    if txt:
-                        cells.append((ti, ri, ci, txt[:300]))
-
-        coords = _ask_llm_for_leader_cells(cells)
-        print(f"[LEADER_AGENT] LLM identified cells: {coords}")
-
-        written = []
-
-        def _write_coord(key, value):
-            coord = coords.get(key)
-            if coord and isinstance(coord, list) and len(coord) == 3:
-                ti, ri, ci = coord
-                try:
-                    target_cell = doc.tables[ti].rows[ri].cells[ci]
-                    _force_write_para(target_cell, value)
-                    written.append(f"{key}→[{ti},{ri},{ci}]")
-                except Exception as e:
-                    print(f"[LEADER_AGENT] Failed to write {key}: {e}")
-
-        _write_coord("fio_cell", target_fio)
-        _write_coord("title_cell", target_title)
-        _write_coord("project_cell", target_project)
-
-        if not written:
-            return False, "LLM не нашёл ячейки руководителя в документе"
-
+            old_fio = "Аниськов Владимир Иванович"
+            new_fio = "Манджиев Игорь Александрович"
+            old_title = "Руководитель"
+            new_title = "И.О. Руководителя"
+            old_project = "Руководитель проекта СК"
+            new_project = "И.О. Руководителя проекта СК"
+        
+        changes = 0
+        
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    original = cell.text.strip()
+                    new_text = original
+                    
+                    if old_fio in original:
+                        new_text = new_text.replace(old_fio, new_fio)
+                    
+                    if old_project in original:
+                        new_text = new_text.replace(old_project, new_project)
+                    
+                    if original == old_title:
+                        new_text = new_title
+                    
+                    if new_text != original:
+                        cell.text = new_text
+                        changes += 1
+        
+        if changes == 0:
+            ai_result = analyze_with_ai(filepath, leader)
+            return False, f"Прямая замена не сработала. AI: {ai_result}"
+        
         doc.save(filepath)
+        
         filename = Path(filepath).name
-        return True, f"→ {filename}: записано {', '.join(written)}"
-
+        return True, f"→ {filename}: замен {changes}"
+        
     except Exception as e:
         filename = Path(filepath).name
         return False, f"→ {filename}: ошибка - {str(e)}"
-
-
-def switch_leader_ai(filepaths: list, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
-    """Обрабатывает список файлов."""
-    if not filepaths:
-        return False, "Нет файлов для обработки"
-
-    results = []
-    success_count = 0
-
-    for filepath in filepaths:
-        ok, msg = _switch_single_file(filepath, leader)
-        results.append(msg)
-        if ok:
-            success_count += 1
-
-    if success_count == 0:
-        return False, "Ни один файл не обработан: " + "; ".join(results)
-
-    output = "\n".join(results)
-    output += f"\nОбработано: {success_count}/{len(filepaths)} файлов"
-    return True, output
 
 
 def switch_leader(filepath: str, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
@@ -152,4 +175,30 @@ def switch_leader(filepath: str, leader: Literal["aniskov", "mandzhiev"]) -> tup
     return _switch_single_file(filepath, leader)
 
 
-
+def switch_leader_ai(filepaths: list, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
+    """Обрабатывает список файлов."""
+    if not filepaths:
+        return False, "Нет файлов для обработки"
+    
+    results = []
+    success_count = 0
+    total_changes = 0
+    
+    for filepath in filepaths:
+        ok, msg = _switch_single_file(filepath, leader)
+        results.append(msg)
+        if ok:
+            success_count += 1
+            try:
+                if "замен " in msg:
+                    changes_str = msg.split("замен ")[-1].strip()
+                    total_changes += int(changes_str)
+            except:
+                pass
+    
+    if success_count == 0:
+        return False, "Ни один файл не обработан: " + "; ".join(results)
+    
+    output = "\n".join(results)
+    output += f"\nОбработано: {success_count}/{len(filepaths)} файлов, замен: {total_changes}"
+    return True, output
