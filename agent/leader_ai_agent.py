@@ -57,37 +57,43 @@ def extract_text_from_docx(filepath: str) -> str:
 
 
 def analyze_with_ai(filepath: str, to_leader: str) -> dict:
-    """Анализирует документ через Ollama и возвращает список замен."""
+    """Старый метод для совместимости."""
+    return analyze_with_ai_cells([], to_leader)
+
+
+def analyze_with_ai_cells(cells_list: list, to_leader: str) -> dict:
+    """AI анализирует список ячеек и говорит что менять."""
     
     if to_leader == "aniskov":
-        direction = "Манджиев/и.о. → Аниськов/руководитель"
         target_fio = "Аниськов Владимир Иванович"
         target_role = "Руководитель проекта СК"
         target_title = "Руководитель"
     else:
-        direction = "Аниськов/руководитель → Манджиев/и.о."
         target_fio = "Манджиев Игорь Александрович"
         target_role = "И.О. Руководителя проекта СК"
         target_title = "И.О. Руководителя"
 
-    prompt = f"""Направление замены: {direction}
+    # Формируем текст для AI
+    cells_text = "\n".join([
+        f"[{c['table']},{c['row']},{c['cell']}]: {c['text']}" 
+        for c in cells_list
+    ])
 
-Найди в документе ВСЕ варианты написания и верни JSON с replacements.
+    prompt = f"""Проанализируй ячейки таблицы и найди те, где нужно заменить руководителя.
 
-Target values:
+Target:
 - FIO: {target_fio}
 - Role: {target_role}
 - Title: {target_title}
 
-Text:
-{extract_text_from_docx(filepath)}
+Cells:
+{cells_text}
 
-Ответь JSON:
+Ответь JSON с координатами ячеек и новым текстом:
 {{
-  "replacements": [
-    {{"old": "найденный текст 1", "new": "{target_fio}"}},
-    {{"old": "найденный текст 2", "new": "{target_role}"}},
-    {{"old": "найденный текст 3", "new": "{target_title}"}}
+  "cell_replacements": [
+    {{"table": 0, "row": 1, "cell": 2, "new_text": "{target_fio}"}},
+    {{"table": 0, "row": 3, "cell": 1, "new_text": "{target_role}"}}
   ],
   "confidence": 0-100
 }}"""
@@ -99,7 +105,7 @@ Text:
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": prompt}
             ],
-            options={"temperature": 0.0, "num_predict": 1000},
+            options={"temperature": 0.0, "num_predict": 1500},
         )
 
         answer = response["message"]["content"]
@@ -109,25 +115,7 @@ Text:
 
         json_match = re.search(r'\{.*\}', answer, re.DOTALL)
         if json_match:
-            result = json.loads(json_match.group())
-            # Добавляем fallback replacements если AI ничего не нашел
-            if not result.get("replacements"):
-                if to_leader == "aniskov":
-                    result["replacements"] = [
-                        {"old": "Манджиев Игорь Александрович", "new": "Аниськов Владимир Иванович"},
-                        {"old": "Маджиев Игорь Александрович", "new": "Аниськов Владимир Иванович"},
-                        {"old": "И.О. Руководителя проекта СК", "new": "Руководитель проекта СК"},
-                        {"old": "И.о. Руководителя проекта СК", "new": "Руководитель проекта СК"},
-                        {"old": "И.О. Руководителя", "new": "Руководитель"},
-                        {"old": "И.о. Руководителя", "new": "Руководитель"},
-                    ]
-                else:
-                    result["replacements"] = [
-                        {"old": "Аниськов Владимир Иванович", "new": "Манджиев Игорь Александрович"},
-                        {"old": "Руководитель проекта СК", "new": "И.О. Руководителя проекта СК"},
-                        {"old": "Руководитель", "new": "И.О. Руководителя"},
-                    ]
-            return result
+            return json.loads(json_match.group())
 
         return {"error": "No JSON found", "raw": answer}
 
@@ -150,46 +138,65 @@ def _replace_in_runs(cell, old_text: str, new_text: str) -> int:
 
 
 def _switch_single_file(filepath: str, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
-    """Обрабатывает один файл с использованием AI для поиска паттернов."""
+    """AI делает всё: находит ячейки, говорит что менять, мы меняем целиком."""
     try:
         doc = Document(filepath)
 
         if not doc.tables:
             return False, "Нет таблиц в документе"
 
-        # Получаем рекомендации от AI
-        ai_result = analyze_with_ai(filepath, leader)
+        # Собираем все ячейки с текстом
+        cells_with_text = []
+        for t_idx, table in enumerate(doc.tables):
+            for r_idx, row in enumerate(table.rows):
+                for c_idx, cell in enumerate(row.cells):
+                    text = cell.text.strip()
+                    if text:
+                        cells_with_text.append({
+                            'table': t_idx,
+                            'row': r_idx,
+                            'cell': c_idx,
+                            'text': text,
+                            'cell_obj': cell
+                        })
+
+        # Отправляем AI список ячеек
+        ai_result = analyze_with_ai_cells(cells_with_text, leader)
         
         if "error" in ai_result:
             return False, f"AI ошибка: {ai_result['error']}"
 
-        replacements = ai_result.get("replacements", [])
+        cell_replacements = ai_result.get("cell_replacements", [])
         
-        if not replacements:
-            return False, "AI не нашёл паттернов для замены"
+        if not cell_replacements:
+            return False, "AI не нашёл ячеек для замены"
 
         changes = 0
-
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    for repl in replacements:
-                        old = repl.get("old", "")
-                        new = repl.get("new", "")
-                        if old and new:
-                            changes += _replace_in_runs(cell, old, new)
+        
+        # Применяем замены по координатам
+        for repl in cell_replacements:
+            t = repl.get('table')
+            r = repl.get('row')
+            c = repl.get('cell')
+            new_text = repl.get('new_text')
+            
+            # Находим ячейку и меняем целиком
+            for cell_info in cells_with_text:
+                if (cell_info['table'] == t and 
+                    cell_info['row'] == r and 
+                    cell_info['cell'] == c):
+                    cell_info['cell_obj'].text = new_text
+                    changes += 1
+                    break
 
         if changes == 0:
-            return False, f"Найдены паттерны, но замена не сработала. AI: {ai_result}"
+            return False, f"AI дал {len(cell_replacements)} замен, но не применилось"
 
         doc.save(filepath)
-
-        filename = Path(filepath).name
-        return True, f"→ {filename}: замен {changes} (confidence: {ai_result.get('confidence', 'N/A')}%)"
+        return True, f"→ {Path(filepath).name}: замен {changes} ячеек"
 
     except Exception as e:
-        filename = Path(filepath).name
-        return False, f"→ {filename}: ошибка - {str(e)}"
+        return False, f"→ {Path(filepath).name}: ошибка - {str(e)}"
 
 
 def switch_leader(filepath: str, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
