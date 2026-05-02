@@ -240,6 +240,7 @@
     <div>
       <div class="section-title">Проверка и исправление</div>
       <button class="btn btn-blue" id="btnCheck" onclick="startCheck()">Проверить и исправить</button>
+      <button class="btn btn-gray" style="margin-top:6px" onclick="downloadAllFixed()">Скачать все (ZIP)</button>
     </div>
 
     <hr class="divider"/>
@@ -821,6 +822,18 @@
     const a = document.createElement('a');
     a.href = '/download/all.zip';
     a.download = 'отчёты.zip';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    finalizeOpCard(card, statusId, [{ label: 'Загрузка началась', color: 'green' }], null, null);
+  }
+
+  async function downloadAllFixed() {
+    const { card, statusId } = createOpCard('Скачать исправленные ZIP');
+    setCardStatus(statusId, 'Подготавливаю архив...');
+    const a = document.createElement('a');
+    a.href = '/download/fixed/all.zip';
+    a.download = 'исправленные.zip';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

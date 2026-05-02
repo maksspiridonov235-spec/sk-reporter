@@ -291,6 +291,21 @@ async def download_all():
     buf.seek(0)
     return StreamingResponse(buf, media_type="application/zip", headers={"Content-Disposition": "attachment; filename*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82%D1%8B.zip"})
 
+@app.get("/download/fixed/all.zip")
+async def download_fixed_all():
+    output_dir = Path(__file__).parent.parent / "output"
+    if not output_dir.exists():
+        raise HTTPException(status_code=404, detail="Нет исправленных файлов")
+    files = [f for f in output_dir.iterdir() if f.suffix.lower() in (".docx", ".doc")]
+    if not files:
+        raise HTTPException(status_code=404, detail="Нет исправленных файлов")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in files:
+            zf.write(f, f.name)
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="application/zip", headers={"Content-Disposition": "attachment; filename*=UTF-8''%D0%B8%D1%81%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%BD%D1%8B%D0%B5.zip"})
+
 @app.get("/download/fixed/{filename}")
 async def download_fixed(filename: str):
     output_dir = Path(__file__).parent.parent / "output"
