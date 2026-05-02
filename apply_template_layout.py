@@ -1,9 +1,9 @@
-"""
-Применяет ширины ячеек и высоты строк из шаблона к документу.
+"""Применяет ширины ячеек и высоты строк из шаблона к документу.
 Использование: python3 apply_template_layout.py <document.docx>
 """
 
 import sys
+import os
 from pathlib import Path
 from docx import Document
 from docx.oxml.ns import qn
@@ -13,7 +13,8 @@ TEMPLATE_PATH = Path(__file__).parent / "contractor_report" / "болванки 
 
 
 def read_template_layout(template_path: Path) -> list:
-    doc = Document(str(template_path))
+    # Используем os.fspath для правильной обработки путей с Unicode на Windows
+    doc = Document(os.fspath(template_path))
     layout = []
     for table in doc.tables:
         table_layout = []
@@ -122,16 +123,15 @@ def main():
     layout = read_template_layout(TEMPLATE_PATH)
     print(f"Шаблон: {len(layout)} таблиц")
 
-    doc = Document(str(input_path))
+    doc = Document(os.fspath(input_path))
     print(f"Документ: {len(doc.tables)} таблиц")
 
     apply_layout(doc, layout)
 
     output_path = input_path.parent / f"{input_path.stem}_layout.docx"
-    doc.save(str(output_path))
+    doc.save(os.fspath(output_path))
     print(f"Сохранён: {output_path}")
 
 
 if __name__ == "__main__":
     main()
-

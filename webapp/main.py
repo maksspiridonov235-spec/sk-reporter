@@ -192,15 +192,18 @@ async def run_macro(macro_name: str):
 
     if macro_name == "ApplyTemplateLayout":
         template_path = Path(__file__).parent.parent / "contractor_report" / "болванки (шаблоны не вырезать только копировать)" / "Ежедневный отчет Шаблон.docx"
+        template_path = template_path.resolve()
+        if not template_path.exists():
+            raise HTTPException(status_code=404, detail=f"Шаблон не найден: {template_path}")
         layout = read_template_layout(template_path)
         log = []
         for f in UPLOAD_DIR.iterdir():
             if f.suffix.lower() != ".docx":
                 continue
             try:
-                doc = Document(str(f))
+                doc = Document(os.fspath(f))
                 apply_layout(doc, layout)
-                doc.save(str(f))
+                doc.save(os.fspath(f))
                 log.append(f"[OK] {f.name}")
             except Exception as e:
                 log.append(f"[ERR] {f.name}: {e}")
