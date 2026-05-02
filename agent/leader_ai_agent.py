@@ -7,7 +7,7 @@ from docx import Document
 from pathlib import Path
 from typing import Literal
 
-MODEL = "gemma4:26b"
+MODEL = "gemma4:31b-cloud"
 
 SYSTEM_PROMPT = """Ты - агент для редактирования отчётов строительного контроля.
 
