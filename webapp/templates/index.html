@@ -79,7 +79,7 @@
     .live-status {
       display: flex; align-items: center; gap: 10px;
       background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;
-      padding: 12px 16px; font-size: 14px; color: #1e40af;
+      padding: 10px 14px; font-size: 13px; color: #1e40af;
     }
     .live-status.hidden { display: none; }
     .live-status.done   { background: #f0fdf4; border-color: #86efac; color: #166534; }
@@ -336,66 +336,108 @@
 
   // ── Activity panel API ────────────────────────────────────────────────────
 
-  function setLiveStatus(msg, state) {
-    const el = document.getElementById('liveStatus');
-    const txt = document.getElementById('liveStatusText');
-    const spinner = document.getElementById('liveSpinner');
-    el.classList.remove('hidden', 'done', 'error');
-    document.getElementById('emptyHint').style.display = 'none';
-    if (state === 'done') {
-      el.classList.add('done');
-      spinner.style.display = 'none';
-    } else if (state === 'error') {
-      el.classList.add('error');
-      spinner.style.display = 'none';
-    } else {
-      spinner.style.display = '';
+  const MAX_OP_CARDS = 20;
+
+  function _trimHistory() {
+    const panel = document.getElementById('activityPanel');
+    const cards = panel.querySelectorAll('.op-card');
+    if (cards.length > MAX_OP_CARDS) {
+      for (let i = 0; i < cards.length - MAX_OP_CARDS; i++) cards[i].remove();
     }
-    txt.textContent = msg;
   }
 
-  function clearActivity() {
+  function createOpCard(title) {
     const panel = document.getElementById('activityPanel');
-    panel.querySelectorAll('.summary-card, .file-card').forEach(el => el.remove());
-    const ls = document.getElementById('liveStatus');
-    ls.className = 'live-status hidden';
-    document.getElementById('liveSpinner').style.display = '';
-    document.getElementById('liveStatusText').textContent = '';
-    document.getElementById('emptyHint').style.display = '';
-  }
-
-  function showSummaryCard(title, stats, details) {
-    const panel = document.getElementById('activityPanel');
-    const detailId = 'det_' + Date.now();
-    const chipsHtml = stats.map(s =>
-      `<span class="stat-chip stat-${s.color}">${escHtml(s.label)}</span>`
-    ).join('');
-    const detailHtml = details && details.length
-      ? `<button class="detail-toggle" onclick="toggleDetail('${detailId}')">Подробности ▼</button>
-         <div class="detail-block" id="${detailId}">
-           ${details.map(d => `<div class="detail-row">
-             <span class="detail-icon">${d.icon || ''}</span>
-             <span class="detail-name" title="${escHtml(d.name)}">${escHtml(d.name)}</span>
-             ${d.badge ? `<span class="detail-badge ${d.badgeClass || ''}">${escHtml(d.badge)}</span>` : ''}
-           </div>`).join('')}
-         </div>`
-      : '';
+    document.getElementById('emptyHint').style.display = 'none';
+    const statusId = 'ls_' + Date.now() + '_' + Math.random().toString(36).slice(2);
     const card = document.createElement('div');
-    card.className = 'summary-card';
+    card.className = 'op-card summary-card';
     card.innerHTML = `
       <div class="summary-card-header">
         <span class="summary-card-title">${escHtml(title)}</span>
         <span class="summary-card-meta">${new Date().toLocaleTimeString('ru')}</span>
       </div>
-      <div class="summary-stats">${chipsHtml}</div>
-      ${detailHtml}
+      <div class="live-status op-live" id="${statusId}">
+        <span class="spinner"></span>
+        <span class="live-status-text"></span>
+      </div>
+      <div class="op-body" style="display:none"></div>
     `;
     panel.insertBefore(card, document.getElementById('emptyHint'));
+    panel.scrollTop = panel.scrollHeight;
+    _trimHistory();
+    return { card, statusId };
   }
 
-  function showFileCard(filename, hasErrors, reportText, downloadUrl) {
-    const panel = document.getElementById('activityPanel');
-    const bodyId = 'rb_' + Date.now();
+  function setCardStatus(statusId, msg, state) {
+    const el = document.getElementById(statusId);
+    if (!el) return;
+    el.classList.remove('done', 'error');
+    const spinner = el.querySelector('.spinner');
+    const txt = el.querySelector('.live-status-text');
+    if (state === 'done') {
+      el.classList.add('done');
+      if (spinner) spinner.style.display = 'none';
+    } else if (state === 'error') {
+      el.classList.add('error');
+      if (spinner) spinner.style.display = 'none';
+    } else {
+      if (spinner) spinner.style.display = '';
+    }
+    txt.textContent = msg;
+  }
+
+  function finalizeOpCard(card, statusId, stats, details, fileCards) {
+    const liveEl = document.getElementById(statusId);
+    if (liveEl) liveEl.remove();
+
+    const statsContainer = document.createElement('div');
+    statsContainer.className = 'summary-stats';
+    statsContainer.innerHTML = stats.map(s =>
+      `<span class="stat-chip stat-${s.color}">${escHtml(s.label)}</span>`
+    ).join('');
+    card.appendChild(statsContainer);
+
+    const hasDetails = (details && details.length) || (fileCards && fileCards.length);
+    if (hasDetails) {
+      const detailId = 'det_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+      const toggleBtn = document.createElement('button');
+      toggleBtn.className = 'detail-toggle';
+      toggleBtn.textContent = 'Подробности ▼';
+      toggleBtn.onclick = () => {
+        const block = document.getElementById(detailId);
+        block.classList.toggle('open');
+        toggleBtn.textContent = block.classList.contains('open') ? 'Подробности ▲' : 'Подробности ▼';
+      };
+      card.appendChild(toggleBtn);
+
+      const detailBlock = document.createElement('div');
+      detailBlock.className = 'detail-block';
+      detailBlock.id = detailId;
+
+      if (details && details.length) {
+        details.forEach(d => {
+          const row = document.createElement('div');
+          row.className = 'detail-row';
+          row.innerHTML = `
+            <span class="detail-icon">${d.icon || ''}</span>
+            <span class="detail-name" title="${escHtml(d.name)}">${escHtml(d.name)}</span>
+            ${d.badge ? `<span class="detail-badge ${d.badgeClass || ''}">${escHtml(d.badge)}</span>` : ''}
+          `;
+          detailBlock.appendChild(row);
+        });
+      }
+
+      if (fileCards && fileCards.length) {
+        fileCards.forEach(fc => detailBlock.appendChild(fc));
+      }
+
+      card.appendChild(detailBlock);
+    }
+  }
+
+  function buildFileCardEl(filename, hasErrors, reportText, downloadUrl) {
+    const bodyId = 'rb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
     const badgeHtml = hasErrors
       ? '<span class="badge badge-err">⚠ Проблемы</span>'
       : '<span class="badge badge-ok">✓ ОК</span>';
@@ -408,9 +450,11 @@
     const dlHtml = downloadUrl
       ? `<a href="${downloadUrl}" download>Скачать исправленный</a>`
       : '';
-    const card = document.createElement('div');
-    card.className = 'file-card';
-    card.innerHTML = `
+    const el = document.createElement('div');
+    el.className = 'file-card';
+    el.style.marginTop = '6px';
+    el.dataset.filename = filename;
+    el.innerHTML = `
       <div class="file-card-head">
         <span class="file-card-name" title="${escHtml(filename)}">${escHtml(filename)}</span>
         ${badgeHtml}
@@ -419,8 +463,7 @@
       ${bodyHtml}
       ${dlHtml ? `<div class="file-card-actions">${dlHtml}</div>` : ''}
     `;
-    panel.insertBefore(card, document.getElementById('emptyHint'));
-    panel.scrollTop = panel.scrollHeight;
+    return el;
   }
 
   function toggleDetail(id) {
@@ -437,14 +480,14 @@
     btn.textContent = open ? 'Показать отчёт ▼' : 'Скрыть отчёт ▲';
   }
 
-  async function apiFetch(url, options = {}) {
+  async function apiFetch(url, options = {}, statusId) {
     try {
       const res = await fetch(url, options);
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || res.statusText);
       return data;
     } catch (e) {
-      setLiveStatus('Ошибка: ' + e.message, 'error');
+      if (statusId) setCardStatus(statusId, 'Ошибка: ' + e.message, 'error');
       throw e;
     }
   }
@@ -494,16 +537,23 @@
   async function uploadReports(input) {
     const fd = new FormData();
     for (const f of input.files) fd.append('files', f);
-    setLiveStatus(`Загружаю ${input.files.length} файл(ов)...`);
-    const data = await apiFetch('/upload/reports', { method: 'POST', body: fd });
-    setLiveStatus(`Загружено: ${data.count} файл(ов)`, 'done');
-    refreshReportsList();
+    const { card, statusId } = createOpCard('Загрузка файлов');
+    setCardStatus(statusId, `Загружаю ${input.files.length} файл(ов)...`);
+    try {
+      const data = await apiFetch('/upload/reports', { method: 'POST', body: fd }, statusId);
+      finalizeOpCard(card, statusId, [{ label: `Загружено: ${data.count}`, color: 'green' }], null, null);
+      refreshReportsList();
+    } catch (_) {}
   }
 
   async function clearReports() {
-    await apiFetch('/clear/reports', { method: 'DELETE' });
-    setLiveStatus('Загруженные отчёты удалены', 'done');
-    refreshReportsList();
+    const { card, statusId } = createOpCard('Очистка отчётов');
+    setCardStatus(statusId, 'Удаляю загруженные отчёты...');
+    try {
+      await apiFetch('/clear/reports', { method: 'DELETE' }, statusId);
+      finalizeOpCard(card, statusId, [{ label: 'Удалено', color: 'blue' }], null, null);
+      refreshReportsList();
+    } catch (_) {}
   }
 
   // ── Проверка и исправление (SSE) ──────────────────────────────────────────
@@ -512,16 +562,19 @@
     const btn = document.getElementById('btnCheck');
     btn.disabled = true;
     btn.textContent = 'Проверяю...';
-    clearActivity();
     document.getElementById('fixedFiles').innerHTML = '<div class="no-results">Пока нет</div>';
     fixedFiles = [];
 
     const bar = document.getElementById('progressBar');
     bar.style.width = '10%';
 
+    const { card, statusId } = createOpCard('Проверка отчётов');
+    setCardStatus(statusId, 'Запускаю проверку...');
+
     const resp = await fetch('/check/descriptions/stream', { method: 'POST' });
     if (!resp.ok) {
-      setLiveStatus('Ошибка запуска проверки', 'error');
+      setCardStatus(statusId, 'Ошибка запуска проверки', 'error');
+      finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], null, null);
       btn.disabled = false;
       btn.textContent = 'Проверить и исправить';
       return;
@@ -531,7 +584,8 @@
     const decoder = new TextDecoder();
     let buf = '';
     let processed = 0;
-    const fileCards = {};
+    const collectedFileCards = [];
+    const downloadMap = {};
 
     while (true) {
       const { done, value } = await reader.read();
@@ -545,47 +599,35 @@
         try { ev = JSON.parse(line.slice(6)); } catch { continue; }
 
         if (ev.type === 'start') {
-          setLiveStatus(ev.msg);
+          setCardStatus(statusId, ev.msg);
           bar.style.width = '20%';
         } else if (ev.type === 'info') {
-          setLiveStatus(ev.msg);
+          setCardStatus(statusId, ev.msg);
         } else if (ev.type === 'report') {
           processed++;
           bar.style.width = Math.min(20 + processed * 30, 85) + '%';
-          showFileCard(ev.filename, ev.hasErrors, ev.result?.report || '', null);
-          fileCards[ev.filename] = true;
+          collectedFileCards.push({ filename: ev.filename, hasErrors: ev.hasErrors, reportText: ev.result?.report || '', downloadUrl: null });
         } else if (ev.type === 'fixed') {
           addFixed(ev.filename, ev.download);
-          const panel = document.getElementById('activityPanel');
-          const cards = panel.querySelectorAll('.file-card');
-          cards.forEach(card => {
-            const nameEl = card.querySelector('.file-card-name');
-            if (nameEl && nameEl.title === ev.filename) {
-              const existing = card.querySelector('.file-card-actions');
-              if (!existing) {
-                const actions = document.createElement('div');
-                actions.className = 'file-card-actions';
-                actions.innerHTML = `<a href="${ev.download}" download>Скачать исправленный</a>`;
-                card.appendChild(actions);
-              }
-            }
-          });
+          downloadMap[ev.filename] = ev.download;
         } else if (ev.type === 'done') {
           bar.style.width = '100%';
           const s = ev.summary || {};
           const total = s.total || 0;
           const errors = s.errors || 0;
-          setLiveStatus(`Проверка завершена`, 'done');
-          showSummaryCard('Проверка отчётов', [
+          const fileCardEls = collectedFileCards.map(fc =>
+            buildFileCardEl(fc.filename, fc.hasErrors, fc.reportText, downloadMap[fc.filename] || null)
+          );
+          finalizeOpCard(card, statusId, [
             { label: `Всего: ${total}`, color: 'blue' },
             { label: `ОК: ${total - errors}`, color: 'green' },
             ...(errors > 0 ? [{ label: `Проблем: ${errors}`, color: 'red' }] : []),
-          ], null);
+          ], null, fileCardEls);
           setTimeout(() => { bar.style.width = '0%'; }, 2000);
           btn.disabled = false;
           btn.textContent = 'Проверить и исправить';
         } else if (ev.type === 'error') {
-          setLiveStatus(ev.msg, 'error');
+          setCardStatus(statusId, ev.msg, 'error');
         }
       }
     }
@@ -600,10 +642,10 @@
       'aniskov': 'Аниськов Владимир Иванович',
       'mandzhiev': 'Манджиев Игорь Александрович (И.О.)'
     };
-    clearActivity();
-    setLiveStatus(`Переключаю руководителя на: ${names[leader]}...`);
+    const { card, statusId } = createOpCard(`Руководитель: ${names[leader]}`);
+    setCardStatus(statusId, `Переключаю руководителя на: ${names[leader]}...`);
     try {
-      const data = await apiFetch(`/switch-leader-ai/${leader}`, { method: 'POST' });
+      const data = await apiFetch(`/switch-leader-ai/${leader}`, { method: 'POST' }, statusId);
       if (data.ok) {
         const lines = data.message.split('\n').filter(l => l.trim());
         const details = lines.map(l => ({
@@ -612,16 +654,14 @@
           badge: l.includes('замен') ? 'изменено' : null,
           badgeClass: 'db-ok',
         }));
-        setLiveStatus('Руководитель переключён', 'done');
-        showSummaryCard(`Руководитель: ${names[leader]}`, [
+        finalizeOpCard(card, statusId, [
           { label: `Файлов: ${lines.filter(l => l.startsWith('→')).length}`, color: 'green' },
-        ], details);
+        ], details, null);
       } else {
-        setLiveStatus(`Ошибка: ${data.message || 'Неизвестная ошибка'}`, 'error');
+        setCardStatus(statusId, `Ошибка: ${data.message || 'Неизвестная ошибка'}`, 'error');
+        finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], null, null);
       }
-    } catch (e) {
-      setLiveStatus('Ошибка: ' + e.message, 'error');
-    }
+    } catch (_) {}
   }
 
   // ── Макросы ───────────────────────────────────────────────────────────────
@@ -634,66 +674,69 @@
       'ReplaceDateInReportLine2': 'Замена даты на вчерашнюю',
       'ApplyTemplateLayout': 'Применить размеры шаблона',
     };
-    clearActivity();
-    setLiveStatus(`Запускаю: ${names[name] || name}...`);
-    const data = await apiFetch(`/macro/${name}`, { method: 'POST' });
-    const details = data.log.map(line => ({
-      icon: line.startsWith('[ERR]') ? '✗' : '✓',
-      name: line.replace(/^\[(OK|ERR)\]\s*/, ''),
-      badge: line.startsWith('[ERR]') ? 'Ошибка' : 'OK',
-      badgeClass: line.startsWith('[ERR]') ? 'db-err' : 'db-ok',
-    }));
-    const errCount = data.log.filter(l => l.startsWith('[ERR]')).length;
-    const okCount = data.log.length - errCount;
-    setLiveStatus('Готово', 'done');
-    showSummaryCard(names[name] || name, [
-      ...(okCount > 0 ? [{ label: `OK: ${okCount}`, color: 'green' }] : []),
-      ...(errCount > 0 ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
-    ], details);
+    const { card, statusId } = createOpCard(names[name] || name);
+    setCardStatus(statusId, `Запускаю: ${names[name] || name}...`);
+    try {
+      const data = await apiFetch(`/macro/${name}`, { method: 'POST' }, statusId);
+      const details = data.log.map(line => ({
+        icon: line.startsWith('[ERR]') ? '✗' : '✓',
+        name: line.replace(/^\[(OK|ERR)\]\s*/, ''),
+        badge: line.startsWith('[ERR]') ? 'Ошибка' : 'OK',
+        badgeClass: line.startsWith('[ERR]') ? 'db-err' : 'db-ok',
+      }));
+      const errCount = data.log.filter(l => l.startsWith('[ERR]')).length;
+      const okCount = data.log.length - errCount;
+      finalizeOpCard(card, statusId, [
+        ...(okCount > 0 ? [{ label: `OK: ${okCount}`, color: 'green' }] : []),
+        ...(errCount > 0 ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
+      ], details, null);
+    } catch (_) {}
   }
 
   // ── Переименование ────────────────────────────────────────────────────────
 
   async function renameFiles(mode) {
-    clearActivity();
     const label = mode === 'today' ? 'сегодня' : 'вчера';
-    setLiveStatus(`Обновление даты в шаблонах (→ ${label})...`);
-    const data = await apiFetch(`/rename/templates/${mode}`, { method: 'POST' });
-    const details = data.log.map(line => ({
-      icon: line.startsWith('Ошибка') ? '✗' : '✓',
-      name: line,
-      badge: line.startsWith('Ошибка') ? 'Ошибка' : 'OK',
-      badgeClass: line.startsWith('Ошибка') ? 'db-err' : 'db-ok',
-    }));
-    setLiveStatus('Готово', 'done');
-    showSummaryCard(`Шаблоны → ${label}`, [
-      { label: `Файлов: ${data.log.length || 0}`, color: data.log.length ? 'green' : 'amber' },
-    ], details.length ? details : null);
+    const { card, statusId } = createOpCard(`Шаблоны → ${label}`);
+    setCardStatus(statusId, `Обновление даты в шаблонах (→ ${label})...`);
+    try {
+      const data = await apiFetch(`/rename/templates/${mode}`, { method: 'POST' }, statusId);
+      const details = data.log.map(line => ({
+        icon: line.startsWith('Ошибка') ? '✗' : '✓',
+        name: line,
+        badge: line.startsWith('Ошибка') ? 'Ошибка' : 'OK',
+        badgeClass: line.startsWith('Ошибка') ? 'db-err' : 'db-ok',
+      }));
+      finalizeOpCard(card, statusId, [
+        { label: `Файлов: ${data.log.length || 0}`, color: data.log.length ? 'green' : 'amber' },
+      ], details.length ? details : null, null);
+    } catch (_) {}
   }
 
   async function renameResults(mode) {
-    clearActivity();
     const label = mode === 'today' ? 'сегодня' : 'вчера';
-    setLiveStatus(`Переименование результатов (→ ${label})...`);
-    const data = await apiFetch(`/rename/results/${mode}`, { method: 'POST' });
-    const details = data.log.map(line => ({
-      icon: line.startsWith('Ошибка') ? '✗' : '✓',
-      name: line,
-      badge: line.startsWith('Ошибка') ? 'Ошибка' : 'OK',
-      badgeClass: line.startsWith('Ошибка') ? 'db-err' : 'db-ok',
-    }));
-    setLiveStatus('Готово', 'done');
-    showSummaryCard(`Результаты → ${label}`, [
-      { label: `Файлов: ${data.log.length || 0}`, color: data.log.length ? 'green' : 'amber' },
-    ], details.length ? details : null);
-    refreshResults();
+    const { card, statusId } = createOpCard(`Результаты → ${label}`);
+    setCardStatus(statusId, `Переименование результатов (→ ${label})...`);
+    try {
+      const data = await apiFetch(`/rename/results/${mode}`, { method: 'POST' }, statusId);
+      const details = data.log.map(line => ({
+        icon: line.startsWith('Ошибка') ? '✗' : '✓',
+        name: line,
+        badge: line.startsWith('Ошибка') ? 'Ошибка' : 'OK',
+        badgeClass: line.startsWith('Ошибка') ? 'db-err' : 'db-ok',
+      }));
+      finalizeOpCard(card, statusId, [
+        { label: `Файлов: ${data.log.length || 0}`, color: data.log.length ? 'green' : 'amber' },
+      ], details.length ? details : null, null);
+      refreshResults();
+    } catch (_) {}
   }
 
   // ── Сборка всех отчётов (SSE) ─────────────────────────────────────────────
 
   async function mergeAll() {
-    clearActivity();
-    setLiveStatus('Формирую все отчёты...');
+    const { card, statusId } = createOpCard('Сборка отчётов');
+    setCardStatus(statusId, 'Формирую все отчёты...');
     const bar = document.getElementById('progressBar');
     bar.style.width = '10%';
 
@@ -721,16 +764,16 @@
               bar.style.width = '20%';
             } else if (ev.type === 'info') {
               if (!ev.msg.includes('Найдено 0 отчётов')) {
-                setLiveStatus(ev.msg);
+                setCardStatus(statusId, ev.msg);
               }
             } else if (ev.type === 'success') {
               successCount++;
-              setLiveStatus(ev.msg);
+              setCardStatus(statusId, ev.msg);
               bar.style.width = Math.min(20 + successCount * 10, 85) + '%';
             } else if (ev.type === 'warning') {
-              setLiveStatus(ev.msg);
+              setCardStatus(statusId, ev.msg);
             } else if (ev.type === 'error') {
-              setLiveStatus(ev.msg, 'error');
+              setCardStatus(statusId, ev.msg, 'error');
             } else if (ev.type === 'done') {
               bar.style.width = '100%';
               const merged = ev.results || [];
@@ -738,24 +781,18 @@
               const unknown = ev.unmatched_unknown || [];
               const errCount = (ev.errors || []).length;
 
-              if (merged.length === 0 && errCount === 0) {
-                setLiveStatus('Отчёты не найдены. Проверьте загруженные файлы.', 'error');
-              } else {
-                setLiveStatus('Сборка завершена', 'done');
-              }
-
               const details = [
                 ...merged.map(r => ({ icon: '✓', name: `${r.company} (${r.inserted} отч.)`, badge: 'Собран', badgeClass: 'db-ok' })),
                 ...unmatched.map(f => ({ icon: '⚠', name: `${f.file} — нет болванки`, badge: f.company, badgeClass: 'db-warn' })),
                 ...unknown.map(f => ({ icon: '?', name: f, badge: 'Не распознан', badgeClass: 'db-err' })),
               ];
 
-              showSummaryCard('Сборка отчётов', [
+              finalizeOpCard(card, statusId, [
                 { label: `Собрано: ${merged.length}`, color: 'green' },
                 ...(unmatched.length > 0 ? [{ label: `Без болванки: ${unmatched.length}`, color: 'amber' }] : []),
                 ...(unknown.length > 0 ? [{ label: `Не распознано: ${unknown.length}`, color: 'red' }] : []),
                 ...(errCount > 0 ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
-              ], details.length ? details : null);
+              ], details.length ? details : null, null);
 
               setTimeout(() => { bar.style.width = '0%'; }, 2000);
 
@@ -769,7 +806,8 @@
         }
       }
     } catch (e) {
-      setLiveStatus(`Ошибка: ${e.message}`, 'error');
+      setCardStatus(statusId, `Ошибка: ${e.message}`, 'error');
+      finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], null, null);
     }
 
     refreshResults();
@@ -778,27 +816,31 @@
   // ── Скачать всё ZIP ───────────────────────────────────────────────────────
 
   async function downloadAll() {
-    setLiveStatus('Подготавливаю архив...');
+    const { card, statusId } = createOpCard('Скачать всё ZIP');
+    setCardStatus(statusId, 'Подготавливаю архив...');
     const a = document.createElement('a');
     a.href = '/download/all.zip';
     a.download = 'отчёты.zip';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    setLiveStatus('Загрузка архива началась', 'done');
+    finalizeOpCard(card, statusId, [{ label: 'Загрузка началась', color: 'green' }], null, null);
   }
 
   // ── Сброс ─────────────────────────────────────────────────────────────────
 
   async function resetAll() {
     if (!confirm('Сбросить всё? Удалятся отчёты и результаты.')) return;
-    await apiFetch('/clear/all', { method: 'DELETE' });
-    clearActivity();
-    document.getElementById('fixedFiles').innerHTML = '<div class="no-results">Пока нет</div>';
-    fixedFiles = [];
-    setLiveStatus('Все файлы удалены. Можно начинать заново.', 'done');
-    refreshReportsList();
-    refreshResults();
+    const { card, statusId } = createOpCard('Сброс всех данных');
+    setCardStatus(statusId, 'Удаляю все файлы...');
+    try {
+      await apiFetch('/clear/all', { method: 'DELETE' }, statusId);
+      document.getElementById('fixedFiles').innerHTML = '<div class="no-results">Пока нет</div>';
+      fixedFiles = [];
+      finalizeOpCard(card, statusId, [{ label: 'Сброшено', color: 'blue' }], null, null);
+      refreshReportsList();
+      refreshResults();
+    } catch (_) {}
   }
 
   // ── Drag & Drop ───────────────────────────────────────────────────────────
