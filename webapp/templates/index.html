@@ -287,6 +287,10 @@
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  function stopSpinners() {
+    document.querySelectorAll('#logPanel .spinner').forEach(s => s.remove());
+  }
+
   function addLog(type, msg, extra) {
     const panel = document.getElementById('logPanel');
     const item = document.createElement('div');
@@ -294,6 +298,9 @@
 
     if (type === 'start') {
       item.innerHTML = `<span class="spinner"></span>${escHtml(msg)}`;
+    } else if (type === 'done') {
+      stopSpinners();
+      item.textContent = msg;
     } else if (type === 'report' && extra) {
       const badge = extra.hasErrors
         ? '<span class="badge badge-err">⚠ Найдены проблемы</span>'
