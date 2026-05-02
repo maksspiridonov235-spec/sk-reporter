@@ -66,70 +66,116 @@
     .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
     /* Прогресс */
-    .progress-bar-wrap { height: 4px; background: #e5e7eb; overflow: hidden; flex-shrink: 0; }
-    .progress-bar { height: 4px; background: #1a56a0; width: 0%; transition: width .3s; }
+    .progress-bar-wrap { height: 3px; background: #e5e7eb; overflow: hidden; flex-shrink: 0; }
+    .progress-bar { height: 3px; background: #1a56a0; width: 0%; transition: width .3s; }
 
-    /* Лог */
-    .log-panel {
-      flex: 1; overflow-y: auto; padding: 16px;
-      display: flex; flex-direction: column; gap: 8px;
+    /* Центральная панель активности */
+    .activity-panel {
+      flex: 1; overflow-y: auto; padding: 20px 24px;
+      display: flex; flex-direction: column; gap: 12px;
     }
-    .log-header-bar {
-      font-size: 13px; font-weight: bold; color: #444; padding-bottom: 8px;
-      border-bottom: 1px solid #e5e7eb; margin-bottom: 4px; flex-shrink: 0;
+
+    /* Живая строка статуса */
+    .live-status {
+      display: flex; align-items: center; gap: 10px;
+      background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;
+      padding: 12px 16px; font-size: 14px; color: #1e40af;
+    }
+    .live-status.hidden { display: none; }
+    .live-status.done   { background: #f0fdf4; border-color: #86efac; color: #166534; }
+    .live-status.error  { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+    .live-status-text   { flex: 1; }
+
+    /* Карточка итогов */
+    .summary-card {
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+      padding: 16px 20px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .summary-card-header {
       display: flex; align-items: center; justify-content: space-between;
     }
-    .log-clear-btn {
-      font-size: 12px; color: #6b7280; cursor: pointer; background: none;
-      border: 1px solid #d1d5db; padding: 3px 8px; border-radius: 4px;
+    .summary-card-title {
+      font-size: 14px; font-weight: bold; color: #111;
     }
-    .log-clear-btn:hover { color: #222; border-color: #9ca3af; }
+    .summary-card-meta {
+      font-size: 12px; color: #6b7280;
+    }
+    .summary-stats {
+      display: flex; gap: 12px; flex-wrap: wrap;
+    }
+    .stat-chip {
+      font-size: 12px; font-weight: bold; padding: 4px 10px;
+      border-radius: 20px; white-space: nowrap;
+    }
+    .stat-blue   { background: #dbeafe; color: #1e40af; }
+    .stat-green  { background: #d1fae5; color: #065f46; }
+    .stat-amber  { background: #fef3c7; color: #92400e; }
+    .stat-red    { background: #fee2e2; color: #991b1b; }
 
-    .log-item {
-      border-radius: 6px; padding: 10px 14px; font-size: 13px;
-      border: 1px solid transparent; flex-shrink: 0;
+    /* Детали операции (свернуты по умолчанию) */
+    .detail-toggle {
+      font-size: 12px; color: #1a56a0; cursor: pointer;
+      background: none; border: none; padding: 0;
+      text-decoration: underline;
     }
-    .log-start    { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
-    .log-info     { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
-    .log-warning  { background: #fffbeb; border-color: #fde68a; color: #92400e; }
-    .log-error    { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
-    .log-report   { background: #fff; border-color: #e5e7eb; }
-    .log-fixed    { background: #f0fdf4; border-color: #86efac; }
-    .log-done     { background: #f8fafc; border-color: #cbd5e1; color: #475569; font-weight: bold; }
-    .log-ok       { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
-    .log-err      { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+    .detail-block {
+      display: none; font-size: 12px; color: #374151;
+      background: #f9fafb; border: 1px solid #e5e7eb;
+      border-radius: 6px; padding: 10px 12px;
+      max-height: 260px; overflow-y: auto;
+    }
+    .detail-block.open { display: block; }
+    .detail-row {
+      display: flex; align-items: baseline; gap: 6px;
+      padding: 3px 0; border-bottom: 1px solid #f3f4f6;
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-icon { width: 16px; text-align: center; flex-shrink: 0; }
+    .detail-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .detail-badge {
+      font-size: 11px; padding: 1px 7px; border-radius: 10px; flex-shrink: 0;
+    }
+    .db-ok  { background: #d1fae5; color: #065f46; }
+    .db-warn { background: #fef3c7; color: #92400e; }
+    .db-err  { background: #fee2e2; color: #991b1b; }
 
-    .log-report-head {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 6px;
+    /* Карточка файла (проверка) */
+    .file-card {
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+      padding: 12px 14px;
     }
-    .log-report-head .filename { font-weight: bold; font-size: 13px; }
+    .file-card-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .file-card-name { font-size: 13px; font-weight: bold; flex: 1; }
     .badge {
       font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 12px;
     }
     .badge-ok  { background: #d1fae5; color: #065f46; }
     .badge-err { background: #fee2e2; color: #991b1b; }
-
+    .file-card-actions {
+      display: flex; align-items: center; gap: 8px; margin-top: 8px;
+    }
+    .file-card-actions a {
+      font-size: 12px; font-weight: bold; color: #1a56a0; text-decoration: none;
+      padding: 3px 10px; border: 1px solid #1a56a0; border-radius: 4px;
+    }
+    .file-card-actions a:hover { background: #1a56a0; color: #fff; }
     .report-body {
       display: none; font-size: 12px; color: #444;
       background: #f9fafb; border-radius: 4px; padding: 8px;
       white-space: pre-wrap; font-family: monospace; margin-top: 8px;
-      max-height: 300px; overflow-y: auto;
+      max-height: 240px; overflow-y: auto;
       border: 1px solid #e5e7eb;
     }
-    .report-toggle {
-      font-size: 12px; color: #1a56a0; cursor: pointer; text-decoration: underline;
-      margin-top: 4px; display: inline-block;
-    }
 
-    .fixed-row {
-      display: flex; align-items: center; justify-content: space-between;
+    /* Пустое состояние */
+    .empty-hint {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      color: #9ca3af; font-size: 14px; gap: 6px;
     }
-    .fixed-row a {
-      font-size: 13px; font-weight: bold; color: #1a56a0; text-decoration: none;
-      padding: 4px 12px; border: 1px solid #1a56a0; border-radius: 4px;
-    }
-    .fixed-row a:hover { background: #1a56a0; color: #fff; }
+    .empty-hint-icon { font-size: 32px; }
 
     /* Правая панель */
     .results-panel {
@@ -255,16 +301,17 @@
 
   </div>
 
-  <!-- Центральная область — лог -->
+  <!-- Центральная область — активность -->
   <div class="main">
     <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
-    <div class="log-panel" id="logPanel">
-      <div class="log-header-bar">
-        <span>Журнал операций</span>
-        <button class="log-clear-btn" onclick="clearLog()">очистить</button>
+    <div class="activity-panel" id="activityPanel">
+      <div class="live-status hidden" id="liveStatus">
+        <span class="spinner" id="liveSpinner"></span>
+        <span class="live-status-text" id="liveStatusText"></span>
       </div>
-      <div class="log-item log-info" style="color:#aaa;font-style:italic">
-        Загрузите отчёты и выберите операцию
+      <div class="empty-hint" id="emptyHint">
+        <span class="empty-hint-icon">📂</span>
+        <span>Загрузите отчёты и выберите операцию</span>
       </div>
     </div>
   </div>
@@ -287,74 +334,107 @@
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
-  function stopSpinners() {
-    document.querySelectorAll('#logPanel .spinner').forEach(s => s.remove());
+  // ── Activity panel API ────────────────────────────────────────────────────
+
+  function setLiveStatus(msg, state) {
+    const el = document.getElementById('liveStatus');
+    const txt = document.getElementById('liveStatusText');
+    const spinner = document.getElementById('liveSpinner');
+    el.classList.remove('hidden', 'done', 'error');
+    document.getElementById('emptyHint').style.display = 'none';
+    if (state === 'done') {
+      el.classList.add('done');
+      spinner.style.display = 'none';
+    } else if (state === 'error') {
+      el.classList.add('error');
+      spinner.style.display = 'none';
+    } else {
+      spinner.style.display = '';
+    }
+    txt.textContent = msg;
   }
 
-  function addLog(type, msg, extra) {
-    const panel = document.getElementById('logPanel');
-    const item = document.createElement('div');
-    item.className = `log-item log-${type}`;
+  function clearActivity() {
+    const panel = document.getElementById('activityPanel');
+    panel.querySelectorAll('.summary-card, .file-card').forEach(el => el.remove());
+    const ls = document.getElementById('liveStatus');
+    ls.className = 'live-status hidden';
+    document.getElementById('liveSpinner').style.display = '';
+    document.getElementById('liveStatusText').textContent = '';
+    document.getElementById('emptyHint').style.display = '';
+  }
 
-    if (type === 'start') {
-      item.innerHTML = `<span class="spinner"></span>${escHtml(msg)}`;
-    } else if (type === 'done') {
-      stopSpinners();
-      item.textContent = msg;
-    } else if (type === 'report' && extra) {
-      const badge = extra.hasErrors
-        ? '<span class="badge badge-err">⚠ Найдены проблемы</span>'
-        : '<span class="badge badge-ok">✓ ОК</span>';
-      const reportText = extra.result?.report || '';
-      const toggleId = 'toggle_' + Date.now();
-      const bodyId = 'body_' + Date.now();
-      item.innerHTML = `
-        <div class="log-report-head">
-          <span class="filename">${escHtml(extra.filename || msg)}</span>
-          ${badge}
-        </div>
-        ${reportText ? `<span class="report-toggle" id="${toggleId}" onclick="toggleReport('${toggleId}','${bodyId}')">Показать отчёт ▼</span>
-        <div class="report-body" id="${bodyId}">${escHtml(reportText)}</div>` : ''}
-      `;
-    } else if (type === 'fixed' && extra) {
-      item.className = 'log-item log-fixed';
-      item.innerHTML = `<div class="fixed-row">
-        <span>✅ ${escHtml(extra.filename)} → исправлен</span>
-        <a href="${extra.download}" download>Скачать</a>
-      </div>`;
-      addFixed(extra.filename, extra.download);
-    } else {
-      item.textContent = msg;
-    }
+  function showSummaryCard(title, stats, details) {
+    const panel = document.getElementById('activityPanel');
+    const detailId = 'det_' + Date.now();
+    const chipsHtml = stats.map(s =>
+      `<span class="stat-chip stat-${s.color}">${escHtml(s.label)}</span>`
+    ).join('');
+    const detailHtml = details && details.length
+      ? `<button class="detail-toggle" onclick="toggleDetail('${detailId}')">Подробности ▼</button>
+         <div class="detail-block" id="${detailId}">
+           ${details.map(d => `<div class="detail-row">
+             <span class="detail-icon">${d.icon || ''}</span>
+             <span class="detail-name" title="${escHtml(d.name)}">${escHtml(d.name)}</span>
+             ${d.badge ? `<span class="detail-badge ${d.badgeClass || ''}">${escHtml(d.badge)}</span>` : ''}
+           </div>`).join('')}
+         </div>`
+      : '';
+    const card = document.createElement('div');
+    card.className = 'summary-card';
+    card.innerHTML = `
+      <div class="summary-card-header">
+        <span class="summary-card-title">${escHtml(title)}</span>
+        <span class="summary-card-meta">${new Date().toLocaleTimeString('ru')}</span>
+      </div>
+      <div class="summary-stats">${chipsHtml}</div>
+      ${detailHtml}
+    `;
+    panel.insertBefore(card, document.getElementById('emptyHint'));
+  }
 
-    panel.appendChild(item);
+  function showFileCard(filename, hasErrors, reportText, downloadUrl) {
+    const panel = document.getElementById('activityPanel');
+    const bodyId = 'rb_' + Date.now();
+    const badgeHtml = hasErrors
+      ? '<span class="badge badge-err">⚠ Проблемы</span>'
+      : '<span class="badge badge-ok">✓ ОК</span>';
+    const bodyHtml = reportText
+      ? `<div class="report-body" id="${bodyId}">${escHtml(reportText)}</div>`
+      : '';
+    const toggleHtml = reportText
+      ? `<button class="detail-toggle" onclick="toggleReportBody('${bodyId}', this)" style="margin-top:6px">Показать отчёт ▼</button>`
+      : '';
+    const dlHtml = downloadUrl
+      ? `<a href="${downloadUrl}" download>Скачать исправленный</a>`
+      : '';
+    const card = document.createElement('div');
+    card.className = 'file-card';
+    card.innerHTML = `
+      <div class="file-card-head">
+        <span class="file-card-name" title="${escHtml(filename)}">${escHtml(filename)}</span>
+        ${badgeHtml}
+      </div>
+      ${toggleHtml}
+      ${bodyHtml}
+      ${dlHtml ? `<div class="file-card-actions">${dlHtml}</div>` : ''}
+    `;
+    panel.insertBefore(card, document.getElementById('emptyHint'));
     panel.scrollTop = panel.scrollHeight;
-    return item;
   }
 
-  function logLine(msg, type) {
-    const typeMap = { 'ok': 'ok', 'err': 'error', 'info': 'info' };
-    addLog(typeMap[type] || 'info', msg);
+  function toggleDetail(id) {
+    const el = document.getElementById(id);
+    const btn = el.previousElementSibling;
+    el.classList.toggle('open');
+    btn.textContent = el.classList.contains('open') ? 'Подробности ▲' : 'Подробности ▼';
   }
 
-  function clearLog() {
-    const panel = document.getElementById('logPanel');
-    panel.innerHTML = `<div class="log-header-bar">
-      <span>Журнал операций</span>
-      <button class="log-clear-btn" onclick="clearLog()">очистить</button>
-    </div>`;
-  }
-
-  function toggleReport(toggleId, bodyId) {
-    const body = document.getElementById(bodyId);
-    const toggle = document.getElementById(toggleId);
-    if (body.style.display === 'block') {
-      body.style.display = 'none';
-      toggle.textContent = 'Показать отчёт ▼';
-    } else {
-      body.style.display = 'block';
-      toggle.textContent = 'Скрыть отчёт ▲';
-    }
+  function toggleReportBody(id, btn) {
+    const el = document.getElementById(id);
+    const open = el.style.display === 'block';
+    el.style.display = open ? 'none' : 'block';
+    btn.textContent = open ? 'Показать отчёт ▼' : 'Скрыть отчёт ▲';
   }
 
   async function apiFetch(url, options = {}) {
@@ -364,7 +444,7 @@
       if (!res.ok) throw new Error(data.detail || res.statusText);
       return data;
     } catch (e) {
-      addLog('error', 'Ошибка: ' + e.message);
+      setLiveStatus('Ошибка: ' + e.message, 'error');
       throw e;
     }
   }
@@ -414,15 +494,15 @@
   async function uploadReports(input) {
     const fd = new FormData();
     for (const f of input.files) fd.append('files', f);
-    addLog('info', `Загружаю ${input.files.length} файл(ов)...`);
+    setLiveStatus(`Загружаю ${input.files.length} файл(ов)...`);
     const data = await apiFetch('/upload/reports', { method: 'POST', body: fd });
-    addLog('info', `Загружено: ${data.count} файл(ов)`);
+    setLiveStatus(`Загружено: ${data.count} файл(ов)`, 'done');
     refreshReportsList();
   }
 
   async function clearReports() {
     await apiFetch('/clear/reports', { method: 'DELETE' });
-    addLog('info', 'Загруженные отчёты удалены');
+    setLiveStatus('Загруженные отчёты удалены', 'done');
     refreshReportsList();
   }
 
@@ -432,7 +512,7 @@
     const btn = document.getElementById('btnCheck');
     btn.disabled = true;
     btn.textContent = 'Проверяю...';
-    clearLog();
+    clearActivity();
     document.getElementById('fixedFiles').innerHTML = '<div class="no-results">Пока нет</div>';
     fixedFiles = [];
 
@@ -441,7 +521,7 @@
 
     const resp = await fetch('/check/descriptions/stream', { method: 'POST' });
     if (!resp.ok) {
-      addLog('error', 'Ошибка запуска проверки');
+      setLiveStatus('Ошибка запуска проверки', 'error');
       btn.disabled = false;
       btn.textContent = 'Проверить и исправить';
       return;
@@ -451,6 +531,7 @@
     const decoder = new TextDecoder();
     let buf = '';
     let processed = 0;
+    const fileCards = {};
 
     while (true) {
       const { done, value } = await reader.read();
@@ -464,27 +545,47 @@
         try { ev = JSON.parse(line.slice(6)); } catch { continue; }
 
         if (ev.type === 'start') {
-          addLog('start', ev.msg);
+          setLiveStatus(ev.msg);
           bar.style.width = '20%';
         } else if (ev.type === 'info') {
-          addLog('info', ev.msg);
-        } else if (ev.type === 'warning') {
-          addLog('warning', ev.msg);
-        } else if (ev.type === 'error') {
-          addLog('error', ev.msg);
+          setLiveStatus(ev.msg);
         } else if (ev.type === 'report') {
           processed++;
-          addLog('report', ev.msg, { filename: ev.filename, hasErrors: ev.hasErrors, result: ev.result });
           bar.style.width = Math.min(20 + processed * 30, 85) + '%';
+          showFileCard(ev.filename, ev.hasErrors, ev.result?.report || '', null);
+          fileCards[ev.filename] = true;
         } else if (ev.type === 'fixed') {
-          addLog('fixed', ev.msg, { filename: ev.filename, download: ev.download });
+          addFixed(ev.filename, ev.download);
+          const panel = document.getElementById('activityPanel');
+          const cards = panel.querySelectorAll('.file-card');
+          cards.forEach(card => {
+            const nameEl = card.querySelector('.file-card-name');
+            if (nameEl && nameEl.title === ev.filename) {
+              const existing = card.querySelector('.file-card-actions');
+              if (!existing) {
+                const actions = document.createElement('div');
+                actions.className = 'file-card-actions';
+                actions.innerHTML = `<a href="${ev.download}" download>Скачать исправленный</a>`;
+                card.appendChild(actions);
+              }
+            }
+          });
         } else if (ev.type === 'done') {
           bar.style.width = '100%';
           const s = ev.summary || {};
-          addLog('done', `Готово. Всего: ${s.total || 0}, с проблемами: ${s.errors || 0}`);
+          const total = s.total || 0;
+          const errors = s.errors || 0;
+          setLiveStatus(`Проверка завершена`, 'done');
+          showSummaryCard('Проверка отчётов', [
+            { label: `Всего: ${total}`, color: 'blue' },
+            { label: `ОК: ${total - errors}`, color: 'green' },
+            ...(errors > 0 ? [{ label: `Проблем: ${errors}`, color: 'red' }] : []),
+          ], null);
           setTimeout(() => { bar.style.width = '0%'; }, 2000);
           btn.disabled = false;
           btn.textContent = 'Проверить и исправить';
+        } else if (ev.type === 'error') {
+          setLiveStatus(ev.msg, 'error');
         }
       }
     }
@@ -499,19 +600,27 @@
       'aniskov': 'Аниськов Владимир Иванович',
       'mandzhiev': 'Манджиев Игорь Александрович (И.О.)'
     };
-    addLog('start', `Переключаю руководителя на: ${names[leader]}...`);
+    clearActivity();
+    setLiveStatus(`Переключаю руководителя на: ${names[leader]}...`);
     try {
       const data = await apiFetch(`/switch-leader-ai/${leader}`, { method: 'POST' });
       if (data.ok) {
-        data.message.split('\n').forEach(line => {
-          if (line.trim()) addLog('ok', line.trim());
-        });
-        addLog('done', 'Готово.');
+        const lines = data.message.split('\n').filter(l => l.trim());
+        const details = lines.map(l => ({
+          icon: l.startsWith('→') ? '✓' : '',
+          name: l.replace(/^→\s*/, ''),
+          badge: l.includes('замен') ? 'изменено' : null,
+          badgeClass: 'db-ok',
+        }));
+        setLiveStatus('Руководитель переключён', 'done');
+        showSummaryCard(`Руководитель: ${names[leader]}`, [
+          { label: `Файлов: ${lines.filter(l => l.startsWith('→')).length}`, color: 'green' },
+        ], details);
       } else {
-        addLog('error', `Ошибка: ${data.message || 'Неизвестная ошибка'}`);
+        setLiveStatus(`Ошибка: ${data.message || 'Неизвестная ошибка'}`, 'error');
       }
     } catch (e) {
-      addLog('error', 'Ошибка: ' + e.message);
+      setLiveStatus('Ошибка: ' + e.message, 'error');
     }
   }
 
@@ -525,35 +634,66 @@
       'ReplaceDateInReportLine2': 'Замена даты на вчерашнюю',
       'ApplyTemplateLayout': 'Применить размеры шаблона',
     };
-    addLog('start', `Запускаю: ${names[name] || name}...`);
+    clearActivity();
+    setLiveStatus(`Запускаю: ${names[name] || name}...`);
     const data = await apiFetch(`/macro/${name}`, { method: 'POST' });
-    data.log.forEach(line => addLog(line.startsWith('[ERR]') ? 'error' : 'ok', line));
-    addLog('done', 'Готово.');
+    const details = data.log.map(line => ({
+      icon: line.startsWith('[ERR]') ? '✗' : '✓',
+      name: line.replace(/^\[(OK|ERR)\]\s*/, ''),
+      badge: line.startsWith('[ERR]') ? 'Ошибка' : 'OK',
+      badgeClass: line.startsWith('[ERR]') ? 'db-err' : 'db-ok',
+    }));
+    const errCount = data.log.filter(l => l.startsWith('[ERR]')).length;
+    const okCount = data.log.length - errCount;
+    setLiveStatus('Готово', 'done');
+    showSummaryCard(names[name] || name, [
+      ...(okCount > 0 ? [{ label: `OK: ${okCount}`, color: 'green' }] : []),
+      ...(errCount > 0 ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
+    ], details);
   }
 
   // ── Переименование ────────────────────────────────────────────────────────
 
   async function renameFiles(mode) {
-    addLog('info', `Обновление даты в шаблонах (→ ${mode === 'today' ? 'сегодня' : 'вчера'})...`);
+    clearActivity();
+    const label = mode === 'today' ? 'сегодня' : 'вчера';
+    setLiveStatus(`Обновление даты в шаблонах (→ ${label})...`);
     const data = await apiFetch(`/rename/templates/${mode}`, { method: 'POST' });
-    data.log.forEach(line => addLog(line.startsWith('Ошибка') ? 'error' : 'ok', line));
-    if (data.log.length === 0) addLog('info', 'Нет шаблонов для переименования.');
-    addLog('done', 'Готово.');
+    const details = data.log.map(line => ({
+      icon: line.startsWith('Ошибка') ? '✗' : '✓',
+      name: line,
+      badge: line.startsWith('Ошибка') ? 'Ошибка' : 'OK',
+      badgeClass: line.startsWith('Ошибка') ? 'db-err' : 'db-ok',
+    }));
+    setLiveStatus('Готово', 'done');
+    showSummaryCard(`Шаблоны → ${label}`, [
+      { label: `Файлов: ${data.log.length || 0}`, color: data.log.length ? 'green' : 'amber' },
+    ], details.length ? details : null);
   }
 
   async function renameResults(mode) {
-    addLog('info', `Переименование результатов (→ ${mode === 'today' ? 'сегодня' : 'вчера'})...`);
+    clearActivity();
+    const label = mode === 'today' ? 'сегодня' : 'вчера';
+    setLiveStatus(`Переименование результатов (→ ${label})...`);
     const data = await apiFetch(`/rename/results/${mode}`, { method: 'POST' });
-    data.log.forEach(line => addLog(line.startsWith('Ошибка') ? 'error' : 'ok', line));
-    if (data.log.length === 0) addLog('info', 'Нет файлов для переименования.');
-    addLog('done', 'Готово.');
+    const details = data.log.map(line => ({
+      icon: line.startsWith('Ошибка') ? '✗' : '✓',
+      name: line,
+      badge: line.startsWith('Ошибка') ? 'Ошибка' : 'OK',
+      badgeClass: line.startsWith('Ошибка') ? 'db-err' : 'db-ok',
+    }));
+    setLiveStatus('Готово', 'done');
+    showSummaryCard(`Результаты → ${label}`, [
+      { label: `Файлов: ${data.log.length || 0}`, color: data.log.length ? 'green' : 'amber' },
+    ], details.length ? details : null);
     refreshResults();
   }
 
   // ── Сборка всех отчётов (SSE) ─────────────────────────────────────────────
 
   async function mergeAll() {
-    addLog('start', 'Формирую все отчёты...');
+    clearActivity();
+    setLiveStatus('Формирую все отчёты...');
     const bar = document.getElementById('progressBar');
     bar.style.width = '10%';
 
@@ -564,6 +704,7 @@
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let successCount = 0;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -575,36 +716,50 @@
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           try {
-            const data = JSON.parse(line.slice(6));
-            if (data.type === 'start') {
-              addLog('info', data.msg);
+            const ev = JSON.parse(line.slice(6));
+            if (ev.type === 'start') {
               bar.style.width = '20%';
-            } else if (data.type === 'info') {
-              addLog('info', data.msg);
-            } else if (data.type === 'success') {
-              addLog('ok', data.msg);
-            } else if (data.type === 'warning') {
-              addLog('warning', data.msg);
-            } else if (data.type === 'error') {
-              addLog('error', data.msg);
-            } else if (data.type === 'done') {
+            } else if (ev.type === 'info') {
+              if (!ev.msg.includes('Найдено 0 отчётов')) {
+                setLiveStatus(ev.msg);
+              }
+            } else if (ev.type === 'success') {
+              successCount++;
+              setLiveStatus(ev.msg);
+              bar.style.width = Math.min(20 + successCount * 10, 85) + '%';
+            } else if (ev.type === 'warning') {
+              setLiveStatus(ev.msg);
+            } else if (ev.type === 'error') {
+              setLiveStatus(ev.msg, 'error');
+            } else if (ev.type === 'done') {
               bar.style.width = '100%';
-              if (data.results.length === 0 && data.errors.length === 0) {
-                addLog('error', 'Отчёты и шаблоны не найдены. Проверьте загруженные файлы.');
+              const merged = ev.results || [];
+              const unmatched = ev.unmatched || [];
+              const unknown = ev.unmatched_unknown || [];
+              const errCount = (ev.errors || []).length;
+
+              if (merged.length === 0 && errCount === 0) {
+                setLiveStatus('Отчёты не найдены. Проверьте загруженные файлы.', 'error');
+              } else {
+                setLiveStatus('Сборка завершена', 'done');
               }
-              if (data.unmatched && data.unmatched.length > 0) {
-                addLog('info', `Без болванки — скопированы как есть (${data.unmatched.length}):`);
-                data.unmatched.forEach(f => addLog('info', `  → ${f.file} (${f.company})`));
-              }
-              if (data.unmatched_unknown && data.unmatched_unknown.length > 0) {
-                addLog('error', `Компания не определена — скопированы как есть (${data.unmatched_unknown.length}):`);
-                data.unmatched_unknown.forEach(f => addLog('error', `  → ${f}`));
-              }
-              const hasUnknown = (data.unmatched_unknown || []).length > 0;
-              addLog('done', `Завершено. Собрано: ${data.results.length}, без болванки: ${(data.unmatched||[]).length}, не распознано: ${(data.unmatched_unknown||[]).length}`);
+
+              const details = [
+                ...merged.map(r => ({ icon: '✓', name: `${r.company} (${r.inserted} отч.)`, badge: 'Собран', badgeClass: 'db-ok' })),
+                ...unmatched.map(f => ({ icon: '⚠', name: `${f.file} — нет болванки`, badge: f.company, badgeClass: 'db-warn' })),
+                ...unknown.map(f => ({ icon: '?', name: f, badge: 'Не распознан', badgeClass: 'db-err' })),
+              ];
+
+              showSummaryCard('Сборка отчётов', [
+                { label: `Собрано: ${merged.length}`, color: 'green' },
+                ...(unmatched.length > 0 ? [{ label: `Без болванки: ${unmatched.length}`, color: 'amber' }] : []),
+                ...(unknown.length > 0 ? [{ label: `Не распознано: ${unknown.length}`, color: 'red' }] : []),
+                ...(errCount > 0 ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
+              ], details.length ? details : null);
+
               setTimeout(() => { bar.style.width = '0%'; }, 2000);
 
-              if (data.results && data.results.length > 0) {
+              if (merged.length > 0) {
                 document.getElementById('rename-results-buttons').style.display = 'block';
               }
             }
@@ -614,7 +769,7 @@
         }
       }
     } catch (e) {
-      addLog('error', `Ошибка: ${e.message}`);
+      setLiveStatus(`Ошибка: ${e.message}`, 'error');
     }
 
     refreshResults();
@@ -623,14 +778,14 @@
   // ── Скачать всё ZIP ───────────────────────────────────────────────────────
 
   async function downloadAll() {
-    addLog('info', 'Подготавливаю архив...');
+    setLiveStatus('Подготавливаю архив...');
     const a = document.createElement('a');
     a.href = '/download/all.zip';
     a.download = 'отчёты.zip';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    addLog('ok', 'Загрузка архива началась.');
+    setLiveStatus('Загрузка архива началась', 'done');
   }
 
   // ── Сброс ─────────────────────────────────────────────────────────────────
@@ -638,10 +793,10 @@
   async function resetAll() {
     if (!confirm('Сбросить всё? Удалятся отчёты и результаты.')) return;
     await apiFetch('/clear/all', { method: 'DELETE' });
-    clearLog();
+    clearActivity();
     document.getElementById('fixedFiles').innerHTML = '<div class="no-results">Пока нет</div>';
     fixedFiles = [];
-    addLog('ok', 'Все файлы удалены. Можно начинать заново.');
+    setLiveStatus('Все файлы удалены. Можно начинать заново.', 'done');
     refreshReportsList();
     refreshResults();
   }
