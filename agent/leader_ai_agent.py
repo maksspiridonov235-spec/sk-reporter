@@ -11,26 +11,29 @@ MODEL = "gemma4:31b-cloud"
 
 SYSTEM_PROMPT = """Ты - агент для редактирования отчётов строительного контроля.
 
-Твоя задача: найти и заменить данные руководителя в документе.
+Твоя задача: проанализировать документ и найти ВСЕ варианты написания данных руководителя.
 
 ПРАВИЛА:
-1. Найди все упоминания текущего руководителя (ФИО, должность)
-2. Замени на нового руководителя
-3. Сохрани форматирование документа
+1. Ищи все варианты написания: с разным регистром (И.О./И.о./и.о.), с опечатками, сокращениями
+2. Найди ФИО, должность и заголовок даже если они написаны нестандартно
+3. Верни СПИСОК конкретных текстовых паттернов, которые нужно заменить
 
-СТАРЫЙ РУКОВОДИТЕЛЬ (заменить):
-- ФИО: Аниськов Владимир Иванович
-- Должность: Руководитель проекта СК
-- Заголовок: Руководитель
+СТАРЫЙ РУКОВОДИТЕЛЬ (искать все варианты):
+- ФИО: Аниськов Владимир Иванович (и опечатки типа Анисков, Аниськов В.И., и т.д.)
+- Должность: Руководитель проекта СК (и варианты: Руководителя проекта СК, и.о. руководителя проекта СК)
+- Заголовок: Руководитель (и варианты: Руководителя, и.о. руководителя)
 
 НОВЫЙ РУКОВОДИТЕЛЬ (вставить):
 - ФИО: Манджиев Игорь Александрович
 - Должность: И.О. Руководителя проекта СК
 - Заголовок: И.О. Руководителя
 
-Ответь JSON:
+Ответь JSON со списком найденных паттернов для замены:
 {
-  "found": ["список найденных текстов для замены"],
+  "replacements": [
+    {"old": "текст который нашел", "new": "текст на который меняешь"},
+    {"old": "другой вариант", "new": "текст на который меняешь"}
+  ],
   "confidence": 0-100
 }"""
 
@@ -54,37 +57,39 @@ def extract_text_from_docx(filepath: str) -> str:
 
 
 def analyze_with_ai(filepath: str, to_leader: str) -> dict:
-    """Анализирует документ через Ollama."""
-
+    """Анализирует документ через Ollama и возвращает список замен."""
+    
     if to_leader == "aniskov":
-        old_fio = "Манджиев Игорь Александрович"
-        new_fio = "Аниськов Владимир Иванович"
-        old_title = "И.О. Руководителя"
-        new_title = "Руководитель"
-        old_project = "И.О. Руководителя проекта СК"
-        new_project = "Руководитель проекта СК"
+        direction = "Манджиев/и.о. → Аниськов/руководитель"
+        target_fio = "Аниськов Владимир Иванович"
+        target_role = "Руководитель проекта СК"
+        target_title = "Руководитель"
     else:
-        old_fio = "Аниськов Владимир Иванович"
-        new_fio = "Манджиев Игорь Александрович"
-        old_title = "Руководитель"
-        new_title = "И.О. Руководителя"
-        old_project = "Руководитель проекта СК"
-        new_project = "И.О. Руководителя проекта СК"
+        direction = "Аниськов/руководитель → Манджиев/и.о."
+        target_fio = "Манджиев Игорь Александрович"
+        target_role = "И.О. Руководителя проекта СК"
+        target_title = "И.О. Руководителя"
 
-    prompt = f"""Проанализируй текст и найди все места для замены руководителя.
+    prompt = f"""Направление замены: {direction}
 
-ЗАМЕНИТЬ:
-- "{old_fio}" → "{new_fio}"
-- "{old_title}" → "{new_title}"
-- "{old_project}" → "{new_project}"
+Найди в документе ВСЕ варианты написания и верни JSON с replacements.
 
-Текст:
+Target values:
+- FIO: {target_fio}
+- Role: {target_role}
+- Title: {target_title}
+
+Text:
 {extract_text_from_docx(filepath)}
 
 Ответь JSON:
 {{
-  "found_patterns": ["..."],
-  "confidence": 95
+  "replacements": [
+    {{"old": "найденный текст 1", "new": "{target_fio}"}},
+    {{"old": "найденный текст 2", "new": "{target_role}"}},
+    {{"old": "найденный текст 3", "new": "{target_title}"}}
+  ],
+  "confidence": 0-100
 }}"""
 
     try:
@@ -94,7 +99,7 @@ def analyze_with_ai(filepath: str, to_leader: str) -> dict:
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": prompt}
             ],
-            options={"temperature": 0.0, "num_predict": 500},
+            options={"temperature": 0.0, "num_predict": 1000},
         )
 
         answer = response["message"]["content"]
@@ -104,7 +109,25 @@ def analyze_with_ai(filepath: str, to_leader: str) -> dict:
 
         json_match = re.search(r'\{.*\}', answer, re.DOTALL)
         if json_match:
-            return json.loads(json_match.group())
+            result = json.loads(json_match.group())
+            # Добавляем fallback replacements если AI ничего не нашел
+            if not result.get("replacements"):
+                if to_leader == "aniskov":
+                    result["replacements"] = [
+                        {"old": "Манджиев Игорь Александрович", "new": "Аниськов Владимир Иванович"},
+                        {"old": "Маджиев Игорь Александрович", "new": "Аниськов Владимир Иванович"},
+                        {"old": "И.О. Руководителя проекта СК", "new": "Руководитель проекта СК"},
+                        {"old": "И.о. Руководителя проекта СК", "new": "Руководитель проекта СК"},
+                        {"old": "И.О. Руководителя", "new": "Руководитель"},
+                        {"old": "И.о. Руководителя", "new": "Руководитель"},
+                    ]
+                else:
+                    result["replacements"] = [
+                        {"old": "Аниськов Владимир Иванович", "new": "Манджиев Игорь Александрович"},
+                        {"old": "Руководитель проекта СК", "new": "И.О. Руководителя проекта СК"},
+                        {"old": "Руководитель", "new": "И.О. Руководителя"},
+                    ]
+            return result
 
         return {"error": "No JSON found", "raw": answer}
 
@@ -117,59 +140,52 @@ def _replace_in_runs(cell, old_text: str, new_text: str) -> int:
     changes = 0
     for paragraph in cell.paragraphs:
         for run in paragraph.runs:
-            if old_text in run.text:
+            # Проверяем точное совпадение после нормализации пробелов
+            normalized_run = " ".join(run.text.split())  # убираем лишние пробелы
+            if old_text in normalized_run or old_text in run.text:
+                # Заменяем в оригинальном тексте
                 run.text = run.text.replace(old_text, new_text)
                 changes += 1
     return changes
 
 
 def _switch_single_file(filepath: str, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
-    """Обрабатывает один файл."""
+    """Обрабатывает один файл с использованием AI для поиска паттернов."""
     try:
         doc = Document(filepath)
 
         if not doc.tables:
             return False, "Нет таблиц в документе"
 
-        if leader == "aniskov":
-            old_fio_list = ["Манджиев Игорь Александрович", "Маджиев Игорь Александрович"]
-            new_fio = "Аниськов Владимир Иванович"
-            old_title = "И.О. Руководителя"
-            new_title = "Руководитель"
-            old_project_list = ["И.О. Руководителя проекта СК", "И.о. Руководителя проекта СК"]
-            new_project = "Руководитель проекта СК"
-        else:
-            old_fio_list = ["Аниськов Владимир Иванович"]
-            new_fio = "Манджиев Игорь Александрович"
-            old_title = "Руководитель"
-            new_title = "И.О. Руководителя"
-            old_project_list = ["Руководитель проекта СК", "Руководителя проекта СК"]
-            new_project = "И.О. Руководителя проекта СК"
+        # Получаем рекомендации от AI
+        ai_result = analyze_with_ai(filepath, leader)
+        
+        if "error" in ai_result:
+            return False, f"AI ошибка: {ai_result['error']}"
+
+        replacements = ai_result.get("replacements", [])
+        
+        if not replacements:
+            return False, "AI не нашёл паттернов для замены"
 
         changes = 0
 
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
-                    # Замена ФИО (с поддержкой опечаток)
-                    for old_fio in old_fio_list:
-                        changes += _replace_in_runs(cell, old_fio, new_fio)
-                    
-                    # Замена должности проекта (с поддержкой разных регистров)
-                    for old_project in old_project_list:
-                        changes += _replace_in_runs(cell, old_project, new_project)
-                    
-                    # Замена заголовка (точное совпадение)
-                    changes += _replace_in_runs(cell, old_title, new_title)
+                    for repl in replacements:
+                        old = repl.get("old", "")
+                        new = repl.get("new", "")
+                        if old and new:
+                            changes += _replace_in_runs(cell, old, new)
 
         if changes == 0:
-            ai_result = analyze_with_ai(filepath, leader)
-            return False, f"Прямая замена не сработала. AI: {ai_result}"
+            return False, f"Найдены паттерны, но замена не сработала. AI: {ai_result}"
 
         doc.save(filepath)
 
         filename = Path(filepath).name
-        return True, f"→ {filename}: замен {changes}"
+        return True, f"→ {filename}: замен {changes} (confidence: {ai_result.get('confidence', 'N/A')}%)"
 
     except Exception as e:
         filename = Path(filepath).name
