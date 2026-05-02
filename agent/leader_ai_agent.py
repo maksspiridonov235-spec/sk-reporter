@@ -112,6 +112,17 @@ def analyze_with_ai(filepath: str, to_leader: str) -> dict:
         return {"error": str(e)}
 
 
+def _replace_in_runs(cell, old_text: str, new_text: str) -> int:
+    """Заменяет текст внутри run'ов ячейки, сохраняя форматирование."""
+    changes = 0
+    for paragraph in cell.paragraphs:
+        for run in paragraph.runs:
+            if old_text in run.text:
+                run.text = run.text.replace(old_text, new_text)
+                changes += 1
+    return changes
+
+
 def _switch_single_file(filepath: str, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
     """Обрабатывает один файл."""
     try:
@@ -121,18 +132,18 @@ def _switch_single_file(filepath: str, leader: Literal["aniskov", "mandzhiev"]) 
             return False, "Нет таблиц в документе"
 
         if leader == "aniskov":
-            old_fio = "Манджиев Игорь Александрович"
+            old_fio_list = ["Манджиев Игорь Александрович", "Маджиев Игорь Александрович"]
             new_fio = "Аниськов Владимир Иванович"
             old_title = "И.О. Руководителя"
             new_title = "Руководитель"
-            old_project = "И.О. Руководителя проекта СК"
+            old_project_list = ["И.О. Руководителя проекта СК", "И.о. Руководителя проекта СК"]
             new_project = "Руководитель проекта СК"
         else:
-            old_fio = "Аниськов Владимир Иванович"
+            old_fio_list = ["Аниськов Владимир Иванович"]
             new_fio = "Манджиев Игорь Александрович"
             old_title = "Руководитель"
             new_title = "И.О. Руководителя"
-            old_project = "Руководитель проекта СК"
+            old_project_list = ["Руководитель проекта СК", "Руководителя проекта СК"]
             new_project = "И.О. Руководителя проекта СК"
 
         changes = 0
@@ -140,21 +151,16 @@ def _switch_single_file(filepath: str, leader: Literal["aniskov", "mandzhiev"]) 
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
-                    original = cell.text.strip()
-                    new_text = original
-
-                    if old_fio in original:
-                        new_text = new_text.replace(old_fio, new_fio)
-
-                    if old_project in original:
-                        new_text = new_text.replace(old_project, new_project)
-
-                    if original == old_title:
-                        new_text = new_title
-
-                    if new_text != original:
-                        cell.text = new_text
-                        changes += 1
+                    # Замена ФИО (с поддержкой опечаток)
+                    for old_fio in old_fio_list:
+                        changes += _replace_in_runs(cell, old_fio, new_fio)
+                    
+                    # Замена должности проекта (с поддержкой разных регистров)
+                    for old_project in old_project_list:
+                        changes += _replace_in_runs(cell, old_project, new_project)
+                    
+                    # Замена заголовка (точное совпадение)
+                    changes += _replace_in_runs(cell, old_title, new_title)
 
         if changes == 0:
             ai_result = analyze_with_ai(filepath, leader)
