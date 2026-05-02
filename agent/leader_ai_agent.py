@@ -62,13 +62,17 @@ def analyze_with_ai(filepath: str, to_leader: str) -> dict:
 
 
 def analyze_with_ai_cells(cells_list: list, to_leader: str) -> dict:
-    """AI анализирует список ячеек и говорит что менять."""
+    """AI анализирует и говорит какие паттерны заменить."""
     
     if to_leader == "aniskov":
+        # Ищем Манджиева/и.о., меняем на Аниськова/руководителя
+        search_hints = "Манджиев Игорь Александрович (и опечатки: Маджиев), И.о. Руководителя, И.О. Руководителя"
         target_fio = "Аниськов Владимир Иванович"
         target_role = "Руководитель проекта СК"
         target_title = "Руководитель"
     else:
+        # Ищем Аниськова/руководителя, меняем на Манджиева/и.о.
+        search_hints = "Аниськов Владимир Иванович, Руководитель проекта СК, Руководитель"
         target_fio = "Манджиев Игорь Александрович"
         target_role = "И.О. Руководителя проекта СК"
         target_title = "И.О. Руководителя"
@@ -79,21 +83,24 @@ def analyze_with_ai_cells(cells_list: list, to_leader: str) -> dict:
         for c in cells_list
     ])
 
-    prompt = f"""Проанализируй ячейки таблицы и найди те, где нужно заменить руководителя.
+    prompt = f"""Проанализируй ячейки и найди ТОЧНЫЕ текстовые паттерны для замены.
 
-Target:
+Ищи: {search_hints}
+Меняй на:
 - FIO: {target_fio}
 - Role: {target_role}
 - Title: {target_title}
 
-Cells:
+Ячейки:
 {cells_text}
 
-Ответь JSON с координатами ячеек и новым текстом:
+ВАЖНО: верни ТОЧНЫЕ строки "old" как они написаны в ячейках, даже если разбиты на части.
+
+Ответь JSON:
 {{
-  "cell_replacements": [
-    {{"table": 0, "row": 1, "cell": 2, "new_text": "{target_fio}"}},
-    {{"table": 0, "row": 3, "cell": 1, "new_text": "{target_role}"}}
+  "replacements": [
+    {{"old": "ТОЧНЫЙ_ТЕКСТ_ИЗ_ЯЧЕЙКИ", "new": "{target_fio}"}},
+    {{"old": "ТОЧНЫЙ_ТЕКСТ_ИЗ_ЯЧЕЙКИ", "new": "{target_role}"}}
   ],
   "confidence": 0-100
 }}"""
@@ -138,62 +145,59 @@ def _replace_in_runs(cell, old_text: str, new_text: str) -> int:
 
 
 def _switch_single_file(filepath: str, leader: Literal["aniskov", "mandzhiev"]) -> tuple[bool, str]:
-    """AI делает всё: находит ячейки, говорит что менять, мы меняем целиком."""
+    """AI говорит что менять, мы меняем в cell.text целиком."""
     try:
         doc = Document(filepath)
 
         if not doc.tables:
             return False, "Нет таблиц в документе"
 
-        # Собираем все ячейки с текстом
-        cells_with_text = []
+        # Собираем все ячейки с текстом и координатами
+        cells_data = []
         for t_idx, table in enumerate(doc.tables):
             for r_idx, row in enumerate(table.rows):
                 for c_idx, cell in enumerate(row.cells):
                     text = cell.text.strip()
                     if text:
-                        cells_with_text.append({
-                            'table': t_idx,
-                            'row': r_idx,
-                            'cell': c_idx,
-                            'text': text,
-                            'cell_obj': cell
+                        cells_data.append({
+                            'table': t_idx, 'row': r_idx, 'cell': c_idx,
+                            'text': text, 'cell_obj': cell
                         })
 
-        # Отправляем AI список ячеек
-        ai_result = analyze_with_ai_cells(cells_with_text, leader)
+        # Отправляем AI список
+        ai_result = analyze_with_ai_cells(cells_data, leader)
         
         if "error" in ai_result:
             return False, f"AI ошибка: {ai_result['error']}"
 
-        cell_replacements = ai_result.get("cell_replacements", [])
+        patterns = ai_result.get("replacements", [])
         
-        if not cell_replacements:
-            return False, "AI не нашёл ячеек для замены"
+        if not patterns:
+            return False, "AI не нашёл паттернов для замены"
 
         changes = 0
         
-        # Применяем замены по координатам
-        for repl in cell_replacements:
-            t = repl.get('table')
-            r = repl.get('row')
-            c = repl.get('cell')
-            new_text = repl.get('new_text')
+        # Ищем ПАТТЕРНЫ в cell.text и заменяем целиком cell.text
+        for pattern in patterns:
+            old_text = pattern.get('old', '')
+            new_text = pattern.get('new', '')
             
-            # Находим ячейку и меняем целиком
-            for cell_info in cells_with_text:
-                if (cell_info['table'] == t and 
-                    cell_info['row'] == r and 
-                    cell_info['cell'] == c):
-                    cell_info['cell_obj'].text = new_text
+            if not old_text or not new_text:
+                continue
+            
+            for cell_info in cells_data:
+                if old_text in cell_info['text']:
+                    # Заменяем весь текст ячейки
+                    cell_info['cell_obj'].text = cell_info['text'].replace(old_text, new_text)
                     changes += 1
-                    break
+                    # Обновляем текст для возможных следующих замен
+                    cell_info['text'] = cell_info['cell_obj'].text
 
         if changes == 0:
-            return False, f"AI дал {len(cell_replacements)} замен, но не применилось"
+            return False, f"AI дал {len(patterns)} паттернов, но не применилось"
 
         doc.save(filepath)
-        return True, f"→ {Path(filepath).name}: замен {changes} ячеек"
+        return True, f"→ {Path(filepath).name}: замен {changes}"
 
     except Exception as e:
         return False, f"→ {Path(filepath).name}: ошибка - {str(e)}"
