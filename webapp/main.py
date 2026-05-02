@@ -96,7 +96,7 @@ async def index(request: Request):
         "request": request,
         "companies": companies,
         "agent_enabled": AGENT_ENABLED,
-    }, headers={"Cache-Control": "no-store"})
+    })
 
 @app.post("/upload/reports")
 async def upload_reports(files: list[UploadFile] = File(...)):
