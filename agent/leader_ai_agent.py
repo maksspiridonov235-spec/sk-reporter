@@ -9,7 +9,7 @@ from docx import Document
 from pathlib import Path
 from typing import Literal
 
-MODEL = "qwen3.5:cloud"
+MODEL = "gemma4:31b-cloud"
 
 
 def _ask_llm_for_leader_cells(cells_text: list) -> dict:
