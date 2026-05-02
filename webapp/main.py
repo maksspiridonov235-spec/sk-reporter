@@ -8,15 +8,13 @@ import tempfile
 import zipfile
 from pathlib import Path
 import sys
-import asyncio
-from typing import Literal
 from docx import Document
 
 sys.path.append(str(Path(__file__).parent.parent))
 
 from apply_template_layout import read_template_layout, apply_layout
 
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
@@ -26,7 +24,6 @@ from companies import COMPANIES
 from docx_processing import (
     apply_macro_to_file,
     merge_reports,
-    rename_files,
     rename_results,
     rename_templates,
 )
@@ -92,10 +89,6 @@ def find_reports_for_company(company_name: str, keywords: list[str]):
                 found_reports.append(f)
     return found_reports
 
-@app.get("/check", response_class=HTMLResponse)
-async def check_page(request: Request):
-    return templates.TemplateResponse("check.html", {"request": request})
-
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     companies = [name for name, _ in COMPANIES]
@@ -109,6 +102,8 @@ async def index(request: Request):
 async def upload_reports(files: list[UploadFile] = File(...)):
     saved = []
     for f in files:
+        if not f.filename:
+            continue
         dest = UPLOAD_DIR / f.filename
         with open(dest, "wb") as out:
             shutil.copyfileobj(f.file, out)
@@ -117,29 +112,9 @@ async def upload_reports(files: list[UploadFile] = File(...)):
         print(f"[INFO] Uploaded {len(saved)} files. AI analysis will be performed when generating report.")
     return {"uploaded": saved, "count": len(saved)}
 
-@app.post("/upload/templates")
-async def upload_templates(files: list[UploadFile] = File(...)):
-    saved = []
-    for f in files:
-        dest = TEMPLATES_DIR / f.filename
-        with open(dest, "wb") as out:
-            shutil.copyfileobj(f.file, out)
-        saved.append(f.filename)
-    return {"uploaded": saved, "count": len(saved)}
-
-@app.post("/sync/templates")
-async def sync_templates():
-    files = [f.name for f in TEMPLATES_DIR.glob("*.docx")]
-    return {"synced": files, "count": len(files)}
-
 @app.get("/files/reports")
 async def list_reports():
     files = [f.name for f in UPLOAD_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
-    return {"files": sorted(files)}
-
-@app.get("/files/templates")
-async def list_templates():
-    files = [f.name for f in TEMPLATES_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
     return {"files": sorted(files)}
 
 @app.post("/check/descriptions/stream")
@@ -232,72 +207,6 @@ async def rename_results_only(mode: str):
     log = rename_results(str(RESULT_DIR), mode)
     return {"log": log}
 
-@app.post("/rename/{mode}")
-async def rename(mode: str):
-    if mode not in ("today", "yesterday"):
-        raise HTTPException(status_code=400, detail="mode должен быть today или yesterday")
-    results_log = rename_results(str(RESULT_DIR), mode)
-    templates_log = rename_templates(str(TEMPLATES_DIR), mode)
-    return {"log": results_log + templates_log}
-
-@app.post("/merge/all")
-async def merge_all():
-    results = []
-    errors = []
-    for name, keywords in COMPANIES:
-        kw_lower = [k.lower() for k in keywords]
-        template = next(
-            (f for f in TEMPLATES_DIR.iterdir()
-             if any(k in f.name.lower() for k in kw_lower) and f.suffix.lower() in (".docx", ".doc")),
-            None
-        )
-        if not template:
-            errors.append(f"Template for '{name}' not found — skipped")
-            continue
-        reports = find_reports_for_company(name, keywords)
-        if not reports:
-            continue
-        output_path = RESULT_DIR / f"{name}_merged.docx"
-        try:
-            inserted = _do_merge(str(template), [str(r) for r in reports], str(output_path))
-            results.append({"company": name, "inserted": inserted, "file": f"{name}_merged.docx", "reports_count": len(reports)})
-        except Exception as e:
-            errors.append(f"'{name}': {str(e)}")
-    all_matched = set()
-    for r in results:
-        company_name = r["company"]
-        company = next((c for c in COMPANIES if c[0] == company_name), None)
-        if company:
-            for f in UPLOAD_DIR.iterdir():
-                if f.suffix.lower() not in (".docx", ".doc"):
-                    continue
-                if AGENT_ENABLED:
-                    detected = detect_company(str(f))
-                    if detected and detected == company_name:
-                        all_matched.add(f)
-                else:
-                    kw_lower = [k.lower() for k in company[1]]
-                    if any(k in f.name.lower() for k in kw_lower):
-                        all_matched.add(f)
-    unmatched = []
-    unmatched_unknown = []
-    for f in UPLOAD_DIR.iterdir():
-        if f.suffix.lower() not in (".docx", ".doc"):
-            continue
-        if f in all_matched:
-            continue
-        dest = RESULT_DIR / f.name
-        shutil.copy2(f, dest)
-        if AGENT_ENABLED:
-            detected = detect_company(str(f))
-            if detected:
-                unmatched.append({"file": f.name, "company": detected, "reason": "нет болванки"})
-            else:
-                unmatched_unknown.append(f.name)
-        else:
-            unmatched_unknown.append(f.name)
-    return {"results": results, "errors": errors, "total_merged": len(results), "unmatched": unmatched, "unmatched_unknown": unmatched_unknown, "ai_agent_active": AGENT_ENABLED}
-
 def _sse(data: dict) -> str:
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
 
@@ -370,28 +279,6 @@ async def merge_all_stream():
         yield _sse({"type": "done", "results": results, "errors": errors, "total_merged": len(results), "unmatched": unmatched, "unmatched_unknown": unmatched_unknown, "ai_agent_active": AGENT_ENABLED})
     return StreamingResponse(_gen(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
-@app.post("/merge/{company_name}")
-async def merge_one(company_name: str):
-    company_name = company_name.replace("%20", " ").replace("+", " ")
-    company = next((c for c in COMPANIES if c[0] == company_name), None)
-    if not company:
-        raise HTTPException(status_code=404, detail="Компания не найдена")
-    name, keywords = company
-    template = next(
-        (f for f in TEMPLATES_DIR.iterdir()
-         if any(k in f.name.lower() for k in [kw.lower() for kw in keywords])
-         and f.suffix.lower() in (".docx", ".doc")),
-        None
-    )
-    if not template:
-        raise HTTPException(status_code=404, detail=f"Шаблон для «{name}» не найден")
-    reports = find_reports_for_company(name, keywords)
-    if not reports:
-        raise HTTPException(status_code=404, detail=f"Отчёты для «{name}» не найдены")
-    output_path = RESULT_DIR / f"{name}_merged.docx"
-    inserted = _do_merge(str(template), [str(r) for r in reports], str(output_path))
-    return {"company": name, "template": template.name, "reports_found": len(reports), "inserted": inserted, "result": f"{name}_merged.docx"}
-
 @app.get("/download/all.zip")
 async def download_all():
     files = [f for f in RESULT_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
@@ -447,78 +334,25 @@ async def clear_all():
         d.mkdir()
     return {"ok": True}
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
-# ── Переключение руководителя ───────────────────────────────────────────────
-
-@app.post("/switch-leader/{leader}")
-async def switch_leader_endpoint(leader: str, filename: str = None):
-    """Переключает руководителя в загруженном отчёте."""
-    if leader not in ("aniskov", "mandzhiev"):
-        raise HTTPException(status_code=400, detail="leader должен быть 'aniskov' или 'mandzhiev'")
-    
-    from agent.leader_ai_agent import switch_leader
-    
-    if filename:
-        filepath = str(UPLOAD_DIR / filename)
-        if not Path(filepath).exists():
-
-            
-            raise HTTPException(status_code=404, detail=f"Файл не найден: {filename}")
-    else:
-        report_files = list(UPLOAD_DIR.glob("*.docx"))
-        if not report_files:
-            raise HTTPException(status_code=404, detail="Отчёты не загружены")
-        filepath = str(report_files[0])
-        filename = report_files[0].name
-    
-    ok, msg = switch_leader(filepath, leader)
-    
-    if not ok:
-        raise HTTPException(status_code=500, detail=msg)
-    
-    return {"ok": True, "message": msg, "file": filename}
-
-@app.get("/detect-leader")
-async def detect_leader():
-    """Определяет текущего руководителя в загруженном отчёте."""
-    from agent.leader_ai_agent import detect_current_leader
-    
-    report_files = list(UPLOAD_DIR.glob("*.docx"))
-    if not report_files:
-        return {"leader": "unknown", "message": "Отчёты не загружены"}
-    
-    filepath = str(report_files[0])
-    leader = detect_current_leader(filepath)
-    
-    names = {
-        "aniskov": "Аниськов Владимир Иванович",
-        "mandzhiev": "Манджиев Игорь Александрович",
-        "unknown": "Не определён"
-    }
-    
-    return {"leader": leader, "name": names.get(leader, "Неизвестно")}
-
-# ── AI Агент переключения руководителя ────────────────────────────────────
-
 @app.post("/switch-leader-ai/{leader}")
 async def switch_leader_ai_endpoint(leader: str):
-    """AI-агент переключения руководителя через Ollama."""
     from agent.leader_ai_agent import switch_leader_ai
-    
+
     if leader not in ("aniskov", "mandzhiev"):
         raise HTTPException(status_code=400, detail="leader должен быть 'aniskov' или 'mandzhiev'")
-    
+
     report_files = list(UPLOAD_DIR.glob("*.docx"))
     if not report_files:
         raise HTTPException(status_code=404, detail="Отчёты не загружены")
-    
+
     filepaths = [str(f) for f in report_files]
     ok, msg = switch_leader_ai(filepaths, leader)
-    
+
     if not ok:
         raise HTTPException(status_code=500, detail=msg)
-    
+
     return {"ok": True, "message": msg}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -3,36 +3,48 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Объединение отчётов СК</title>
+  <title>Отчёты СК</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, sans-serif; background: #f0f2f5; color: #222; }
-    header { background: #1a56a0; color: #fff; padding: 16px 24px; font-size: 18px; font-weight: bold; }
+    header {
+      background: #1a56a0; color: #fff; padding: 16px 24px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    header .title { font-size: 18px; font-weight: bold; }
 
     .layout { display: flex; gap: 0; height: calc(100vh - 54px); }
 
     /* Левая панель */
-    .sidebar { width: 300px; min-width: 260px; background: #fff; border-right: 1px solid #ddd;
-               display: flex; flex-direction: column; padding: 16px; gap: 12px; overflow-y: auto; }
-
-    .section-title { font-size: 12px; font-weight: bold; text-transform: uppercase;
-                     color: #888; letter-spacing: .5px; margin-bottom: 4px; }
-
-    .upload-zone { border: 2px dashed #aac4e8; border-radius: 8px; padding: 14px;
-                   text-align: center; cursor: pointer; background: #f5f9ff;
-                   transition: border-color .2s; }
+    .sidebar {
+      width: 300px; min-width: 260px; background: #fff; border-right: 1px solid #ddd;
+      display: flex; flex-direction: column; padding: 16px; gap: 10px; overflow-y: auto;
+    }
+    .section-title {
+      font-size: 11px; font-weight: bold; text-transform: uppercase;
+      color: #888; letter-spacing: .5px; margin-bottom: 2px;
+    }
+    .upload-zone {
+      border: 2px dashed #aac4e8; border-radius: 8px; padding: 12px;
+      text-align: center; cursor: pointer; background: #f5f9ff;
+      transition: border-color .2s;
+    }
     .upload-zone:hover { border-color: #1a56a0; }
     .upload-zone input { display: none; }
     .upload-zone span { font-size: 13px; color: #555; }
 
-    .file-list { font-size: 12px; color: #444; max-height: 120px; overflow-y: auto;
-                 border: 1px solid #e0e0e0; border-radius: 6px; padding: 6px; background: #fafafa; }
+    .file-list {
+      font-size: 12px; color: #444; max-height: 100px; overflow-y: auto;
+      border: 1px solid #e0e0e0; border-radius: 6px; padding: 6px; background: #fafafa;
+    }
     .file-list div { padding: 2px 0; border-bottom: 1px solid #f0f0f0; }
     .file-list div:last-child { border-bottom: none; }
+    .file-count { font-size: 12px; color: #888; }
 
-    /* Кнопки действий */
-    .btn { width: 100%; padding: 9px 12px; border: none; border-radius: 6px; cursor: pointer;
-           font-size: 13px; font-weight: bold; transition: background .15s; }
+    .btn {
+      width: 100%; padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer;
+      font-size: 13px; font-weight: bold; transition: background .15s;
+    }
     .btn-blue   { background: #1a56a0; color: #fff; }
     .btn-blue:hover   { background: #154480; }
     .btn-green  { background: #1e8c45; color: #fff; }
@@ -45,95 +57,121 @@
     .btn-gray:hover   { background: #4b5563; }
     .btn:disabled { opacity: .5; cursor: not-allowed; }
 
-    .divider { border: none; border-top: 1px solid #e5e7eb; margin: 4px 0; }
+    .btn-row { display: flex; gap: 6px; }
+    .btn-row .btn { width: 50%; }
+
+    .divider { border: none; border-top: 1px solid #e5e7eb; margin: 2px 0; }
 
     /* Центральная область */
     .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
-
-    /* Результаты */
-    .results-panel { padding: 0 16px 16px; flex: 1; overflow-y: auto; }
-    .results-title { font-size: 13px; font-weight: bold; color: #444; margin-bottom: 8px; }
-    .result-item { display: flex; align-items: center; justify-content: space-between;
-                   background: #fff; border: 1px solid #d1fae5; border-radius: 6px;
-                   padding: 8px 12px; margin-bottom: 6px; font-size: 13px; }
-    .result-item a { color: #1a56a0; font-weight: bold; text-decoration: none; }
-    .result-item a:hover { text-decoration: underline; }
+    /* Прогресс */
+    .progress-bar-wrap { height: 4px; background: #e5e7eb; overflow: hidden; flex-shrink: 0; }
+    .progress-bar { height: 4px; background: #1a56a0; width: 0%; transition: width .3s; }
 
     /* Лог */
-    .log-wrap { border-top: 2px solid #333; flex-shrink: 0; }
-    .log-resizer { height: 6px; background: #2d2d2d; cursor: ns-resize; display: flex;
-                   align-items: center; justify-content: center; }
-    .log-resizer::after { content: ''; width: 40px; height: 2px; background: #555; border-radius: 2px; }
-    .log-header { display: flex; align-items: center; justify-content: space-between;
-                  background: #2d2d2d; padding: 4px 14px; user-select: none; }
-    .log-header span { color: #888; font-size: 11px; font-family: monospace; }
-    .log-header .log-clear { font-size: 11px; color: #6b7280; cursor: pointer; background: none;
-                              border: none; padding: 2px 6px; border-radius: 3px; }
-    .log-header .log-clear:hover { color: #fff; background: #444; }
-    .log-panel { height: 200px; min-height: 60px; background: #1e1e1e;
-                 color: #d4d4d4; font-family: monospace; font-size: 12px;
-                 overflow-y: auto; padding: 10px 14px; }
-    .log-panel .ok  { color: #6ee7b7; }
-    .log-panel .err { color: #fca5a5; }
-    .log-panel .info{ color: #93c5fd; }
+    .log-panel {
+      flex: 1; overflow-y: auto; padding: 16px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .log-header-bar {
+      font-size: 13px; font-weight: bold; color: #444; padding-bottom: 8px;
+      border-bottom: 1px solid #e5e7eb; margin-bottom: 4px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .log-clear-btn {
+      font-size: 12px; color: #6b7280; cursor: pointer; background: none;
+      border: 1px solid #d1d5db; padding: 3px 8px; border-radius: 4px;
+    }
+    .log-clear-btn:hover { color: #222; border-color: #9ca3af; }
 
-    /* Карточка pipeline */
-    .parsed-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
-                   padding: 12px 14px; margin-bottom: 10px; font-size: 12px; }
-    .parsed-card h4 { font-size: 13px; color: #1a56a0; margin-bottom: 8px; font-weight: bold;
-                      display: flex; align-items: center; gap: 8px; }
-    .parsed-card table { width: 100%; border-collapse: collapse; }
-    .parsed-card td { padding: 3px 6px; vertical-align: top; }
-    .parsed-card td:first-child { color: #666; width: 120px; white-space: nowrap; font-weight: bold; }
-    .parsed-card td:last-child { color: #222; }
-    .parsed-card .parse-err { color: #dc2626; font-style: italic; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; }
-    .badge-ok   { background: #d1fae5; color: #065f46; }
-    .badge-fail { background: #fee2e2; color: #991b1b; }
-    .score-bar { height: 4px; background: #e5e7eb; border-radius: 2px; margin: 6px 0 8px; }
-    .score-fill { height: 4px; border-radius: 2px; background: #1a56a0; }
-    .warnings-list { margin: 6px 0 0; padding-left: 14px; color: #b45309; }
-    .pipeline-summary { background: #1a56a0; color: #fff; border-radius: 8px; padding: 10px 14px;
-                        margin-bottom: 12px; font-size: 13px; display: flex; gap: 20px; align-items: center; }
-    .pipeline-summary span { opacity: .85; }
-    .pipeline-summary strong { font-size: 16px; }
+    .log-item {
+      border-radius: 6px; padding: 10px 14px; font-size: 13px;
+      border: 1px solid transparent; flex-shrink: 0;
+    }
+    .log-start    { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+    .log-info     { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+    .log-warning  { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+    .log-error    { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+    .log-report   { background: #fff; border-color: #e5e7eb; }
+    .log-fixed    { background: #f0fdf4; border-color: #86efac; }
+    .log-done     { background: #f8fafc; border-color: #cbd5e1; color: #475569; font-weight: bold; }
+    .log-ok       { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+    .log-err      { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+
+    .log-report-head {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 6px;
+    }
+    .log-report-head .filename { font-weight: bold; font-size: 13px; }
+    .badge {
+      font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 12px;
+    }
+    .badge-ok  { background: #d1fae5; color: #065f46; }
+    .badge-err { background: #fee2e2; color: #991b1b; }
+
+    .report-body {
+      display: none; font-size: 12px; color: #444;
+      background: #f9fafb; border-radius: 4px; padding: 8px;
+      white-space: pre-wrap; font-family: monospace; margin-top: 8px;
+      max-height: 300px; overflow-y: auto;
+      border: 1px solid #e5e7eb;
+    }
+    .report-toggle {
+      font-size: 12px; color: #1a56a0; cursor: pointer; text-decoration: underline;
+      margin-top: 4px; display: inline-block;
+    }
+
+    .fixed-row {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .fixed-row a {
+      font-size: 13px; font-weight: bold; color: #1a56a0; text-decoration: none;
+      padding: 4px 12px; border: 1px solid #1a56a0; border-radius: 4px;
+    }
+    .fixed-row a:hover { background: #1a56a0; color: #fff; }
+
+    /* Правая панель */
+    .results-panel {
+      width: 280px; min-width: 220px; background: #fff; border-left: 1px solid #ddd;
+      display: flex; flex-direction: column; padding: 16px; gap: 8px; overflow-y: auto;
+    }
+    .results-title {
+      font-size: 11px; font-weight: bold; text-transform: uppercase;
+      color: #888; letter-spacing: .5px; margin-bottom: 4px;
+    }
+    .result-item {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px;
+      padding: 8px 10px; font-size: 12px; gap: 8px;
+    }
+    .result-item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .result-item a {
+      font-size: 12px; color: #1a56a0; font-weight: bold; text-decoration: none;
+      white-space: nowrap;
+    }
+    .result-item a:hover { text-decoration: underline; }
+    .result-section-title {
+      font-size: 11px; font-weight: bold; text-transform: uppercase;
+      color: #888; letter-spacing: .5px; margin-top: 8px; margin-bottom: 4px;
+      padding-top: 8px; border-top: 1px solid #e5e7eb;
+    }
+    .result-section-title:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+    .no-results { font-size: 12px; color: #aaa; font-style: italic; }
 
     /* Спиннер */
-    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff;
-               border-top-color: transparent; border-radius: 50%; animation: spin .6s linear infinite;
-               vertical-align: middle; margin-left: 6px; }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Вкладки */
-    .tabs { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; background: #fafafa; }
-    .tab-btn { padding: 10px 16px; background: none; border: none; cursor: pointer;
-               font-size: 13px; color: #666; font-weight: bold; border-bottom: 2px solid transparent;
-               transition: color .2s; }
-    .tab-btn:hover { color: #1a56a0; }
-    .tab-btn.active { color: #1a56a0; border-bottom-color: #1a56a0; }
-
-    /* Контент вкладок */
-    .tab-content { display: none; flex: 1; overflow-y: auto; }
-    .tab-content.active { display: flex; flex-direction: column; }
-
-    /* Результаты проверки */
-    .check-results { padding: 16px; }
-    .check-report { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;
-                    padding: 14px; margin-bottom: 12px; }
-    .check-report h3 { font-size: 13px; color: #1a56a0; margin-bottom: 10px; font-weight: bold; }
-    .check-report-content { font-size: 12px; line-height: 1.6; color: #333; white-space: pre-wrap; font-family: 'Courier New', monospace; }
-    .check-report.ok { border-left: 4px solid #1e8c45; }
-    .check-report.error { border-left: 4px solid #dc2626; }
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid #bfdbfe; border-top-color: #1a56a0;
+      border-radius: 50%; animation: spin .7s linear infinite;
+      vertical-align: middle; margin-right: 6px;
+    }
   </style>
 </head>
 <body>
-
-<header style="display:flex;align-items:center;justify-content:space-between">
-  <span>Объединение отчётов СК</span>
-  <a href="/check" style="color:#fff;text-decoration:none;font-size:13px;opacity:.85;padding:6px 12px;border:1px solid rgba(255,255,255,.4);border-radius:4px">
-    Проверка и исправление →
-  </a>
+<header>
+  <span class="title">Отчёты СК</span>
 </header>
 
 <div class="layout">
@@ -142,26 +180,26 @@
   <div class="sidebar">
 
     <div>
-      <div class="section-title">1. Отчёты от инженеров</div>
+      <div class="section-title">Отчёты от инженеров</div>
       <div class="upload-zone" onclick="document.getElementById('inp-reports').click()">
         <input type="file" id="inp-reports" multiple accept=".docx,.doc" onchange="uploadReports(this)"/>
         <span>Перетащите или нажмите<br>для загрузки .docx/.doc</span>
       </div>
-      <div id="list-reports" class="file-list" style="margin-top:6px">Нет файлов</div>
+      <div class="file-count" id="fileCount" style="margin-top:4px">Нет файлов</div>
+      <div class="file-list" id="list-reports" style="margin-top:4px"><div style="color:#aaa;font-style:italic">—</div></div>
     </div>
 
     <hr class="divider"/>
 
     <div>
-      <div class="section-title">Проверка отчётов</div>
-      <button class="btn btn-blue" onclick="checkDescriptions()">Проверка описания действий</button>
+      <div class="section-title">Проверка и исправление</div>
+      <button class="btn btn-blue" id="btnCheck" onclick="startCheck()">Проверить и исправить</button>
     </div>
 
     <hr class="divider"/>
 
     <div>
       <div class="section-title">Руководитель отчёта</div>
-      
       <button class="btn btn-blue" style="margin-bottom:6px" onclick="switchLeader('aniskov')">Аниськов В.И.</button>
       <button class="btn btn-orange" onclick="switchLeader('mandzhiev')">Манджиев И.А. (И.О.)</button>
     </div>
@@ -169,42 +207,40 @@
     <hr class="divider"/>
 
     <div>
-      <div class="section-title">Макросы (к отчётам, до сборки)</div>
+      <div class="section-title">Макросы (до сборки)</div>
       <button class="btn btn-blue" style="margin-bottom:6px"
               onclick="runMacro('HighlightSecondRow_No5991')">Выделить 2-ю строку таблиц</button>
       <button class="btn btn-blue" style="margin-bottom:6px"
               onclick="runMacro('NewMacros')">Форматировать документ</button>
-      <button class="btn btn-orange" style="margin-bottom:6px"
-              onclick="runMacro('ReplaceDateInReportLine')">Поставить сегодняшнюю дату</button>
-      <button class="btn btn-orange"
-              onclick="runMacro('ReplaceDateInReportLine2')">Поставить вчерашнюю дату</button>
-      <button class="btn btn-blue" style="margin-top:6px"
+      <div class="btn-row" style="margin-bottom:6px">
+        <button class="btn btn-orange" onclick="runMacro('ReplaceDateInReportLine')">Дата → сегодня</button>
+        <button class="btn btn-orange" onclick="runMacro('ReplaceDateInReportLine2')">Дата → вчера</button>
+      </div>
+      <button class="btn btn-blue"
               onclick="runMacro('ApplyTemplateLayout')">Применить размеры шаблона</button>
     </div>
 
     <hr class="divider"/>
 
     <div>
-      <div class="section-title">Переименовать файлы шаблонов</div>
-      <button class="btn btn-orange" style="margin-bottom:6px"
-              onclick="renameFiles('today')">Дата → сегодня</button>
-      <button class="btn btn-orange"
-              onclick="renameFiles('yesterday')">Дата → вчера</button>
+      <div class="section-title">Переименовать шаблоны</div>
+      <div class="btn-row">
+        <button class="btn btn-orange" onclick="renameFiles('today')">→ сегодня</button>
+        <button class="btn btn-orange" onclick="renameFiles('yesterday')">→ вчера</button>
+      </div>
     </div>
 
     <hr class="divider"/>
 
     <button class="btn btn-green" onclick="mergeAll()">Сформировать все отчёты</button>
 
-    <div id="rename-results-buttons" style="display: none; margin-top: 12px;">
-      <div class="section-title">Переименовать результаты</div>
-      <button class="btn btn-orange" style="margin-bottom: 6px; font-size: 12px;"
-              onclick="renameResults('today')">Результаты → сегодня</button>
-      <button class="btn btn-orange" style="font-size: 12px;"
-              onclick="renameResults('yesterday')">Результаты → вчера</button>
+    <div id="rename-results-buttons" style="display:none">
+      <div class="section-title" style="margin-top:4px">Переименовать результаты</div>
+      <div class="btn-row">
+        <button class="btn btn-orange" onclick="renameResults('today')">→ сегодня</button>
+        <button class="btn btn-orange" onclick="renameResults('yesterday')">→ вчера</button>
+      </div>
     </div>
-
-    
 
     <hr class="divider"/>
 
@@ -212,59 +248,106 @@
 
     <hr class="divider"/>
 
-    <button class="btn btn-red" onclick="resetAll()">Сбросить всё и начать заново</button>
+    <div class="btn-row">
+      <button class="btn btn-gray" onclick="clearReports()">Очистить отчёты</button>
+      <button class="btn btn-red" onclick="resetAll()">Сбросить всё</button>
+    </div>
 
   </div>
 
-  <!-- Основная область -->
+  <!-- Центральная область — лог -->
   <div class="main">
-
-    <!-- Вкладки -->
-    <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('results')">Готовые файлы</button>
-      
-      <button class="tab-btn" onclick="switchTab('check')">Результаты проверки</button>
-    </div>
-
-    <!-- Вкладка "Готовые файлы" -->
-    <div class="tab-content active" id="tab-results">
-      <div class="results-panel">
-        <div class="results-title">Готовые файлы</div>
-        <div id="results-list"></div>
-      </div>
-    </div>
-
-    <!-- Вкладка "Результаты проверки" -->
-    <div class="tab-content" id="tab-check">
-      <div class="check-results">
-        <div class="results-title">Результаты проверки отчётов</div>
-        <div id="check-list"></div>
-      </div>
-    </div>
-
-    <!-- Лог -->
-    <div class="log-wrap">
-      <div class="log-resizer" id="log-resizer"></div>
-      <div class="log-header">
+    <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="log-panel" id="logPanel">
+      <div class="log-header-bar">
         <span>Журнал операций</span>
-        <button class="log-clear" onclick="document.getElementById('log').innerHTML=''">очистить</button>
+        <button class="log-clear-btn" onclick="clearLog()">очистить</button>
       </div>
-      <div class="log-panel" id="log"></div>
+      <div class="log-item log-info" style="color:#aaa;font-style:italic">
+        Загрузите отчёты и выберите операцию
+      </div>
     </div>
-
   </div>
+
+  <!-- Правая панель — результаты -->
+  <div class="results-panel">
+    <div class="result-section-title">Исправленные файлы</div>
+    <div id="fixedFiles"><div class="no-results">Пока нет</div></div>
+
+    <div class="result-section-title">Готовые отчёты</div>
+    <div id="results-list"><div class="no-results">Пока нет</div></div>
+  </div>
+
 </div>
 
 <script>
   // ── Утилиты ──────────────────────────────────────────────────────────────
 
-  function logLine(msg, type = "info") {
-    const el = document.getElementById("log");
-    const line = document.createElement("div");
-    line.className = type;
-    line.textContent = new Date().toLocaleTimeString() + "  " + msg;
-    el.appendChild(line);
-    el.scrollTop = el.scrollHeight;
+  function escHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function addLog(type, msg, extra) {
+    const panel = document.getElementById('logPanel');
+    const item = document.createElement('div');
+    item.className = `log-item log-${type}`;
+
+    if (type === 'start') {
+      item.innerHTML = `<span class="spinner"></span>${escHtml(msg)}`;
+    } else if (type === 'report' && extra) {
+      const badge = extra.hasErrors
+        ? '<span class="badge badge-err">⚠ Найдены проблемы</span>'
+        : '<span class="badge badge-ok">✓ ОК</span>';
+      const reportText = extra.result?.report || '';
+      const toggleId = 'toggle_' + Date.now();
+      const bodyId = 'body_' + Date.now();
+      item.innerHTML = `
+        <div class="log-report-head">
+          <span class="filename">${escHtml(extra.filename || msg)}</span>
+          ${badge}
+        </div>
+        ${reportText ? `<span class="report-toggle" id="${toggleId}" onclick="toggleReport('${toggleId}','${bodyId}')">Показать отчёт ▼</span>
+        <div class="report-body" id="${bodyId}">${escHtml(reportText)}</div>` : ''}
+      `;
+    } else if (type === 'fixed' && extra) {
+      item.className = 'log-item log-fixed';
+      item.innerHTML = `<div class="fixed-row">
+        <span>✅ ${escHtml(extra.filename)} → исправлен</span>
+        <a href="${extra.download}" download>Скачать</a>
+      </div>`;
+      addFixed(extra.filename, extra.download);
+    } else {
+      item.textContent = msg;
+    }
+
+    panel.appendChild(item);
+    panel.scrollTop = panel.scrollHeight;
+    return item;
+  }
+
+  function logLine(msg, type) {
+    const typeMap = { 'ok': 'ok', 'err': 'error', 'info': 'info' };
+    addLog(typeMap[type] || 'info', msg);
+  }
+
+  function clearLog() {
+    const panel = document.getElementById('logPanel');
+    panel.innerHTML = `<div class="log-header-bar">
+      <span>Журнал операций</span>
+      <button class="log-clear-btn" onclick="clearLog()">очистить</button>
+    </div>`;
+  }
+
+  function toggleReport(toggleId, bodyId) {
+    const body = document.getElementById(bodyId);
+    const toggle = document.getElementById(toggleId);
+    if (body.style.display === 'block') {
+      body.style.display = 'none';
+      toggle.textContent = 'Показать отчёт ▼';
+    } else {
+      body.style.display = 'block';
+      toggle.textContent = 'Скрыть отчёт ▲';
+    }
   }
 
   async function apiFetch(url, options = {}) {
@@ -274,137 +357,154 @@
       if (!res.ok) throw new Error(data.detail || res.statusText);
       return data;
     } catch (e) {
-      logLine("Ошибка: " + e.message, "err");
+      addLog('error', 'Ошибка: ' + e.message);
       throw e;
     }
   }
 
-  // ── Загрузка файлов ───────────────────────────────────────────────────────
+  // ── Файлы ─────────────────────────────────────────────────────────────────
 
-  async function uploadReports(input) {
-    const fd = new FormData();
-    for (const f of input.files) fd.append("files", f);
-    logLine(`Загружаю ${input.files.length} отчётов...`);
-    const data = await apiFetch("/upload/reports", { method: "POST", body: fd });
-    logLine(`Загружено: ${data.count} файлов`, "ok");
-    logLine("Готово.", "ok");
-    refreshReportsList();
+  let fixedFiles = [];
+
+  function addFixed(filename, downloadUrl) {
+    if (fixedFiles.includes(downloadUrl)) return;
+    fixedFiles.push(downloadUrl);
+    const container = document.getElementById('fixedFiles');
+    const noRes = container.querySelector('.no-results');
+    if (noRes) noRes.remove();
+    const item = document.createElement('div');
+    item.className = 'result-item';
+    item.innerHTML = `<span title="${escHtml(filename)}">${escHtml(filename)}</span><a href="${downloadUrl}" download>Скачать</a>`;
+    container.appendChild(item);
   }
 
   async function refreshReportsList() {
-    const data = await apiFetch("/files/reports");
-    const el = document.getElementById("list-reports");
-    el.innerHTML = data.files.length
-      ? data.files.map(f => `<div>${f}</div>`).join("")
-      : "Нет файлов";
+    const data = await apiFetch('/files/reports');
+    const files = data.files || [];
+    const el = document.getElementById('list-reports');
+    const count = document.getElementById('fileCount');
+    el.innerHTML = files.length
+      ? files.map(f => `<div>${escHtml(f)}</div>`).join('')
+      : '<div style="color:#aaa;font-style:italic">—</div>';
+    count.textContent = files.length ? `Загружено файлов: ${files.length}` : 'Нет файлов';
   }
 
-  async function refreshTemplatesList() {
-    const data = await apiFetch("/files/templates");
-    const el = document.getElementById("list-templates");
-    el.innerHTML = data.files.length
-      ? data.files.map(f => `<div>${f}</div>`).join("")
-      : "Нет файлов";
+  async function refreshResults() {
+    const data = await apiFetch('/results');
+    const el = document.getElementById('results-list');
+    el.innerHTML = data.files && data.files.length
+      ? data.files.map(f =>
+          `<div class="result-item">
+             <span title="${escHtml(f)}">${escHtml(f)}</span>
+             <a href="/download/${encodeURIComponent(f)}" download>Скачать</a>
+           </div>`
+        ).join('')
+      : '<div class="no-results">Пока нет</div>';
   }
 
-  // ── Проверка описаний ──────────────────────────────────────────────────────
+  // ── Загрузка отчётов ──────────────────────────────────────────────────────
 
-  // ── Переключение вкладок ──────────────────────────────────────────────────
-  function switchTab(tabName) {
-    // Скрываем все вкладки
-    document.querySelectorAll(".tab-content").forEach(tab => tab.classList.remove("active"));
-    document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
-
-    // Показываем выбранную вкладку
-    document.getElementById(`tab-${tabName}`).classList.add("active");
-    event.target.classList.add("active");
+  async function uploadReports(input) {
+    const fd = new FormData();
+    for (const f of input.files) fd.append('files', f);
+    addLog('info', `Загружаю ${input.files.length} файл(ов)...`);
+    const data = await apiFetch('/upload/reports', { method: 'POST', body: fd });
+    addLog('info', `Загружено: ${data.count} файл(ов)`);
+    refreshReportsList();
   }
 
-  async function checkDescriptions() {
-    logLine("Проверка описания действий в отчётах...", "info");
-    const checkList = document.getElementById("check-list");
-    checkList.innerHTML = ""; // Очищаем предыдущие результаты
+  async function clearReports() {
+    await apiFetch('/clear/reports', { method: 'DELETE' });
+    addLog('info', 'Загруженные отчёты удалены');
+    refreshReportsList();
+  }
 
-    try {
-      const response = await fetch("/check/descriptions/stream", { method: "POST" });
-      if (!response.ok) throw new Error(response.statusText);
+  // ── Проверка и исправление (SSE) ──────────────────────────────────────────
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
+  async function startCheck() {
+    const btn = document.getElementById('btnCheck');
+    btn.disabled = true;
+    btn.textContent = 'Проверяю...';
+    clearLog();
+    document.getElementById('fixedFiles').innerHTML = '<div class="no-results">Пока нет</div>';
+    fixedFiles = [];
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+    const bar = document.getElementById('progressBar');
+    bar.style.width = '10%';
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop();
+    const resp = await fetch('/check/descriptions/stream', { method: 'POST' });
+    if (!resp.ok) {
+      addLog('error', 'Ошибка запуска проверки');
+      btn.disabled = false;
+      btn.textContent = 'Проверить и исправить';
+      return;
+    }
 
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const data = JSON.parse(line.slice(6));
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let processed = 0;
 
-            if (data.type === "start") {
-              logLine(data.msg, "info");
-            } else if (data.type === "report") {
-              logLine(data.filename, "info");
-              logLine(data.msg, data.hasErrors ? "err" : "ok");
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        let ev;
+        try { ev = JSON.parse(line.slice(6)); } catch { continue; }
 
-              // Добавляем в вкладку "Результаты проверки"
-              if (data.result && data.result.report) {
-                const reportEl = document.createElement("div");
-                reportEl.className = `check-report ${data.hasErrors ? "error" : "ok"}`;
-                reportEl.innerHTML = `
-                  <h3>${data.filename}</h3>
-                  <div class="check-report-content">${data.result.report}</div>
-                `;
-                checkList.appendChild(reportEl);
-              }
-            } else if (data.type === "error") {
-              logLine(data.msg, "err");
-            } else if (data.type === "done") {
-              logLine("Проверка завершена.", "ok");
-              // Автоматически переходим на вкладку результатов
-              switchTab("check");
-              if (data.summary) {
-                logLine(`Всего отчётов проверено: ${data.summary.total}`, "info");
-                logLine(`С ошибками: ${data.summary.errors}`, data.summary.errors > 0 ? "err" : "ok");
-              }
-            }
-          } catch (e) {
-            console.error("Parse error:", e);
-          }
+        if (ev.type === 'start') {
+          addLog('start', ev.msg);
+          bar.style.width = '20%';
+        } else if (ev.type === 'info') {
+          addLog('info', ev.msg);
+        } else if (ev.type === 'warning') {
+          addLog('warning', ev.msg);
+        } else if (ev.type === 'error') {
+          addLog('error', ev.msg);
+        } else if (ev.type === 'report') {
+          processed++;
+          addLog('report', ev.msg, { filename: ev.filename, hasErrors: ev.hasErrors, result: ev.result });
+          bar.style.width = Math.min(20 + processed * 30, 85) + '%';
+        } else if (ev.type === 'fixed') {
+          addLog('fixed', ev.msg, { filename: ev.filename, download: ev.download });
+        } else if (ev.type === 'done') {
+          bar.style.width = '100%';
+          const s = ev.summary || {};
+          addLog('done', `Готово. Всего: ${s.total || 0}, с проблемами: ${s.errors || 0}`);
+          setTimeout(() => { bar.style.width = '0%'; }, 2000);
+          btn.disabled = false;
+          btn.textContent = 'Проверить и исправить';
         }
       }
-    } catch (e) {
-      logLine(`Ошибка: ${e.message}`, "err");
     }
+    btn.disabled = false;
+    btn.textContent = 'Проверить и исправить';
   }
 
-  // ── Переключение руководителя ────────────────────────────────────────────
+  // ── Руководитель ──────────────────────────────────────────────────────────
 
   async function switchLeader(leader) {
     const names = {
       'aniskov': 'Аниськов Владимир Иванович',
       'mandzhiev': 'Манджиев Игорь Александрович (И.О.)'
     };
-    logLine(`Переключаю руководителя на: ${names[leader]}...`);
+    addLog('start', `Переключаю руководителя на: ${names[leader]}...`);
     try {
       const data = await apiFetch(`/switch-leader-ai/${leader}`, { method: 'POST' });
-      
-      // Выводим результат как в других функциях
       if (data.ok) {
         data.message.split('\n').forEach(line => {
-          if (line.trim()) logLine(line.trim(), 'ok');
+          if (line.trim()) addLog('ok', line.trim());
         });
-        logLine('Готово.', 'ok');
+        addLog('done', 'Готово.');
       } else {
-        logLine(`Ошибка: ${data.message || 'Неизвестная ошибка'}`, 'err');
+        addLog('error', `Ошибка: ${data.message || 'Неизвестная ошибка'}`);
       }
     } catch (e) {
-      logLine('Ошибка: ' + e.message, 'err');
+      addLog('error', 'Ошибка: ' + e.message);
     }
   }
 
@@ -412,201 +512,150 @@
 
   async function runMacro(name) {
     const names = {
-      "HighlightSecondRow_No5991": "Выделение 2-й строки таблиц",
-      "NewMacros": "Форматирование документа",
-      "ReplaceDateInReportLine": "Замена даты на сегодняшнюю",
-      "ReplaceDateInReportLine2": "Замена даты на вчерашнюю",
+      'HighlightSecondRow_No5991': 'Выделение 2-й строки таблиц',
+      'NewMacros': 'Форматирование документа',
+      'ReplaceDateInReportLine': 'Замена даты на сегодняшнюю',
+      'ReplaceDateInReportLine2': 'Замена даты на вчерашнюю',
+      'ApplyTemplateLayout': 'Применить размеры шаблона',
     };
-    logLine(`Запускаю макрос: ${names[name] || name}...`);
-    const data = await apiFetch(`/macro/${name}`, { method: "POST" });
-    data.log.forEach(line => logLine(line, line.startsWith("[ERR]") ? "err" : "ok"));
-    logLine("Готово.", "ok");
+    addLog('start', `Запускаю: ${names[name] || name}...`);
+    const data = await apiFetch(`/macro/${name}`, { method: 'POST' });
+    data.log.forEach(line => addLog(line.startsWith('[ERR]') ? 'error' : 'ok', line));
+    addLog('done', 'Готово.');
   }
 
   // ── Переименование ────────────────────────────────────────────────────────
 
   async function renameFiles(mode) {
-    logLine(`Обновление даты в шаблонах (дата → ${mode === "today" ? "сегодня" : "вчера"})...`);
-    const data = await apiFetch(`/rename/templates/${mode}`, { method: "POST" });
-    data.log.forEach(line => logLine(line, line.startsWith("Ошибка") ? "err" : "ok"));
-    if (data.log.length === 0) logLine("Нет шаблонов для переименования.", "info");
-    logLine("Готово.", "ok");
+    addLog('info', `Обновление даты в шаблонах (→ ${mode === 'today' ? 'сегодня' : 'вчера'})...`);
+    const data = await apiFetch(`/rename/templates/${mode}`, { method: 'POST' });
+    data.log.forEach(line => addLog(line.startsWith('Ошибка') ? 'error' : 'ok', line));
+    if (data.log.length === 0) addLog('info', 'Нет шаблонов для переименования.');
+    addLog('done', 'Готово.');
   }
 
   async function renameResults(mode) {
-    logLine(`Переименование результатов (дата → ${mode === "today" ? "сегодня" : "вчера"})...`);
-    const data = await apiFetch(`/rename/results/${mode}`, { method: "POST" });
-    data.log.forEach(line => logLine(line, line.startsWith("Ошибка") ? "err" : "ok"));
-    if (data.log.length === 0) logLine("Нет файлов для переименования.", "info");
-    logLine("Готово.", "ok");
+    addLog('info', `Переименование результатов (→ ${mode === 'today' ? 'сегодня' : 'вчера'})...`);
+    const data = await apiFetch(`/rename/results/${mode}`, { method: 'POST' });
+    data.log.forEach(line => addLog(line.startsWith('Ошибка') ? 'error' : 'ok', line));
+    if (data.log.length === 0) addLog('info', 'Нет файлов для переименования.');
+    addLog('done', 'Готово.');
     refreshResults();
   }
 
-  // ── Объединение ───────────────────────────────────────────────────────────
+  // ── Сборка всех отчётов (SSE) ─────────────────────────────────────────────
 
   async function mergeAll() {
-    logLine("Формирую все отчёты...");
+    addLog('start', 'Формирую все отчёты...');
+    const bar = document.getElementById('progressBar');
+    bar.style.width = '10%';
 
     try {
-      const response = await fetch("/merge/all/stream");
+      const response = await fetch('/merge/all/stream');
       if (!response.ok) throw new Error(response.statusText);
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = "";
+      let buffer = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop(); // Сохраняем неполный формат SSE
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop();
 
         for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
+          if (!line.startsWith('data: ')) continue;
           try {
             const data = JSON.parse(line.slice(6));
-
-            if (data.type === "start") {
-              logLine(data.msg, "info");
-            } else if (data.type === "info") {
-              logLine(data.msg, "info");
-            } else if (data.type === "success") {
-              logLine(data.msg, "ok");
-            } else if (data.type === "warning") {
-              logLine(data.msg, "err");
-            } else if (data.type === "error") {
-              logLine(data.msg, "err");
-            } else if (data.type === "done") {
-              // Финальные результаты
+            if (data.type === 'start') {
+              addLog('info', data.msg);
+              bar.style.width = '20%';
+            } else if (data.type === 'info') {
+              addLog('info', data.msg);
+            } else if (data.type === 'success') {
+              addLog('ok', data.msg);
+            } else if (data.type === 'warning') {
+              addLog('warning', data.msg);
+            } else if (data.type === 'error') {
+              addLog('error', data.msg);
+            } else if (data.type === 'done') {
+              bar.style.width = '100%';
               if (data.results.length === 0 && data.errors.length === 0) {
-                logLine("Отчёты и шаблоны не найдены. Проверьте загруженные файлы.", "err");
+                addLog('error', 'Отчёты и шаблоны не найдены. Проверьте загруженные файлы.');
               }
               if (data.unmatched && data.unmatched.length > 0) {
-                logLine(`Без болванки — скопированы как есть (${data.unmatched.length}):`, "info");
-                data.unmatched.forEach(f => logLine(`  → ${f.file} (${f.company})`, "info"));
+                addLog('info', `Без болванки — скопированы как есть (${data.unmatched.length}):`);
+                data.unmatched.forEach(f => addLog('info', `  → ${f.file} (${f.company})`));
               }
               if (data.unmatched_unknown && data.unmatched_unknown.length > 0) {
-                logLine(`Компания не определена — скопированы как есть (${data.unmatched_unknown.length}):`, "err");
-                data.unmatched_unknown.forEach(f => logLine(`  → ${f}`, "err"));
+                addLog('error', `Компания не определена — скопированы как есть (${data.unmatched_unknown.length}):`);
+                data.unmatched_unknown.forEach(f => addLog('error', `  → ${f}`));
               }
+              const hasUnknown = (data.unmatched_unknown || []).length > 0;
+              addLog('done', `Завершено. Собрано: ${data.results.length}, без болванки: ${(data.unmatched||[]).length}, не распознано: ${(data.unmatched_unknown||[]).length}`);
+              setTimeout(() => { bar.style.width = '0%'; }, 2000);
 
-              const summary = `Завершено. Собрано: ${data.results.length}, без болванки: ${(data.unmatched||[]).length}, не распознано: ${(data.unmatched_unknown||[]).length}`;
-              logLine(summary, (data.unmatched_unknown||[]).length ? "err" : "ok");
-              logLine("Готово.", "ok");
-
-              // Показываем кнопки для переименования результатов
-              console.log("data.results:", data.results, "length:", data.results?.length);
               if (data.results && data.results.length > 0) {
-                const btn = document.getElementById("rename-results-buttons");
-                console.log("Found button:", btn);
-                if (btn) {
-                  btn.style.display = "block";
-                  console.log("Buttons shown");
-                }
+                document.getElementById('rename-results-buttons').style.display = 'block';
               }
             }
           } catch (e) {
-            console.error("Parse error:", e);
+            console.error('Parse error:', e);
           }
         }
       }
     } catch (e) {
-      logLine(`Ошибка: ${e.message}`, "err");
+      addLog('error', `Ошибка: ${e.message}`);
     }
 
     refreshResults();
   }
 
-  // ── Результаты ────────────────────────────────────────────────────────────
-
-  async function refreshResults() {
-    const data = await apiFetch("/results");
-    const el = document.getElementById("results-list");
-    el.innerHTML = data.files.length
-      ? data.files.map(f =>
-          `<div class="result-item">
-             <span>${f}</span>
-             <a href="/download/${encodeURIComponent(f)}" download>Скачать</a>
-           </div>`
-        ).join("")
-      : "<div style='color:#888;font-size:13px'>Нет готовых файлов</div>";
-  }
-
   // ── Скачать всё ZIP ───────────────────────────────────────────────────────
 
   async function downloadAll() {
-    logLine("Подготавливаю архив со всеми файлами...");
-    const a = document.createElement("a");
-    a.href = "/download/all.zip";
-    a.download = "отчёты.zip";
+    addLog('info', 'Подготавливаю архив...');
+    const a = document.createElement('a');
+    a.href = '/download/all.zip';
+    a.download = 'отчёты.zip';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    logLine("Загрузка архива началась.", "ok");
+    addLog('ok', 'Загрузка архива началась.');
   }
 
-  // ── Очистка ───────────────────────────────────────────────────────────────
+  // ── Сброс ─────────────────────────────────────────────────────────────────
 
   async function resetAll() {
-    if (!confirm("Сбросить всё? Удалятся отчёты и результаты.")) return;
-    await apiFetch("/clear/all", { method: "DELETE" });
-    document.getElementById("log").innerHTML = "";
-    document.getElementById("check-list").innerHTML = "";
-    logLine("Все файлы удалены. Можно начинать заново.", "ok");
+    if (!confirm('Сбросить всё? Удалятся отчёты и результаты.')) return;
+    await apiFetch('/clear/all', { method: 'DELETE' });
+    clearLog();
+    document.getElementById('fixedFiles').innerHTML = '<div class="no-results">Пока нет</div>';
+    fixedFiles = [];
+    addLog('ok', 'Все файлы удалены. Можно начинать заново.');
     refreshReportsList();
     refreshResults();
   }
 
   // ── Drag & Drop ───────────────────────────────────────────────────────────
 
-  function setupDrop(zoneId, inputId) {
-    const zone = document.querySelector(`#${inputId}`).closest(".upload-zone");
-    zone.addEventListener("dragover", e => { e.preventDefault(); zone.style.borderColor = "#1a56a0"; });
-    zone.addEventListener("dragleave", () => { zone.style.borderColor = "#aac4e8"; });
-    zone.addEventListener("drop", e => {
-      e.preventDefault();
-      zone.style.borderColor = "#aac4e8";
-      const input = document.getElementById(inputId);
-      const dt = new DataTransfer();
-      for (const f of e.dataTransfer.files) dt.items.add(f);
-      input.files = dt.files;
-      input.dispatchEvent(new Event("change"));
-    });
-  }
+  const uploadZone = document.getElementById('inp-reports').closest('.upload-zone');
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.style.borderColor = '#1a56a0'; });
+  uploadZone.addEventListener('dragleave', () => { uploadZone.style.borderColor = '#aac4e8'; });
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.style.borderColor = '#aac4e8';
+    const input = document.getElementById('inp-reports');
+    const dt = new DataTransfer();
+    for (const f of e.dataTransfer.files) dt.items.add(f);
+    input.files = dt.files;
+    uploadReports(input);
+  });
 
-  setupDrop("zone-reports", "inp-reports");
+  // ── Инициализация ─────────────────────────────────────────────────────────
 
-  // ── Растягивание лога ─────────────────────────────────────────────────────
-  (function() {
-    const resizer = document.getElementById("log-resizer");
-    const logPanel = document.getElementById("log");
-    let startY = 0, startH = 0;
-
-    resizer.addEventListener("mousedown", e => {
-      startY = e.clientY;
-      startH = logPanel.offsetHeight;
-      document.body.style.cursor = "ns-resize";
-      document.body.style.userSelect = "none";
-
-      function onMove(e) {
-        const delta = startY - e.clientY;
-        const newH = Math.max(60, startH + delta);
-        logPanel.style.height = newH + "px";
-      }
-      function onUp() {
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-        document.removeEventListener("mousemove", onMove);
-        document.removeEventListener("mouseup", onUp);
-      }
-      document.addEventListener("mousemove", onMove);
-      document.addEventListener("mouseup", onUp);
-    });
-  })();
-
-  // Загружаем списки при старте
   refreshReportsList();
   refreshResults();
 </script>
