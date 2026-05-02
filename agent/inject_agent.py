@@ -120,25 +120,25 @@ def _parse_parts(corrected_text: str):
     return part1_lines, part2_lines
 
 
-def _clear_cell(cell):
-    for para in cell.paragraphs[1:]:
-        p = para._element
-        p.getparent().remove(p)
-    cell.paragraphs[0].clear()
-
-
-def _write_lines_to_cell(cell, lines: list):
-    _clear_cell(cell)
-    first = True
-    for line in lines:
-        if first:
-            para = cell.paragraphs[0]
-            para.clear()
-            para.add_run(line)
-            first = False
-        else:
-            para = cell.add_paragraph()
-            para.add_run(line)
+def _write_parts_to_cell(cell, part1_lines: list, part2_lines: list):
+    """Insert part1 and part2 at the beginning of cell, before original text."""
+    # Combine both parts
+    all_lines = []
+    if part1_lines:
+        all_lines.extend(part1_lines)
+    if part2_lines:
+        all_lines.extend(part2_lines)
+    
+    if not all_lines:
+        return
+    
+    # Get the first paragraph (header "Описание действий")
+    insert_point = cell.paragraphs[0] if cell.paragraphs else cell.add_paragraph()
+    
+    # Insert all lines after the header (in reverse to keep order)
+    for line in reversed(all_lines):
+        new_para = cell.add_paragraph(line)
+        insert_point._element.addnext(new_para._element)
 
 
 def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -> dict:
@@ -159,26 +159,24 @@ def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -
             shutil.copy2(filepath, tmp_path)
 
             doc = Document(str(tmp_path))
-            cells = _extract_cells(doc)
-            print(f"[INJECT_AGENT] Total cells extracted: {len(cells)}")
-
-            cell_coords = _ask_llm_for_cells(cells, corrected_text)
-            print(f"[INJECT_AGENT] LLM identified cells: {cell_coords}")
-
-            p1_coord = cell_coords.get("part1")
-            p2_coord = cell_coords.get("part2")
-
-            if p1_coord and isinstance(p1_coord, list) and len(p1_coord) == 3 and part1_lines:
-                ti, ri, ci = p1_coord
-                target = doc.tables[ti].rows[ri].cells[ci]
-                _write_lines_to_cell(target, part1_lines)
-                print(f"[INJECT_AGENT] Wrote ЧАСТЬ 1 to cell [{ti},{ri},{ci}]")
-
-            if p2_coord and isinstance(p2_coord, list) and len(p2_coord) == 3 and part2_lines:
-                ti, ri, ci = p2_coord
-                target = doc.tables[ti].rows[ri].cells[ci]
-                _write_lines_to_cell(target, part2_lines)
-                print(f"[INJECT_AGENT] Wrote ЧАСТЬ 2 to cell [{ti},{ri},{ci}]")
+            
+            # Find cell with "Описание действий" header
+            target_cell = None
+            for ti, table in enumerate(doc.tables):
+                for ri, row in enumerate(table.rows):
+                    for ci, cell in enumerate(row.cells):
+                        if "Описание действий" in cell.text:
+                            target_cell = cell
+                            print(f"[INJECT_AGENT] Found 'Описание действий' at [{ti},{ri},{ci}]")
+                            break
+                    if target_cell:
+                        break
+                if target_cell:
+                    break
+            
+            if target_cell and (part1_lines or part2_lines):
+                _write_parts_to_cell(target_cell, part1_lines, part2_lines)
+                print(f"[INJECT_AGENT] Wrote corrected parts to 'Описание действий' cell")
 
             output_dir = Path(__file__).parent.parent / "output"
             output_dir.mkdir(exist_ok=True)
