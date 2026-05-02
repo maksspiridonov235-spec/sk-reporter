@@ -11,28 +11,29 @@ MODEL = "gemma4:31b-cloud"
 
 SYSTEM_PROMPT = """Ты - агент для редактирования отчётов строительного контроля.
 
-Твоя задача: проанализировать документ и найти ВСЕ варианты написания данных руководителя.
+Твоя задача: для КАЖДОЙ ячейки сказать — это шапка или подвал, и что туда вставить.
 
 ПРАВИЛА:
-1. Ищи все варианты написания: с разным регистром (И.О./И.о./и.о.), с опечатками, сокращениями
-2. Найди ФИО, должность и заголовок даже если они написаны нестандартно
-3. Верни СПИСОК конкретных текстовых паттернов, которые нужно заменить
+1. Смотри на текст ячейки и её положение в документе
+2. ШАПКА = подписи в верхней части документа (обычно рядом с таблицей, короткие)
+3. ПОДВАЛ = подписи в нижней части документа (после таблицы, полные должности)
+4. В шапке пишем КОРОТКИЙ заголовок: "Руководитель" или "И.О. Руководителя"
+5. В подвале пишем ПОЛНУЮ должность: "Руководитель проекта СК" или "И.О. Руководителя проекта СК"
+6. ФИО меняем везде одинаково
 
-СТАРЫЙ РУКОВОДИТЕЛЬ (искать все варианты):
-- ФИО: Аниськов Владимир Иванович (и опечатки типа Анисков, Аниськов В.И., и т.д.)
-- Должность: Руководитель проекта СК (и варианты: Руководителя проекта СК, и.о. руководителя проекта СК)
-- Заголовок: Руководитель (и варианты: Руководителя, и.о. руководителя)
+СТАРЫЙ РУКОВОДИТЕЛЬ (искать):
+- ФИО: Аниськов Владимир Иванович, Манджиев Игорь Александрович (и опечатки)
+- Должности: Руководитель, Руководитель проекта СК, И.о./И.О. Руководителя и т.д.
 
-НОВЫЙ РУКОВОДИТЕЛЬ (вставить):
-- ФИО: Манджиев Игорь Александрович
-- Должность: И.О. Руководителя проекта СК
-- Заголовок: И.О. Руководителя
+НОВЫЙ РУКОВОДИТЕЛЬ:
+- Для Аниськова: ФИО "Аниськов Владимир Иванович", шапка "Руководитель", подвал "Руководитель проекта СК"
+- Для Манджиева: ФИО "Манджиев Игорь Александрович", шапка "И.О. Руководителя", подвал "И.О. Руководителя проекта СК"
 
-Ответь JSON со списком найденных паттернов для замены:
+Ответь JSON — список ячеек с классификацией:
 {
-  "replacements": [
-    {"old": "текст который нашел", "new": "текст на который меняешь"},
-    {"old": "другой вариант", "new": "текст на который меняешь"}
+  "cells": [
+    {"table": 0, "row": 8, "cell": 4, "section": "header", "old": "И.о. Руководителя", "new": "Руководитель"},
+    {"table": 0, "row": 44, "cell": 4, "section": "footer", "old": "И.о. Руководителя проекта СК", "new": "Руководитель проекта СК"}
   ],
   "confidence": 0-100
 }"""
@@ -62,51 +63,47 @@ def analyze_with_ai(filepath: str, to_leader: str) -> dict:
 
 
 def analyze_with_ai_cells(cells_list: list, to_leader: str) -> dict:
-    """AI анализирует с учетом положения — шапка vs подвал."""
-    
-    # Находим макс строку для определения подвала
-    max_row = max((c['row'] for c in cells_list), default=0) if cells_list else 0
-    mid_row = max_row // 2  # примерная середина
+    """AI классифицирует каждую ячейку — шапка или подвал, и что вставить."""
     
     if to_leader == "aniskov":
         target_fio = "Аниськов Владимир Иванович"
-        target_title = "Руководитель"  # шапка — короткий
-        target_role = "Руководитель проекта СК"  # подвал — полный
-        old_hint = "Манджиев/Маджиев, И.о./И.О. Руководителя"
+        target_title = "Руководитель"
+        target_role = "Руководитель проекта СК"
+        direction = "Манджиев → Аниськов (и.о. → руководитель)"
     else:
         target_fio = "Манджиев Игорь Александрович"
-        target_title = "И.О. Руководителя"  # шапка — короткий
-        target_role = "И.О. Руководителя проекта СК"  # подвал — полный  
-        old_hint = "Аниськов, Руководитель/Руководитель проекта СК"
+        target_title = "И.О. Руководителя"
+        target_role = "И.О. Руководителя проекта СК"
+        direction = "Аниськов → Манджиев (руководитель → и.о.)"
 
-    # Формируем текст для AI с разметкой шапка/подвал
-    cells_marked = []
-    for c in cells_list:
-        section = "ШАПКА" if c['row'] <= mid_row else "ПОДВАЛ"
-        cells_marked.append(f"[{section} T{c['table']}R{c['row']}C{c['cell']}]: {c['text']}")
+    # Формируем текст для AI — просто список ячеек
+    cells_text = "\n".join([
+        f"[T{c['table']} R{c['row']} C{c['cell']}]: {c['text']}" 
+        for c in cells_list
+    ])
 
-    prompt = f"""Проанализируй ячейки отчёта строительного контроля.
+    prompt = f"""Направление: {direction}
 
-РАЗДЕЛЕНИЕ:
-- ШАПКА (верх документа, строки 0-{mid_row}) → короткий заголовок
-- ПОДВАЛ (низ документа, строки {mid_row}+) → полная должность
+ЦЕЛЕВЫЕ ЗНАЧЕНИЯ:
+- ФИО: {target_fio}
+- ШАПКА (коротко): {target_title}
+- ПОДВАЛ (полностью): {target_role}
 
-Ищем: {old_hint}
-
-ЦЕЛИ:
-- В ШАПКЕ используй: "{target_title}"
-- В ПОДВАЛЕ используй: "{target_role}"
-- ФИО везде: "{target_fio}"
+Проанализируй КАЖДУЮ ячейку:
+1. Это шапка (верх документа, подпись под таблицей) или подвал (низ, под таблицей)?
+2. Что там написано про руководителя?
+3. Что вставить (section определяет: header={target_title}, footer={target_role})
 
 Ячейки:
-{chr(10).join(cells_marked)}
+{cells_text}
 
-Ответь JSON с replacements по координатам:
+ВАЖНО: верни ТОЧНЫЕ old тексты из ячеек.
+
+Ответь JSON:
 {{
-  "replacements": [
-    {{"old": "точный текст из ячейки", "new": "{target_title}"}},
-    {{"old": "точный текст из ячейки", "new": "{target_role}"}},
-    {{"old": "точный текст из ячейки", "new": "{target_fio}"}}
+  "cells": [
+    {{"table": 0, "row": 8, "cell": 4, "section": "header", "old": "И.о. Руководителя", "new": "{target_title}"}},
+    {{"table": 0, "row": 44, "cell": 4, "section": "footer", "old": "И.о. Руководителя проекта СК", "new": "{target_role}"}}
   ],
   "confidence": 0-100
 }}"""
@@ -118,7 +115,7 @@ def analyze_with_ai_cells(cells_list: list, to_leader: str) -> dict:
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": prompt}
             ],
-            options={"temperature": 0.0, "num_predict": 1500},
+            options={"temperature": 0.0, "num_predict": 2000},
         )
 
         answer = response["message"]["content"]
@@ -176,31 +173,38 @@ def _switch_single_file(filepath: str, leader: Literal["aniskov", "mandzhiev"]) 
         if "error" in ai_result:
             return False, f"AI ошибка: {ai_result['error']}"
 
-        patterns = ai_result.get("replacements", [])
+        cell_replacements = ai_result.get("cells", [])
         
-        if not patterns:
-            return False, "AI не нашёл паттернов для замены"
+        if not cell_replacements:
+            return False, "AI не нашёл ячеек для замены"
 
         changes = 0
         
-        # Ищем ПАТТЕРНЫ в cell.text и заменяем целиком cell.text
-        for pattern in patterns:
-            old_text = pattern.get('old', '')
-            new_text = pattern.get('new', '')
+        # Применяем замены по координатам ячеек
+        for repl in cell_replacements:
+            t = repl.get('table')
+            r = repl.get('row')
+            c_idx = repl.get('cell')
+            old_text = repl.get('old', '')
+            new_text = repl.get('new', '')
             
             if not old_text or not new_text:
                 continue
             
+            # Находим ячейку по координатам
             for cell_info in cells_data:
-                if old_text in cell_info['text']:
+                if (cell_info['table'] == t and 
+                    cell_info['row'] == r and 
+                    cell_info['cell'] == c_idx):
+                    
                     # Заменяем весь текст ячейки
-                    cell_info['cell_obj'].text = cell_info['text'].replace(old_text, new_text)
-                    changes += 1
-                    # Обновляем текст для возможных следующих замен
-                    cell_info['text'] = cell_info['cell_obj'].text
+                    if old_text in cell_info['text']:
+                        cell_info['cell_obj'].text = cell_info['text'].replace(old_text, new_text)
+                        changes += 1
+                    break
 
         if changes == 0:
-            return False, f"AI дал {len(patterns)} паттернов, но не применилось"
+            return False, f"AI дал {len(cell_replacements)} ячеек, но не применилось"
 
         doc.save(filepath)
         return True, f"→ {Path(filepath).name}: замен {changes}"
