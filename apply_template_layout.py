@@ -64,7 +64,7 @@ def _row_height_layout(tr) -> dict:
     return {'height': height_val, 'hRule': height_rule}
 
 
-def read_template_index(template_path: Path) -> list:
+def read_template_layout(template_path: Path) -> list:
     doc = Document(os.fspath(template_path))
     tables_index = []
 
@@ -198,7 +198,7 @@ def main():
         sys.exit(1)
 
     print(f"Читаю шаблон: {TEMPLATE_PATH}")
-    tables_index = read_template_index(TEMPLATE_PATH)
+    tables_index = read_template_layout(TEMPLATE_PATH)
     print(f"  Шаблон: {len(tables_index)} таблиц, "
           f"уникальных сигнатур: {[len(t['map']) for t in tables_index]}")
 
