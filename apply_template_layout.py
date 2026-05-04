@@ -64,7 +64,7 @@ def apply_layout(doc, layout: dict = None):
             else:
                 tbl.insert(0, new_grid)
 
-        # Устанавливаем высоту каждой строки
+        # Устанавливаем высоту каждой строки и обнуляем отступы в пустых ячейках
         for row in table.rows:
             tr = row._tr
             trPr = tr.find(qn('w:trPr'))
@@ -77,6 +77,23 @@ def apply_layout(doc, layout: dict = None):
                 trH = etree.SubElement(trPr, qn('w:trHeight'))
             trH.set(qn('w:val'), ROW_HEIGHT)
             trH.set(qn('w:hRule'), ROW_HEIGHT_RULE)
+
+            # Обнуляем отступы параграфов в пустых ячейках
+            for tc in tr.findall(qn('w:tc')):
+                cell_text = ''.join(tc.itertext()).strip()
+                if cell_text:
+                    continue
+                for p in tc.findall(qn('w:p')):
+                    pPr = p.find(qn('w:pPr'))
+                    if pPr is None:
+                        pPr = etree.SubElement(p, qn('w:pPr'))
+                    spacing = pPr.find(qn('w:spacing'))
+                    if spacing is None:
+                        spacing = etree.SubElement(pPr, qn('w:spacing'))
+                    spacing.set(qn('w:before'), '0')
+                    spacing.set(qn('w:after'), '0')
+                    spacing.set(qn('w:line'), '240')
+                    spacing.set(qn('w:lineRule'), 'auto')
 
 
 def main():
