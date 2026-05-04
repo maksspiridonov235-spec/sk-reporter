@@ -24,6 +24,13 @@ TEMPLATE_PATH = (
 ROW_HEIGHT = "340"
 ROW_HEIGHT_RULE = "atLeast"
 GRID_COLS = ["2041", "1757", "1787", "1898", "1701", "1646"]
+TABLE_WIDTH = str(sum(int(w) for w in GRID_COLS))  # 10830
+
+# Накопленные суммы для расчёта ширины ячейки по gridSpan
+# GRID_CUMSUM[i] = сумма первых i колонок
+_GRID_CUMSUM = [0]
+for _w in GRID_COLS:
+    _GRID_CUMSUM.append(_GRID_CUMSUM[-1] + int(_w))
 
 
 def read_template_layout(template_path: Path) -> dict:
@@ -46,11 +53,31 @@ def _build_tblGrid() -> etree._Element:
 def apply_layout(doc, layout: dict = None):
     """
     Применяет к каждой таблице документа:
+    - общую ширину таблицы (tblW)
     - фиксированную сетку столбцов (tblGrid)
+    - ширину каждой ячейки по её gridSpan
     - фиксированную высоту каждой строки
+    - обнуление отступов в пустых ячейках
     """
     for table in doc.tables:
         tbl = table._tbl
+
+        # Ширина таблицы и запрет автоподбора
+        tblPr = tbl.find(qn('w:tblPr'))
+        if tblPr is None:
+            tblPr = etree.SubElement(tbl, qn('w:tblPr'))
+            tbl.insert(0, tblPr)
+
+        tblW = tblPr.find(qn('w:tblW'))
+        if tblW is None:
+            tblW = etree.SubElement(tblPr, qn('w:tblW'))
+        tblW.set(qn('w:w'), TABLE_WIDTH)
+        tblW.set(qn('w:type'), 'dxa')
+
+        tblLayout = tblPr.find(qn('w:tblLayout'))
+        if tblLayout is None:
+            tblLayout = etree.SubElement(tblPr, qn('w:tblLayout'))
+        tblLayout.set(qn('w:type'), 'fixed')
 
         # Заменяем tblGrid
         old_grid = tbl.find(qn('w:tblGrid'))
@@ -58,11 +85,7 @@ def apply_layout(doc, layout: dict = None):
         if old_grid is not None:
             tbl.replace(old_grid, new_grid)
         else:
-            tblPr = tbl.find(qn('w:tblPr'))
-            if tblPr is not None:
-                tblPr.addnext(new_grid)
-            else:
-                tbl.insert(0, new_grid)
+            tblPr.addnext(new_grid)
 
         # Устанавливаем высоту каждой строки и обнуляем отступы в пустых ячейках
         for row in table.rows:
@@ -77,6 +100,28 @@ def apply_layout(doc, layout: dict = None):
                 trH = etree.SubElement(trPr, qn('w:trHeight'))
             trH.set(qn('w:val'), ROW_HEIGHT)
             trH.set(qn('w:hRule'), ROW_HEIGHT_RULE)
+
+            # Ширины ячеек по gridSpan + обнуляем отступы в пустых
+            col_idx = 0
+            for tc in tr.findall(qn('w:tc')):
+                tcPr = tc.find(qn('w:tcPr'))
+                if tcPr is None:
+                    tcPr = etree.SubElement(tc, qn('w:tcPr'))
+                    tc.insert(0, tcPr)
+
+                gs_el = tcPr.find(qn('w:gridSpan'))
+                span = int(gs_el.get(qn('w:val'))) if gs_el is not None else 1
+                span = max(1, min(span, len(GRID_COLS) - col_idx))
+
+                cell_w = str(_GRID_CUMSUM[col_idx + span] - _GRID_CUMSUM[col_idx])
+
+                tcW = tcPr.find(qn('w:tcW'))
+                if tcW is None:
+                    tcW = etree.SubElement(tcPr, qn('w:tcW'))
+                tcW.set(qn('w:w'), cell_w)
+                tcW.set(qn('w:type'), 'dxa')
+
+                col_idx += span
 
             # Обнуляем отступы параграфов в пустых ячейках
             for tc in tr.findall(qn('w:tc')):
