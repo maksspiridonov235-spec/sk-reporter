@@ -87,9 +87,15 @@ def apply_layout(doc, layout: dict = None):
         else:
             tblPr.addnext(new_grid)
 
-        # Устанавливаем высоту каждой строки и обнуляем отступы в пустых ячейках
+        # Обрабатываем каждую строку
         for row in table.rows:
             tr = row._tr
+            tcs = tr.findall(qn('w:tc'))
+
+            # Определяем — строка пустая или нет
+            row_is_empty = not any(''.join(tc.itertext()).strip() for tc in tcs)
+
+            # Высота строки
             trPr = tr.find(qn('w:trPr'))
             if trPr is None:
                 trPr = etree.Element(qn('w:trPr'))
@@ -99,11 +105,15 @@ def apply_layout(doc, layout: dict = None):
             if trH is None:
                 trH = etree.SubElement(trPr, qn('w:trHeight'))
             trH.set(qn('w:val'), ROW_HEIGHT)
-            trH.set(qn('w:hRule'), ROW_HEIGHT_RULE)
+            # Пустые строки — exact (жёстко), заполненные — atLeast (не меньше)
+            trH.set(qn('w:hRule'), 'exact' if row_is_empty else ROW_HEIGHT_RULE)
 
-            # Ширины ячеек по gridSpan + обнуляем отступы в пустых
+            # Ширины ячеек по gridSpan
             col_idx = 0
-            for tc in tr.findall(qn('w:tc')):
+            for tc in tcs:
+                if col_idx >= len(GRID_COLS):
+                    break
+
                 tcPr = tc.find(qn('w:tcPr'))
                 if tcPr is None:
                     tcPr = etree.SubElement(tc, qn('w:tcPr'))
@@ -124,9 +134,8 @@ def apply_layout(doc, layout: dict = None):
                 col_idx += span
 
             # Обнуляем отступы параграфов в пустых ячейках
-            for tc in tr.findall(qn('w:tc')):
-                cell_text = ''.join(tc.itertext()).strip()
-                if cell_text:
+            for tc in tcs:
+                if ''.join(tc.itertext()).strip():
                     continue
                 for p in tc.findall(qn('w:p')):
                     pPr = p.find(qn('w:pPr'))
