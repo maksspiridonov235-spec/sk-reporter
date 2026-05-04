@@ -9,17 +9,19 @@ import shutil
 import tempfile
 from pathlib import Path
 from docx import Document
+from docx.oxml.ns import qn
 
 MODEL = "gemma4:31b-cloud"
 
 
 def _extract_cells(doc: Document) -> list:
-    """Returns list of (table_idx, row_idx, col_idx, text_preview)."""
+    """Returns list of (table_idx, row_idx, col_idx, text_preview).
+    Использует XML напрямую чтобы избежать дублей объединённых ячеек."""
     cells = []
     for ti, table in enumerate(doc.tables):
         for ri, row in enumerate(table.rows):
-            for ci, cell in enumerate(row.cells):
-                txt = cell.text.strip()
+            for ci, tc in enumerate(row._tr.findall(qn('w:tc'))):
+                txt = ''.join(tc.itertext()).strip()
                 if txt:
                     cells.append((ti, ri, ci, txt[:300]))
     return cells
@@ -161,12 +163,14 @@ def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -
             doc = Document(str(tmp_path))
             
             # Find cell with "Описание действий" header
+            # Используем XML напрямую чтобы избежать дублей объединённых ячеек
             target_cell = None
             for ti, table in enumerate(doc.tables):
                 for ri, row in enumerate(table.rows):
-                    for ci, cell in enumerate(row.cells):
-                        if "Описание действий" in cell.text:
-                            target_cell = cell
+                    for ci, tc in enumerate(row._tr.findall(qn('w:tc'))):
+                        txt = ''.join(tc.itertext()).strip()
+                        if "Описание действий" in txt:
+                            target_cell = row.cells[ci]
                             print(f"[INJECT_AGENT] Found 'Описание действий' at [{ti},{ri},{ci}]")
                             break
                     if target_cell:
