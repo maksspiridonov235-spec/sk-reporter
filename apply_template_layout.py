@@ -87,26 +87,10 @@ def apply_layout(doc, layout: dict = None):
         else:
             tblPr.addnext(new_grid)
 
-        # Обрабатываем каждую строку
+        # Обрабатываем каждую строку — только ширины ячеек
         for row in table.rows:
             tr = row._tr
             tcs = tr.findall(qn('w:tc'))
-
-            # Определяем — строка пустая или нет
-            row_is_empty = not any(''.join(tc.itertext()).strip() for tc in tcs)
-
-            # Высота строки
-            trPr = tr.find(qn('w:trPr'))
-            if trPr is None:
-                trPr = etree.Element(qn('w:trPr'))
-                tr.insert(0, trPr)
-
-            trH = trPr.find(qn('w:trHeight'))
-            if trH is None:
-                trH = etree.SubElement(trPr, qn('w:trHeight'))
-            trH.set(qn('w:val'), ROW_HEIGHT)
-            # Пустые строки — exact (жёстко), заполненные — atLeast (не меньше)
-            trH.set(qn('w:hRule'), 'exact' if row_is_empty else ROW_HEIGHT_RULE)
 
             # Ширины ячеек по gridSpan
             col_idx = 0
@@ -132,22 +116,6 @@ def apply_layout(doc, layout: dict = None):
                 tcW.set(qn('w:type'), 'dxa')
 
                 col_idx += span
-
-            # Обнуляем отступы параграфов в пустых ячейках
-            for tc in tcs:
-                if ''.join(tc.itertext()).strip():
-                    continue
-                for p in tc.findall(qn('w:p')):
-                    pPr = p.find(qn('w:pPr'))
-                    if pPr is None:
-                        pPr = etree.SubElement(p, qn('w:pPr'))
-                    spacing = pPr.find(qn('w:spacing'))
-                    if spacing is None:
-                        spacing = etree.SubElement(pPr, qn('w:spacing'))
-                    spacing.set(qn('w:before'), '0')
-                    spacing.set(qn('w:after'), '0')
-                    spacing.set(qn('w:line'), '240')
-                    spacing.set(qn('w:lineRule'), 'auto')
 
 
 def main():
