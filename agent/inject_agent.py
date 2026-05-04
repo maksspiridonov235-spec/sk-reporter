@@ -123,24 +123,25 @@ def _parse_parts(corrected_text: str):
 
 
 def _write_parts_to_cell(cell, part1_lines: list, part2_lines: list):
-    """Insert part1 and part2 at the beginning of cell, before original text."""
-    # Combine both parts
+    """Заменяет содержимое ячейки исправленным текстом."""
     all_lines = []
     if part1_lines:
         all_lines.extend(part1_lines)
     if part2_lines:
         all_lines.extend(part2_lines)
-    
+
     if not all_lines:
         return
-    
-    # Get the first paragraph (header "Описание действий")
-    insert_point = cell.paragraphs[0] if cell.paragraphs else cell.add_paragraph()
-    
-    # Insert all lines after the header (in reverse to keep order)
-    for line in reversed(all_lines):
-        new_para = cell.add_paragraph(line)
-        insert_point._element.addnext(new_para._element)
+
+    # Удаляем все параграфы кроме первого (заголовок "Описание действий")
+    tc = cell._tc
+    paras = tc.findall(qn('w:p'))
+    for p in paras[1:]:
+        tc.remove(p)
+
+    # Добавляем строки исправленного текста
+    for line in all_lines:
+        cell.add_paragraph(line)
 
 
 def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -> dict:
