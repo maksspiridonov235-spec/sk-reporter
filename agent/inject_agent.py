@@ -9,19 +9,17 @@ import shutil
 import tempfile
 from pathlib import Path
 from docx import Document
-from docx.oxml.ns import qn
 
 MODEL = "gemma4:31b-cloud"
 
 
 def _extract_cells(doc: Document) -> list:
-    """Returns list of (table_idx, row_idx, col_idx, text_preview).
-    Использует XML напрямую чтобы избежать дублей объединённых ячеек."""
+    """Returns list of (table_idx, row_idx, col_idx, text_preview)."""
     cells = []
     for ti, table in enumerate(doc.tables):
         for ri, row in enumerate(table.rows):
-            for ci, tc in enumerate(row._tr.findall(qn('w:tc'))):
-                txt = ''.join(tc.itertext()).strip()
+            for ci, cell in enumerate(row.cells):
+                txt = cell.text.strip()
                 if txt:
                     cells.append((ti, ri, ci, txt[:300]))
     return cells
@@ -123,25 +121,24 @@ def _parse_parts(corrected_text: str):
 
 
 def _write_parts_to_cell(cell, part1_lines: list, part2_lines: list):
-    """Заменяет содержимое ячейки исправленным текстом."""
+    """Insert part1 and part2 at the beginning of cell, before original text."""
+    # Combine both parts
     all_lines = []
     if part1_lines:
         all_lines.extend(part1_lines)
     if part2_lines:
         all_lines.extend(part2_lines)
-
+    
     if not all_lines:
         return
-
-    # Удаляем все параграфы кроме первого (заголовок "Описание действий")
-    tc = cell._tc
-    paras = tc.findall(qn('w:p'))
-    for p in paras[1:]:
-        tc.remove(p)
-
-    # Добавляем строки исправленного текста
-    for line in all_lines:
-        cell.add_paragraph(line)
+    
+    # Get the first paragraph (header "Описание действий")
+    insert_point = cell.paragraphs[0] if cell.paragraphs else cell.add_paragraph()
+    
+    # Insert all lines after the header (in reverse to keep order)
+    for line in reversed(all_lines):
+        new_para = cell.add_paragraph(line)
+        insert_point._element.addnext(new_para._element)
 
 
 def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -> dict:
@@ -164,14 +161,12 @@ def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -
             doc = Document(str(tmp_path))
             
             # Find cell with "Описание действий" header
-            # Используем XML напрямую чтобы избежать дублей объединённых ячеек
             target_cell = None
             for ti, table in enumerate(doc.tables):
                 for ri, row in enumerate(table.rows):
-                    for ci, tc in enumerate(row._tr.findall(qn('w:tc'))):
-                        txt = ''.join(tc.itertext()).strip()
-                        if "Описание действий" in txt:
-                            target_cell = row.cells[ci]
+                    for ci, cell in enumerate(row.cells):
+                        if "Описание действий" in cell.text:
+                            target_cell = cell
                             print(f"[INJECT_AGENT] Found 'Описание действий' at [{ti},{ri},{ci}]")
                             break
                     if target_cell:
