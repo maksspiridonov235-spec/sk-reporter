@@ -467,13 +467,6 @@
     return el;
   }
 
-  function toggleDetail(id) {
-    const el = document.getElementById(id);
-    const btn = el.previousElementSibling;
-    el.classList.toggle('open');
-    btn.textContent = el.classList.contains('open') ? 'Подробности ▲' : 'Подробности ▼';
-  }
-
   function toggleReportBody(id, btn) {
     const el = document.getElementById(id);
     const open = el.style.display === 'block';
@@ -697,29 +690,21 @@
   // ── Переименование ────────────────────────────────────────────────────────
 
   async function renameFiles(mode) {
-    const label = mode === 'today' ? 'сегодня' : 'вчера';
-    const { card, statusId } = createOpCard(`Шаблоны → ${label}`);
-    setCardStatus(statusId, `Обновление даты в шаблонах (→ ${label})...`);
-    try {
-      const data = await apiFetch(`/rename/templates/${mode}`, { method: 'POST' }, statusId);
-      const details = data.log.map(line => ({
-        icon: line.startsWith('Ошибка') ? '✗' : '✓',
-        name: line,
-        badge: line.startsWith('Ошибка') ? 'Ошибка' : 'OK',
-        badgeClass: line.startsWith('Ошибка') ? 'db-err' : 'db-ok',
-      }));
-      finalizeOpCard(card, statusId, [
-        { label: `Файлов: ${data.log.length || 0}`, color: data.log.length ? 'green' : 'amber' },
-      ], details.length ? details : null, null);
-    } catch (_) {}
+    await _rename('templates', mode);
   }
 
   async function renameResults(mode) {
+    await _rename('results', mode);
+    refreshResults();
+  }
+
+  async function _rename(target, mode) {
+    const titleMap = { templates: 'Шаблоны', results: 'Результаты' };
     const label = mode === 'today' ? 'сегодня' : 'вчера';
-    const { card, statusId } = createOpCard(`Результаты → ${label}`);
-    setCardStatus(statusId, `Переименование результатов (→ ${label})...`);
+    const { card, statusId } = createOpCard(`${titleMap[target]} → ${label}`);
+    setCardStatus(statusId, `Переименование (→ ${label})...`);
     try {
-      const data = await apiFetch(`/rename/results/${mode}`, { method: 'POST' }, statusId);
+      const data = await apiFetch(`/rename/${target}/${mode}`, { method: 'POST' }, statusId);
       const details = data.log.map(line => ({
         icon: line.startsWith('Ошибка') ? '✗' : '✓',
         name: line,
@@ -729,7 +714,6 @@
       finalizeOpCard(card, statusId, [
         { label: `Файлов: ${data.log.length || 0}`, color: data.log.length ? 'green' : 'amber' },
       ], details.length ? details : null, null);
-      refreshResults();
     } catch (_) {}
   }
 
@@ -814,29 +798,28 @@
     refreshResults();
   }
 
-  // ── Скачать всё ZIP ───────────────────────────────────────────────────────
+  // ── Скачать ZIP ───────────────────────────────────────────────────────────
+
+  function _triggerDownload(url, filename) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
 
   async function downloadAll() {
     const { card, statusId } = createOpCard('Скачать всё ZIP');
     setCardStatus(statusId, 'Подготавливаю архив...');
-    const a = document.createElement('a');
-    a.href = '/download/all.zip';
-    a.download = 'отчёты.zip';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    _triggerDownload('/download/all.zip', 'отчёты.zip');
     finalizeOpCard(card, statusId, [{ label: 'Загрузка началась', color: 'green' }], null, null);
   }
 
   async function downloadAllFixed() {
     const { card, statusId } = createOpCard('Скачать исправленные ZIP');
     setCardStatus(statusId, 'Подготавливаю архив...');
-    const a = document.createElement('a');
-    a.href = '/download/fixed/all.zip';
-    a.download = 'исправленные.zip';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    _triggerDownload('/download/fixed/all.zip', 'исправленные.zip');
     finalizeOpCard(card, statusId, [{ label: 'Загрузка началась', color: 'green' }], null, null);
   }
 

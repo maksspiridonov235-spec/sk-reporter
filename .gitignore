@@ -17,3 +17,13 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Debug / analysis scripts (не часть приложения)
+analyze_doc.py
+analyze_template.py
+debug_heights.py
+
+# Артефакты в корне
+*.docx
+*_debug.json
+extracted_reports.txt

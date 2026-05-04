@@ -1,25 +1,20 @@
-import os
-
-
 import io
 import json
+import os
 import shutil
+import sys
 import tempfile
 import zipfile
 from pathlib import Path
-import sys
+
 from docx import Document
-
-sys.path.append(str(Path(__file__).parent.parent))
-
-from apply_template_layout import read_template_layout, apply_layout
-
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-from fastapi import Request
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from apply_template_layout import apply_layout, read_template_layout
 from companies import COMPANIES
 from docx_processing import (
     apply_macro_to_file,
@@ -28,7 +23,6 @@ from docx_processing import (
     rename_templates,
 )
 
-# Импорт Ollama-агента (локальный AI для определения компании)
 try:
     from agent.ocr_agent import detect_company, merge_report_into_template
     AGENT_ENABLED = True
@@ -41,12 +35,10 @@ app = FastAPI(title="Объединение отчётов СК")
 templates = Jinja2Templates(directory="templates")
 
 WORK_DIR = Path(tempfile.gettempdir()) / "sk_reports_work"
-WORK_DIR.mkdir(exist_ok=True)
-
 UPLOAD_DIR = WORK_DIR / "uploads"
 RESULT_DIR = WORK_DIR / "results"
 
-for d in (UPLOAD_DIR, RESULT_DIR):
+for d in (WORK_DIR, UPLOAD_DIR, RESULT_DIR):
     d.mkdir(exist_ok=True)
 
 TEMPLATES_DIR = Path(__file__).parent.parent / "contractor_report" / "болванки (шаблоны не вырезать только копировать)"
@@ -54,40 +46,42 @@ if not TEMPLATES_DIR.exists():
     raise RuntimeError(f"Папка с болванками не найдена: {TEMPLATES_DIR}")
 print(f"[INFO] Templates dir: {TEMPLATES_DIR} ({len(list(TEMPLATES_DIR.glob('*.docx')))} шаблонов)")
 
+
 def _do_merge(template_path: str, report_paths: list[str], output_path: str) -> int:
-    if AGENT_ENABLED:
-        import shutil
-        shutil.copy2(template_path, output_path)
-        inserted = 0
-        for i, rp in enumerate(sorted(report_paths)):
-            tmp = output_path + ".tmp.docx"
-            shutil.copy2(output_path, tmp)
-            master = Document(tmp)
-            if i > 0:
-                master.add_page_break()
-            master.save(tmp)
-            ok = merge_report_into_template(tmp, rp, output_path)
-            import os; os.remove(tmp)
-            if ok:
-                inserted += 1
-        return inserted
-    else:
+    if not AGENT_ENABLED:
         return merge_reports(template_path, report_paths, output_path)
 
+    shutil.copy2(template_path, output_path)
+    inserted = 0
+    for i, rp in enumerate(sorted(report_paths)):
+        tmp = output_path + ".tmp.docx"
+        shutil.copy2(output_path, tmp)
+        master = Document(tmp)
+        if i > 0:
+            master.add_page_break()
+        master.save(tmp)
+        ok = merge_report_into_template(tmp, rp, output_path)
+        os.remove(tmp)
+        if ok:
+            inserted += 1
+    return inserted
+
+
 def find_reports_for_company(company_name: str, keywords: list[str]):
-    found_reports = []
+    found = []
     for f in UPLOAD_DIR.iterdir():
         if f.suffix.lower() not in (".docx", ".doc"):
             continue
         if AGENT_ENABLED:
             detected = detect_company(str(f))
             if detected and detected == company_name:
-                found_reports.append(f)
+                found.append(f)
         else:
             kw_lower = [k.lower() for k in keywords]
             if any(k in f.name.lower() for k in kw_lower):
-                found_reports.append(f)
-    return found_reports
+                found.append(f)
+    return found
+
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -97,6 +91,7 @@ async def index(request: Request):
         "companies": companies,
         "agent_enabled": AGENT_ENABLED,
     })
+
 
 @app.post("/upload/reports")
 async def upload_reports(files: list[UploadFile] = File(...)):
@@ -108,56 +103,51 @@ async def upload_reports(files: list[UploadFile] = File(...)):
         with open(dest, "wb") as out:
             shutil.copyfileobj(f.file, out)
         saved.append(f.filename)
-    if AGENT_ENABLED:
-        print(f"[INFO] Uploaded {len(saved)} files. AI analysis will be performed when generating report.")
     return {"uploaded": saved, "count": len(saved)}
+
 
 @app.get("/files/reports")
 async def list_reports():
     files = [f.name for f in UPLOAD_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
     return {"files": sorted(files)}
 
+
 @app.post("/check/descriptions/stream")
 async def check_descriptions_stream():
     from agent.check_agent import check_report
     from agent.inject_agent import inject_into_docx
+
     async def event_generator():
-        yield f"data: {json.dumps({'type': 'start', 'msg': 'Начинаю проверку отчётов...'})}\n\n"
+        yield _sse({"type": "start", "msg": "Начинаю проверку отчётов..."})
         report_files = list(UPLOAD_DIR.glob("*.docx"))
         if not report_files:
-            yield f"data: {json.dumps({'type': 'error', 'msg': 'Отчёты не загружены'})}\n\n"
+            yield _sse({"type": "error", "msg": "Отчёты не загружены"})
             return
-        total = len(report_files)
         errors_count = 0
         for file_path in report_files:
             try:
                 filename = Path(file_path).name
-
-                yield f"data: {json.dumps({'type': 'info', 'filename': filename, 'msg': f'{filename}: проверяю...'})}\n\n"
-
+                yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: проверяю..."})
                 result = check_report(str(file_path))
                 has_errors = not result.get("ok", False)
                 if has_errors:
                     errors_count += 1
-
-                yield f"data: {json.dumps({'type': 'report', 'filename': filename, 'msg': f'{filename}: ' + ('⚠️ найдены проблемы' if has_errors else '✓ ОК'), 'hasErrors': has_errors, 'result': result})}\n\n"
-
+                yield _sse({"type": "report", "filename": filename, "msg": f"{filename}: " + ("⚠️ найдены проблемы" if has_errors else "✓ ОК"), "hasErrors": has_errors, "result": result})
                 corrected_text = result.get("report", "")
                 if corrected_text:
-                    yield f"data: {json.dumps({'type': 'info', 'filename': filename, 'msg': f'{filename}: вставляю исправления...'})}\n\n"
+                    yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: вставляю исправления..."})
                     inject_result = inject_into_docx(str(file_path), corrected_text, filename)
                     if inject_result.get("ok"):
-                        docx_path = inject_result["docx_path"]
-                        dl_name = Path(docx_path).name
-                        yield f"data: {json.dumps({'type': 'fixed', 'filename': filename, 'msg': f'{filename}: исправлен → {dl_name}', 'download': f'/download/fixed/{dl_name}'})}\n\n"
+                        dl_name = Path(inject_result["docx_path"]).name
+                        yield _sse({"type": "fixed", "filename": filename, "msg": f"{filename}: исправлен → {dl_name}", "download": f"/download/fixed/{dl_name}"})
                     else:
-                        inject_error = inject_result.get("error")
-                        yield f"data: {json.dumps({'type': 'error', 'msg': f'Ошибка inject для {filename}: {inject_error}'})}\n\n"
-
+                        yield _sse({"type": "error", "msg": f'Ошибка inject для {filename}: {inject_result.get("error")}'})
             except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'msg': f'Ошибка проверки {Path(file_path).name}: {str(e)}'})}\n\n"
-        yield f"data: {json.dumps({'type': 'done', 'summary': {'total': total, 'errors': errors_count}})}\n\n"
+                yield _sse({"type": "error", "msg": f"Ошибка проверки {Path(file_path).name}: {str(e)}"})
+        yield _sse({"type": "done", "summary": {"total": len(report_files), "errors": errors_count}})
+
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
 
 @app.post("/macro/{macro_name}")
 async def run_macro(macro_name: str):
@@ -166,8 +156,7 @@ async def run_macro(macro_name: str):
         raise HTTPException(status_code=400, detail="Неизвестный макрос")
 
     if macro_name == "ApplyTemplateLayout":
-        template_path = Path(__file__).parent.parent / "contractor_report" / "болванки (шаблоны не вырезать только копировать)" / "Ежедневный отчет Шаблон.docx"
-        template_path = template_path.resolve()
+        template_path = (TEMPLATES_DIR / "Ежедневный отчет Шаблон.docx").resolve()
         if not template_path.exists():
             raise HTTPException(status_code=404, detail=f"Шаблон не найден: {template_path}")
         layout = read_template_layout(template_path)
@@ -189,26 +178,27 @@ async def run_macro(macro_name: str):
         if f.suffix.lower() not in (".docx", ".doc"):
             continue
         ok, msg = apply_macro_to_file(str(f), macro_name)
-        status = "OK" if ok else "ERR"
-        log.append(f"[{status}] {f.name}: {msg}")
+        log.append(f"[{'OK' if ok else 'ERR'}] {f.name}: {msg}")
     return {"log": log}
+
 
 @app.post("/rename/templates/{mode}")
 async def rename_templates_only(mode: str):
     if mode not in ("today", "yesterday"):
         raise HTTPException(status_code=400, detail="mode должен быть today или yesterday")
-    log = rename_templates(str(TEMPLATES_DIR), mode)
-    return {"log": log}
+    return {"log": rename_templates(str(TEMPLATES_DIR), mode)}
+
 
 @app.post("/rename/results/{mode}")
 async def rename_results_only(mode: str):
     if mode not in ("today", "yesterday"):
         raise HTTPException(status_code=400, detail="mode должен быть today или yesterday")
-    log = rename_results(str(RESULT_DIR), mode)
-    return {"log": log}
+    return {"log": rename_results(str(RESULT_DIR), mode)}
+
 
 def _sse(data: dict) -> str:
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
 
 @app.get("/merge/all/stream")
 async def merge_all_stream():
@@ -241,31 +231,30 @@ async def merge_all_stream():
             except Exception as e:
                 yield _sse({"type": "error", "company": name, "msg": f"'{name}': {str(e)}"})
                 errors.append(str(e))
+
         all_matched = set()
         for r in results:
-            company_name = r["company"]
-            company = next((c for c in COMPANIES if c[0] == company_name), None)
-            if company:
-                for f in UPLOAD_DIR.iterdir():
-                    if f.suffix.lower() not in (".docx", ".doc"):
-                        continue
-                    if AGENT_ENABLED:
-                        detected = detect_company(str(f))
-                        if detected and detected == company_name:
-                            all_matched.add(f)
-                    else:
-                        kw_lower = [k.lower() for k in company[1]]
-                        if any(k in f.name.lower() for k in kw_lower):
-                            all_matched.add(f)
+            company = next((c for c in COMPANIES if c[0] == r["company"]), None)
+            if not company:
+                continue
+            for f in UPLOAD_DIR.iterdir():
+                if f.suffix.lower() not in (".docx", ".doc"):
+                    continue
+                if AGENT_ENABLED:
+                    detected = detect_company(str(f))
+                    if detected and detected == r["company"]:
+                        all_matched.add(f)
+                else:
+                    kw_lower = [k.lower() for k in company[1]]
+                    if any(k in f.name.lower() for k in kw_lower):
+                        all_matched.add(f)
+
         unmatched = []
         unmatched_unknown = []
         for f in UPLOAD_DIR.iterdir():
-            if f.suffix.lower() not in (".docx", ".doc"):
+            if f.suffix.lower() not in (".docx", ".doc") or f in all_matched:
                 continue
-            if f in all_matched:
-                continue
-            dest = RESULT_DIR / f.name
-            shutil.copy2(f, dest)
+            shutil.copy2(f, RESULT_DIR / f.name)
             if AGENT_ENABLED:
                 detected = detect_company(str(f))
                 if detected:
@@ -276,20 +265,28 @@ async def merge_all_stream():
                     yield _sse({"type": "warning", "msg": f"Компания не определена, скопирован: {f.name}"})
             else:
                 unmatched_unknown.append(f.name)
+
         yield _sse({"type": "done", "results": results, "errors": errors, "total_merged": len(results), "unmatched": unmatched, "unmatched_unknown": unmatched_unknown, "ai_agent_active": AGENT_ENABLED})
+
     return StreamingResponse(_gen(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _zip_files(files: list[Path]) -> io.BytesIO:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in files:
+            zf.write(f, f.name)
+    buf.seek(0)
+    return buf
+
 
 @app.get("/download/all.zip")
 async def download_all():
     files = [f for f in RESULT_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
     if not files:
         raise HTTPException(status_code=404, detail="Нет готовых файлов")
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for f in files:
-            zf.write(f, f.name)
-    buf.seek(0)
-    return StreamingResponse(buf, media_type="application/zip", headers={"Content-Disposition": "attachment; filename*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82%D1%8B.zip"})
+    return StreamingResponse(_zip_files(files), media_type="application/zip", headers={"Content-Disposition": "attachment; filename*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82%D1%8B.zip"})
+
 
 @app.get("/download/fixed/all.zip")
 async def download_fixed_all():
@@ -299,12 +296,8 @@ async def download_fixed_all():
     files = [f for f in output_dir.iterdir() if f.suffix.lower() in (".docx", ".doc")]
     if not files:
         raise HTTPException(status_code=404, detail="Нет исправленных файлов")
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for f in files:
-            zf.write(f, f.name)
-    buf.seek(0)
-    return StreamingResponse(buf, media_type="application/zip", headers={"Content-Disposition": "attachment; filename*=UTF-8''%D0%B8%D1%81%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%BD%D1%8B%D0%B5.zip"})
+    return StreamingResponse(_zip_files(files), media_type="application/zip", headers={"Content-Disposition": "attachment; filename*=UTF-8''%D0%B8%D1%81%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%BD%D1%8B%D0%B5.zip"})
+
 
 @app.get("/download/fixed/{filename}")
 async def download_fixed(filename: str):
@@ -316,6 +309,7 @@ async def download_fixed(filename: str):
         raise HTTPException(status_code=404, detail="Файл не найден")
     return FileResponse(path=str(path), filename=filename, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
+
 @app.get("/download/{filename}")
 async def download(filename: str):
     path = (RESULT_DIR / filename).resolve()
@@ -325,10 +319,12 @@ async def download(filename: str):
         raise HTTPException(status_code=404, detail="Файл не найден")
     return FileResponse(path=str(path), filename=filename, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
+
 @app.get("/results")
 async def list_results():
     files = [f.name for f in RESULT_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
     return {"files": sorted(files)}
+
 
 @app.delete("/clear/reports")
 async def clear_reports():
@@ -336,11 +332,13 @@ async def clear_reports():
     UPLOAD_DIR.mkdir()
     return {"ok": True}
 
+
 @app.delete("/clear/results")
 async def clear_results():
     shutil.rmtree(RESULT_DIR)
     RESULT_DIR.mkdir()
     return {"ok": True}
+
 
 @app.delete("/clear/all")
 async def clear_all():
@@ -349,24 +347,21 @@ async def clear_all():
         d.mkdir()
     return {"ok": True}
 
+
 @app.post("/switch-leader-ai/{leader}")
 async def switch_leader_ai_endpoint(leader: str):
     from agent.leader_ai_agent import switch_leader_ai
 
     if leader not in ("aniskov", "mandzhiev"):
         raise HTTPException(status_code=400, detail="leader должен быть 'aniskov' или 'mandzhiev'")
-
     report_files = list(UPLOAD_DIR.glob("*.docx"))
     if not report_files:
         raise HTTPException(status_code=404, detail="Отчёты не загружены")
-
-    filepaths = [str(f) for f in report_files]
-    ok, msg = switch_leader_ai(filepaths, leader)
-
+    ok, msg = switch_leader_ai([str(f) for f in report_files], leader)
     if not ok:
         raise HTTPException(status_code=500, detail=msg)
-
     return {"ok": True, "message": msg}
+
 
 if __name__ == "__main__":
     import uvicorn
