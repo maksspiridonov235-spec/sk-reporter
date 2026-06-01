@@ -258,7 +258,7 @@
       <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">Дата в отчёте</label>
       <input type="date" id="macroReportDate" style="width:100%;padding:6px 8px;margin-bottom:8px;border:1px solid #ccc;border-radius:6px;font-size:13px"/>
       <button class="btn btn-green" style="margin-bottom:8px" id="btnPrepare" onclick="prepareReports()">Подготовить отчёты</button>
-      <div style="font-size:11px;color:#888;margin-bottom:8px">Заливка, шрифт, макеты, дата, строки 0,6 см, сетка (фиксированная).</div>
+      <div style="font-size:11px;color:#888;margin-bottom:8px">Заливка, шрифт, макеты, картинки 5,33×4 см, дата, строки, сетка.</div>
       <details style="font-size:12px;color:#555"><summary style="cursor:pointer;margin-bottom:6px">По отдельности</summary>
       <button class="btn btn-blue" style="margin-bottom:6px"
               onclick="runMacro('HighlightSecondRow_No5991')">Выделить 2-ю строку таблиц</button>
@@ -268,6 +268,8 @@
               onclick="runMacro('ResetParagraphLayout')">Обнулить макеты</button>
       <button class="btn btn-blue" style="margin-bottom:6px"
               onclick="runMacro('ApplyTableGeometry')">Строки 0,6 + по центру</button>
+      <button class="btn btn-blue" style="margin-bottom:6px"
+              onclick="runMacro('ResizeInlineImages')">Картинки 5,33×4 см</button>
       <div class="btn-row" style="margin-bottom:6px">
         <button class="btn btn-orange" onclick="runMacro('ReplaceDateInReportLine')">Дата → сегодня</button>
         <button class="btn btn-orange" onclick="runMacro('ReplaceDateInReportLine2')">Дата → вчера</button>

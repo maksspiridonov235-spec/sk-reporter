@@ -193,7 +193,7 @@ async def macro_prepare(body: PrepareBody | None = None):
 
 @app.post("/macro/{macro_name}")
 async def run_macro(macro_name: str):
-    allowed = {"HighlightSecondRow_No5991", "FormatFontsOnly", "ResetParagraphLayout", "ApplyTableGeometry", "NewMacros", "ReplaceDateInReportLine", "ReplaceDateInReportLine2", "ApplyTemplateLayout"}
+    allowed = {"HighlightSecondRow_No5991", "FormatFontsOnly", "ResetParagraphLayout", "ApplyTableGeometry", "ResizeInlineImages", "NewMacros", "ReplaceDateInReportLine", "ReplaceDateInReportLine2", "ApplyTemplateLayout"}
     if macro_name not in allowed:
         raise HTTPException(status_code=400, detail="Неизвестный макрос")
 

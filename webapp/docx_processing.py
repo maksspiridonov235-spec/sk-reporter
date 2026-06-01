@@ -119,10 +119,6 @@ def format_document(doc: Document) -> None:
     """
     # 18.33 см в единицах dxa (twentieths of a point): 1 cm = 567 dxa
     TABLE_WIDTH_DXA = int(18.33 * 567)
-    # 5.33 см и 4 см в EMU (English Metric Units): 1 cm = 360000 EMU
-    IMG_W_EMU = int(5.33 * 360000)
-    IMG_H_EMU = int(4.0 * 360000)
-
     def _format_paras(paragraphs):
         for para in paragraphs:
             pPr = para._p.get_or_add_pPr()
@@ -189,23 +185,38 @@ def format_document(doc: Document) -> None:
             for cell in row.cells:
                 _format_paras(cell.paragraphs)
 
-    # Картинки: меняем размер прямо в XML (cx/cy в EMU)
-    EMU_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
-    PIC_NS = "http://schemas.openxmlformats.org/drawingml/2006/picture"
-    for shape in doc.inline_shapes:
-        # Находим <a:ext> внутри <wp:extent>
-        drawing = shape._inline
-        extent = drawing.find(
-            "{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}extent"
-        )
-        if extent is not None:
-            extent.set("cx", str(IMG_W_EMU))
-            extent.set("cy", str(IMG_H_EMU))
-        # Также патчим <a:ext> внутри spPr
-        for ext in drawing.iter(f"{{{EMU_NS}}}ext"):
-            ext.set("cx", str(IMG_W_EMU))
-            ext.set("cy", str(IMG_H_EMU))
+    resize_inline_images(doc)
 
+
+
+
+# ── Картинки ────────────────────────────────────────────────────────────────
+
+IMG_WIDTH_CM = 5.33
+IMG_HEIGHT_CM = 4.0
+EMU_PER_CM = 360000
+DRAWING_NS = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+EMU_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+
+PREPARE_PIPELINE_ID = "2026-06-02-img"
+
+
+def resize_inline_images(doc: Document) -> int:
+    """Все инлайн-картинки → 5,33 × 4 см (как старый NewMacros)."""
+    img_w = int(IMG_WIDTH_CM * EMU_PER_CM)
+    img_h = int(IMG_HEIGHT_CM * EMU_PER_CM)
+    count = 0
+    for shape in doc.inline_shapes:
+        count += 1
+        drawing = shape._inline
+        extent = drawing.find(f"{{{DRAWING_NS}}}extent")
+        if extent is not None:
+            extent.set("cx", str(img_w))
+            extent.set("cy", str(img_h))
+        for ext in drawing.iter(f"{{{EMU_NS}}}ext"):
+            ext.set("cx", str(img_w))
+            ext.set("cy", str(img_h))
+    return count
 
 
 # ── Шрифт и макеты (без ширины таблиц, картинок и заливки) ─────────────────
@@ -709,6 +720,9 @@ def apply_macro_to_file(filepath: str, macro_name: str) -> tuple[bool, str]:
     if macro_name == "HighlightSecondRow_No5991":
         n = highlight_second_row(doc)
         msg = f"Обработано таблиц: {n}"
+    elif macro_name == "ResizeInlineImages":
+        n = resize_inline_images(doc)
+        msg = f"Картинки: {n} шт. → {IMG_WIDTH_CM}×{IMG_HEIGHT_CM} см"
     elif macro_name == "FormatFontsOnly":
         format_fonts_only(doc)
         msg = "Шрифт Times New Roman 10 pt"
@@ -742,13 +756,15 @@ def prepare_report_file(filepath: str, layout: dict, target_date: str) -> tuple[
         doc = Document(filepath)
     except Exception as e:
         return False, str(e)
-    parts = []
+    parts = [f"версия {PREPARE_PIPELINE_ID}"]
     n = highlight_second_row(doc)
     parts.append(f"заливка {n}")
     format_fonts_only(doc)
     parts.append("шрифт")
     reset_paragraph_layout(doc)
     parts.append("макеты")
+    n_img = resize_inline_images(doc)
+    parts.append(f"картинки {n_img}")
     if replace_date_in_report_line(doc, target_date=target_date):
         parts.append(f"дата {target_date}")
     else:
