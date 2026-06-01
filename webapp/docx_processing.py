@@ -636,11 +636,24 @@ def apply_macro_to_file(filepath: str, macro_name: str) -> tuple[bool, str]:
 
 def prepare_report_file(filepath: str, layout: dict, target_date: str) -> tuple[bool, str]:
     from apply_template_layout import apply_layout
+    from docx_normalize import normalize_docx_for_layout
+
+    expected_cols = len(layout.get("grid_cols") or [])
+    ok_norm, norm_msg = normalize_docx_for_layout(
+        filepath,
+        expected_cols=expected_cols or None,
+        use_libreoffice=False,
+    )
+    parts = []
+    if ok_norm:
+        parts.append(norm_msg)
+    else:
+        parts.append(f"норм ERR: {norm_msg}")
+
     try:
         doc = Document(filepath)
     except Exception as e:
         return False, str(e)
-    parts = []
     n = highlight_second_row(doc)
     parts.append(f"таблиц {n}")
     format_document(doc)

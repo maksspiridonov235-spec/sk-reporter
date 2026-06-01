@@ -128,6 +128,12 @@ def apply_layout(doc, layout: dict | None = None):
         for row in table.rows:
             tr = row._tr
             col_idx = 0
+            tr_pr = tr.find(qn("w:trPr"))
+            if tr_pr is not None:
+                gb = tr_pr.find(qn("w:gridBefore"))
+                if gb is not None:
+                    col_idx = int(gb.get(qn("w:val"), 0))
+
             for tc in tr.findall(qn("w:tc")):
                 if col_idx >= len(grid_cols):
                     break
