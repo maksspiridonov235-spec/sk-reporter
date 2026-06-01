@@ -209,17 +209,18 @@ def format_document(doc: Document) -> None:
 
 # ── Макросы 3 и 4: ReplaceDateInReportLine / ReplaceDateInReportLine2 ──────
 
-def replace_date_in_report_line(doc: Document, mode: Literal["today", "yesterday"]) -> bool:
+def replace_date_in_report_line(doc: Document, mode: Literal["today", "yesterday"] = "today", target_date: Optional[str] = None) -> bool:
     """
     Заменяет дату в ячейке [2,1] таблицы на сегодняшнюю или вчерашнюю.
     Работает для всех типов отчётов (геодезия, обычные, несгруппированные).
     Возвращает True если замена выполнена.
     """
-    target_date = (
-        datetime.now().strftime("%d.%m.%Y")
-        if mode == "today"
-        else (datetime.now() - timedelta(days=1)).strftime("%d.%m.%Y")
-    )
+    if target_date is None:
+        target_date = (
+            datetime.now().strftime("%d.%m.%Y")
+            if mode == "today"
+            else (datetime.now() - timedelta(days=1)).strftime("%d.%m.%Y")
+        )
 
     # Заменяем дату в ячейке [2,1] первой таблицы
     if len(doc.tables) > 0:
@@ -630,6 +631,41 @@ def apply_macro_to_file(filepath: str, macro_name: str) -> tuple[bool, str]:
 
     doc.save(filepath)
     return True, msg
+
+
+
+def prepare_report_file(filepath: str, layout: dict, target_date: str) -> tuple[bool, str]:
+    from apply_template_layout import apply_layout
+    try:
+        doc = Document(filepath)
+    except Exception as e:
+        return False, str(e)
+    parts = []
+    n = highlight_second_row(doc)
+    parts.append(f"таблиц {n}")
+    format_document(doc)
+    parts.append("формат")
+    if replace_date_in_report_line(doc, target_date=target_date):
+        parts.append(f"дата {target_date}")
+    else:
+        parts.append("дата не найдена")
+    apply_layout(doc, layout)
+    parts.append("сетка")
+    doc.save(filepath)
+    return True, ", ".join(parts)
+
+
+def prepare_uploaded_reports(upload_dir: str, layout: dict, target_date: str) -> list[str]:
+    log = []
+    folder = Path(upload_dir)
+    files = sorted(f for f in folder.iterdir() if f.suffix.lower() in (".docx", ".doc"))
+    if not files:
+        log.append("[ERR] Нет загруженных отчётов")
+        return log
+    for f in files:
+        ok, msg = prepare_report_file(str(f), layout, target_date)
+        log.append(f"[{'OK' if ok else 'ERR'}] {f.name}: {msg}")
+    return log
 
 
 def extract_report_data(filepath: str) -> dict:
