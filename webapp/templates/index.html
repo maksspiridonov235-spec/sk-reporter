@@ -662,17 +662,16 @@
 
   (function initMacroDate() {
     const el = document.getElementById('macroReportDate');
-    if (!el) return;
-    el.value = new Date().toISOString().slice(0, 10);
+    if (el) el.value = new Date().toISOString().slice(0, 10);
   })();
 
   async function prepareReports() {
     const btn = document.getElementById('btnPrepare');
-    const dateEl = document.getElementById('macroReportDate');
-    const dateVal = dateEl && dateEl.value ? dateEl.value : null;
+    const dateVal = document.getElementById('macroReportDate')?.value || null;
+    if (!btn) return;
     btn.disabled = true;
     const { card, statusId } = createOpCard('Подготовка отчётов');
-    setCardStatus(statusId, 'Формат, дата, сетка из «Ежедневный отчет Шаблон.docx»...');
+    setCardStatus(statusId, 'Формат, дата, сетка таблицы...');
     try {
       const data = await apiFetch('/macro/prepare', {
         method: 'POST',
@@ -686,12 +685,10 @@
         badgeClass: line.startsWith('[ERR]') ? 'db-err' : 'db-ok',
       }));
       const errCount = data.log.filter(l => l.startsWith('[ERR]')).length;
-      const okCount = data.log.length - errCount;
-      const meta = `Эталон: ${data.template || '—'}, дата: ${data.date || '—'}`;
       finalizeOpCard(card, statusId, [
-        ...(okCount > 0 ? [{ label: `OK: ${okCount}`, color: 'green' }] : []),
-        ...(errCount > 0 ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
-      ], details, meta);
+        { label: `OK: ${data.log.length - errCount}`, color: 'green' },
+        ...(errCount ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
+      ], details, `Эталон: ${data.template}, дата: ${data.date}`);
     } catch (_) {}
     btn.disabled = false;
   }
