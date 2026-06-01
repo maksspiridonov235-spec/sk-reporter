@@ -10,7 +10,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import Literal, Optional
+from typing import Literal
 
 from docx import Document
 from docx.oxml.ns import qn
@@ -119,6 +119,10 @@ def format_document(doc: Document) -> None:
     """
     # 18.33 см в единицах dxa (twentieths of a point): 1 cm = 567 dxa
     TABLE_WIDTH_DXA = int(18.33 * 567)
+    # 5.33 см и 4 см в EMU (English Metric Units): 1 cm = 360000 EMU
+    IMG_W_EMU = int(5.33 * 360000)
+    IMG_H_EMU = int(4.0 * 360000)
+
     def _format_paras(paragraphs):
         for para in paragraphs:
             pPr = para._p.get_or_add_pPr()
@@ -185,145 +189,37 @@ def format_document(doc: Document) -> None:
             for cell in row.cells:
                 _format_paras(cell.paragraphs)
 
-    resize_inline_images(doc)
-
-
-
-
-# ── Картинки ────────────────────────────────────────────────────────────────
-
-IMG_WIDTH_CM = 5.33
-IMG_HEIGHT_CM = 4.0
-EMU_PER_CM = 360000
-DRAWING_NS = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
-EMU_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
-
-PREPARE_PIPELINE_ID = "2026-06-02-img"
-
-
-def resize_inline_images(doc: Document) -> int:
-    """Все инлайн-картинки → 5,33 × 4 см (как старый NewMacros)."""
-    img_w = int(IMG_WIDTH_CM * EMU_PER_CM)
-    img_h = int(IMG_HEIGHT_CM * EMU_PER_CM)
-    count = 0
+    # Картинки: меняем размер прямо в XML (cx/cy в EMU)
+    EMU_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+    PIC_NS = "http://schemas.openxmlformats.org/drawingml/2006/picture"
     for shape in doc.inline_shapes:
-        count += 1
+        # Находим <a:ext> внутри <wp:extent>
         drawing = shape._inline
-        extent = drawing.find(f"{{{DRAWING_NS}}}extent")
+        extent = drawing.find(
+            "{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}extent"
+        )
         if extent is not None:
-            extent.set("cx", str(img_w))
-            extent.set("cy", str(img_h))
+            extent.set("cx", str(IMG_W_EMU))
+            extent.set("cy", str(IMG_H_EMU))
+        # Также патчим <a:ext> внутри spPr
         for ext in drawing.iter(f"{{{EMU_NS}}}ext"):
-            ext.set("cx", str(img_w))
-            ext.set("cy", str(img_h))
-    return count
-
-
-# ── Шрифт и макеты (без ширины таблиц, картинок и заливки) ─────────────────
-
-FONT_NAME = "Times New Roman"
-FONT_SIZE_HALF_POINTS = "20"  # 10 pt
-MIN_ROW_HEIGHT_CM = 0.6
-
-
-def _iter_document_paragraphs(doc: Document):
-    for para in doc.paragraphs:
-        yield para
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                for para in cell.paragraphs:
-                    yield para
-
-
-def _apply_font_to_paragraph(para) -> None:
-    for run in para.runs:
-        run.font.name = FONT_NAME
-        run.font.size = Pt(10)
-    pPr = para._p.get_or_add_pPr()
-    rPr = pPr.find(qn("w:rPr"))
-    if rPr is None:
-        rPr = etree.SubElement(pPr, qn("w:rPr"))
-    rFonts = rPr.find(qn("w:rFonts"))
-    if rFonts is None:
-        rFonts = etree.SubElement(rPr, qn("w:rFonts"))
-    rFonts.set(qn("w:ascii"), FONT_NAME)
-    rFonts.set(qn("w:hAnsi"), FONT_NAME)
-    sz = rPr.find(qn("w:sz"))
-    if sz is None:
-        sz = etree.SubElement(rPr, qn("w:sz"))
-    sz.set(qn("w:val"), FONT_SIZE_HALF_POINTS)
-    szCs = rPr.find(qn("w:szCs"))
-    if szCs is None:
-        szCs = etree.SubElement(rPr, qn("w:szCs"))
-    szCs.set(qn("w:val"), FONT_SIZE_HALF_POINTS)
-
-
-def format_fonts_only(doc: Document) -> None:
-    """Только шрифт Times New Roman 10 pt."""
-    for para in _iter_document_paragraphs(doc):
-        _apply_font_to_paragraph(para)
-
-
-def reset_paragraph_layout(doc: Document) -> None:
-    """Обнуление отступов и интервалов абзацев (макет)."""
-    for para in _iter_document_paragraphs(doc):
-        pPr = para._p.get_or_add_pPr()
-        spacing = pPr.find(qn("w:spacing"))
-        if spacing is None:
-            spacing = etree.SubElement(pPr, qn("w:spacing"))
-        spacing.set(qn("w:before"), "0")
-        spacing.set(qn("w:after"), "0")
-        spacing.set(qn("w:line"), "240")
-        spacing.set(qn("w:lineRule"), "auto")
-        ind = pPr.find(qn("w:ind"))
-        if ind is None:
-            ind = etree.SubElement(pPr, qn("w:ind"))
-        ind.set(qn("w:left"), "0")
-        ind.set(qn("w:right"), "0")
-        ind.set(qn("w:firstLine"), "0")
-        ind.set(qn("w:hanging"), "0")
-
-
-def apply_table_geometry(doc: Document, min_height_cm: float = MIN_ROW_HEIGHT_CM) -> None:
-    """Минимальная высота строк и вертикальное выравнивание ячеек по центру."""
-    row_h = str(int(min_height_cm * 567))
-    for table in doc.tables:
-        for row in table.rows:
-            tr = row._tr
-            tr_pr = tr.find(qn("w:trPr"))
-            if tr_pr is None:
-                tr_pr = etree.SubElement(tr, qn("w:trPr"))
-            tr_h = tr_pr.find(qn("w:trHeight"))
-            if tr_h is None:
-                tr_h = etree.SubElement(tr_pr, qn("w:trHeight"))
-            tr_h.set(qn("w:val"), row_h)
-            tr_h.set(qn("w:hRule"), "atLeast")
-            for tc in tr.findall(qn("w:tc")):
-                tc_pr = tc.find(qn("w:tcPr"))
-                if tc_pr is None:
-                    tc_pr = etree.SubElement(tc, qn("w:tcPr"))
-                    tc.insert(0, tc_pr)
-                v_align = tc_pr.find(qn("w:vAlign"))
-                if v_align is None:
-                    v_align = etree.SubElement(tc_pr, qn("w:vAlign"))
-                v_align.set(qn("w:val"), "center")
+            ext.set("cx", str(IMG_W_EMU))
+            ext.set("cy", str(IMG_H_EMU))
 
 
 # ── Макросы 3 и 4: ReplaceDateInReportLine / ReplaceDateInReportLine2 ──────
 
-def replace_date_in_report_line(doc: Document, mode: Literal["today", "yesterday"] = "today", target_date: Optional[str] = None) -> bool:
+def replace_date_in_report_line(doc: Document, mode: Literal["today", "yesterday"]) -> bool:
     """
     Заменяет дату в ячейке [2,1] таблицы на сегодняшнюю или вчерашнюю.
     Работает для всех типов отчётов (геодезия, обычные, несгруппированные).
     Возвращает True если замена выполнена.
     """
-    if target_date is None:
-        target_date = (
-            datetime.now().strftime("%d.%m.%Y")
-            if mode == "today"
-            else (datetime.now() - timedelta(days=1)).strftime("%d.%m.%Y")
-        )
+    target_date = (
+        datetime.now().strftime("%d.%m.%Y")
+        if mode == "today"
+        else (datetime.now() - timedelta(days=1)).strftime("%d.%m.%Y")
+    )
 
     # Заменяем дату в ячейке [2,1] первой таблицы
     if len(doc.tables) > 0:
@@ -664,45 +560,9 @@ def rename_results(folder: str, mode: Literal["today", "yesterday"]) -> list[str
 
 
 def rename_templates(folder: str, mode: Literal["today", "yesterday"]) -> list[str]:
-    """
-    Добавляет дату в конец первого параграфа каждого шаблона.
-    Шаблоны заканчиваются на "за " без даты.
-    """
-    new_date = (
-        datetime.now().strftime("%d.%m.%Y")
-        if mode == "today"
-        else (datetime.now() - timedelta(days=1)).strftime("%d.%m.%Y")
-    )
-    log = []
-    for filename in os.listdir(folder):
-        if not filename.lower().endswith((".docx", ".doc")):
-            continue
-        filepath = os.path.join(folder, filename)
-        try:
-            doc = Document(filepath)
-            found = False
+    from report_date import rename_templates_compat
 
-            # Ищем первый параграф заканчивающийся на "за"
-            for para in doc.paragraphs:
-                para_text = para.text.strip()
-                if para_text.endswith("за"):
-                    # Добавляем дату в конец
-                    if para.runs:
-                        para.runs[-1].text += new_date + "г"
-                    else:
-                        para.add_run(new_date + "г")
-                    found = True
-                    break
-
-            if not found:
-                log.append(f"Пропущен (не найден параграф с 'за'): {filename}")
-                continue
-
-            doc.save(filepath)
-            log.append(f"Добавлена дата: {filename} → {new_date}г")
-        except Exception as e:
-            log.append(f"Ошибка: {filename} — {e}")
-    return log
+    return rename_templates_compat(folder, mode)
 
 
 # ── Применение макроса к файлу ──────────────────────────────────────────────
@@ -720,21 +580,9 @@ def apply_macro_to_file(filepath: str, macro_name: str) -> tuple[bool, str]:
     if macro_name == "HighlightSecondRow_No5991":
         n = highlight_second_row(doc)
         msg = f"Обработано таблиц: {n}"
-    elif macro_name == "ResizeInlineImages":
-        n = resize_inline_images(doc)
-        msg = f"Картинки: {n} шт. → {IMG_WIDTH_CM}×{IMG_HEIGHT_CM} см"
-    elif macro_name == "FormatFontsOnly":
-        format_fonts_only(doc)
-        msg = "Шрифт Times New Roman 10 pt"
-    elif macro_name == "ResetParagraphLayout":
-        reset_paragraph_layout(doc)
-        msg = "Макеты абзацев обнулены"
-    elif macro_name == "ApplyTableGeometry":
-        apply_table_geometry(doc)
-        msg = "Высота строк ≥0,6 см, выравнивание по центру"
     elif macro_name == "NewMacros":
         format_document(doc)
-        msg = "Полное форматирование (устар.)"
+        msg = "Форматирование применено"
     elif macro_name == "ReplaceDateInReportLine":
         ok = replace_date_in_report_line(doc, "today")
         msg = "Дата заменена на сегодняшнюю" if ok else "Строка с датой не найдена"
@@ -746,52 +594,6 @@ def apply_macro_to_file(filepath: str, macro_name: str) -> tuple[bool, str]:
 
     doc.save(filepath)
     return True, msg
-
-
-
-def prepare_report_file(filepath: str, layout: dict, target_date: str) -> tuple[bool, str]:
-    from apply_template_layout import apply_layout
-
-    try:
-        doc = Document(filepath)
-    except Exception as e:
-        return False, str(e)
-    parts = [f"версия {PREPARE_PIPELINE_ID}"]
-    n = highlight_second_row(doc)
-    parts.append(f"заливка {n}")
-    format_fonts_only(doc)
-    parts.append("шрифт")
-    reset_paragraph_layout(doc)
-    parts.append("макеты")
-    n_img = resize_inline_images(doc)
-    parts.append(f"картинки {n_img}")
-    if replace_date_in_report_line(doc, target_date=target_date):
-        parts.append(f"дата {target_date}")
-    else:
-        parts.append("дата не найдена")
-    apply_table_geometry(doc)
-    parts.append("строки 0,6")
-    layout_warns = apply_layout(doc, layout, only_main_table=True)
-    parts.append("сетка")
-    if layout_warns:
-        parts.append("⚠ " + layout_warns[0])
-        if len(layout_warns) > 1:
-            parts.append(f"(+{len(layout_warns) - 1} предупр.)")
-    doc.save(filepath)
-    return True, ", ".join(parts)
-
-
-def prepare_uploaded_reports(upload_dir: str, layout: dict, target_date: str) -> list[str]:
-    log = []
-    folder = Path(upload_dir)
-    files = sorted(f for f in folder.iterdir() if f.suffix.lower() in (".docx", ".doc"))
-    if not files:
-        log.append("[ERR] Нет загруженных отчётов")
-        return log
-    for f in files:
-        ok, msg = prepare_report_file(str(f), layout, target_date)
-        log.append(f"[{'OK' if ok else 'ERR'}] {f.name}: {msg}")
-    return log
 
 
 def extract_report_data(filepath: str) -> dict:
