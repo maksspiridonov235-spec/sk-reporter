@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from apply_template_layout import apply_layout, read_template_layout, resolve_layout_template
+from apply_template_layout import apply_layout, hardcoded_layout, read_template_layout, resolve_layout_template
 from companies import COMPANIES
 from docx_processing import (
     apply_macro_to_file,
@@ -171,11 +171,7 @@ def _layout_template_path() -> Path:
 @app.post("/macro/prepare")
 async def macro_prepare(body: PrepareBody | None = None):
     body = body or PrepareBody()
-    template_path = _layout_template_path()
-    try:
-        layout = read_template_layout(template_path)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+    layout = hardcoded_layout()
 
     if body.date:
         try:
@@ -187,18 +183,22 @@ async def macro_prepare(body: PrepareBody | None = None):
         target_date = datetime.now().strftime("%d.%m.%Y")
 
     log = prepare_uploaded_reports(str(UPLOAD_DIR), layout, target_date)
-    return {"log": log, "template": template_path.name, "date": target_date}
+    return {
+        "log": log,
+        "template": "сетка захардкожена",
+        "grid_cols": layout["grid_cols"],
+        "date": target_date,
+    }
 
 
 @app.post("/macro/{macro_name}")
 async def run_macro(macro_name: str):
-    allowed = {"HighlightSecondRow_No5991", "NewMacros", "ReplaceDateInReportLine", "ReplaceDateInReportLine2", "ApplyTemplateLayout"}
+    allowed = {"HighlightSecondRow_No5991", "FormatFontsOnly", "ResetParagraphLayout", "ApplyTableGeometry", "NewMacros", "ReplaceDateInReportLine", "ReplaceDateInReportLine2", "ApplyTemplateLayout"}
     if macro_name not in allowed:
         raise HTTPException(status_code=400, detail="Неизвестный макрос")
 
     if macro_name == "ApplyTemplateLayout":
-        template_path = _layout_template_path()
-        layout = read_template_layout(template_path)
+        layout = hardcoded_layout()
         log = []
         for f in UPLOAD_DIR.iterdir():
             if f.suffix.lower() != ".docx":

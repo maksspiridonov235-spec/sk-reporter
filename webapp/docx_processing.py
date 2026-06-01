@@ -207,6 +207,98 @@ def format_document(doc: Document) -> None:
             ext.set("cy", str(IMG_H_EMU))
 
 
+
+# ── Шрифт и макеты (без ширины таблиц, картинок и заливки) ─────────────────
+
+FONT_NAME = "Times New Roman"
+FONT_SIZE_HALF_POINTS = "20"  # 10 pt
+MIN_ROW_HEIGHT_CM = 0.6
+
+
+def _iter_document_paragraphs(doc: Document):
+    for para in doc.paragraphs:
+        yield para
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for para in cell.paragraphs:
+                    yield para
+
+
+def _apply_font_to_paragraph(para) -> None:
+    for run in para.runs:
+        run.font.name = FONT_NAME
+        run.font.size = Pt(10)
+    pPr = para._p.get_or_add_pPr()
+    rPr = pPr.find(qn("w:rPr"))
+    if rPr is None:
+        rPr = etree.SubElement(pPr, qn("w:rPr"))
+    rFonts = rPr.find(qn("w:rFonts"))
+    if rFonts is None:
+        rFonts = etree.SubElement(rPr, qn("w:rFonts"))
+    rFonts.set(qn("w:ascii"), FONT_NAME)
+    rFonts.set(qn("w:hAnsi"), FONT_NAME)
+    sz = rPr.find(qn("w:sz"))
+    if sz is None:
+        sz = etree.SubElement(rPr, qn("w:sz"))
+    sz.set(qn("w:val"), FONT_SIZE_HALF_POINTS)
+    szCs = rPr.find(qn("w:szCs"))
+    if szCs is None:
+        szCs = etree.SubElement(rPr, qn("w:szCs"))
+    szCs.set(qn("w:val"), FONT_SIZE_HALF_POINTS)
+
+
+def format_fonts_only(doc: Document) -> None:
+    """Только шрифт Times New Roman 10 pt."""
+    for para in _iter_document_paragraphs(doc):
+        _apply_font_to_paragraph(para)
+
+
+def reset_paragraph_layout(doc: Document) -> None:
+    """Обнуление отступов и интервалов абзацев (макет)."""
+    for para in _iter_document_paragraphs(doc):
+        pPr = para._p.get_or_add_pPr()
+        spacing = pPr.find(qn("w:spacing"))
+        if spacing is None:
+            spacing = etree.SubElement(pPr, qn("w:spacing"))
+        spacing.set(qn("w:before"), "0")
+        spacing.set(qn("w:after"), "0")
+        spacing.set(qn("w:line"), "240")
+        spacing.set(qn("w:lineRule"), "auto")
+        ind = pPr.find(qn("w:ind"))
+        if ind is None:
+            ind = etree.SubElement(pPr, qn("w:ind"))
+        ind.set(qn("w:left"), "0")
+        ind.set(qn("w:right"), "0")
+        ind.set(qn("w:firstLine"), "0")
+        ind.set(qn("w:hanging"), "0")
+
+
+def apply_table_geometry(doc: Document, min_height_cm: float = MIN_ROW_HEIGHT_CM) -> None:
+    """Минимальная высота строк и вертикальное выравнивание ячеек по центру."""
+    row_h = str(int(min_height_cm * 567))
+    for table in doc.tables:
+        for row in table.rows:
+            tr = row._tr
+            tr_pr = tr.find(qn("w:trPr"))
+            if tr_pr is None:
+                tr_pr = etree.SubElement(tr, qn("w:trPr"))
+            tr_h = tr_pr.find(qn("w:trHeight"))
+            if tr_h is None:
+                tr_h = etree.SubElement(tr_pr, qn("w:trHeight"))
+            tr_h.set(qn("w:val"), row_h)
+            tr_h.set(qn("w:hRule"), "atLeast")
+            for tc in tr.findall(qn("w:tc")):
+                tc_pr = tc.find(qn("w:tcPr"))
+                if tc_pr is None:
+                    tc_pr = etree.SubElement(tc, qn("w:tcPr"))
+                    tc.insert(0, tc_pr)
+                v_align = tc_pr.find(qn("w:vAlign"))
+                if v_align is None:
+                    v_align = etree.SubElement(tc_pr, qn("w:vAlign"))
+                v_align.set(qn("w:val"), "center")
+
+
 # ── Макросы 3 и 4: ReplaceDateInReportLine / ReplaceDateInReportLine2 ──────
 
 def replace_date_in_report_line(doc: Document, mode: Literal["today", "yesterday"] = "today", target_date: Optional[str] = None) -> bool:
@@ -617,9 +709,18 @@ def apply_macro_to_file(filepath: str, macro_name: str) -> tuple[bool, str]:
     if macro_name == "HighlightSecondRow_No5991":
         n = highlight_second_row(doc)
         msg = f"Обработано таблиц: {n}"
+    elif macro_name == "FormatFontsOnly":
+        format_fonts_only(doc)
+        msg = "Шрифт Times New Roman 10 pt"
+    elif macro_name == "ResetParagraphLayout":
+        reset_paragraph_layout(doc)
+        msg = "Макеты абзацев обнулены"
+    elif macro_name == "ApplyTableGeometry":
+        apply_table_geometry(doc)
+        msg = "Высота строк ≥0,6 см, выравнивание по центру"
     elif macro_name == "NewMacros":
         format_document(doc)
-        msg = "Форматирование применено"
+        msg = "Полное форматирование (устар.)"
     elif macro_name == "ReplaceDateInReportLine":
         ok = replace_date_in_report_line(doc, "today")
         msg = "Дата заменена на сегодняшнюю" if ok else "Строка с датой не найдена"
@@ -642,12 +743,18 @@ def prepare_report_file(filepath: str, layout: dict, target_date: str) -> tuple[
     except Exception as e:
         return False, str(e)
     parts = []
-    format_document(doc)
-    parts.append("формат")
+    n = highlight_second_row(doc)
+    parts.append(f"заливка {n}")
+    format_fonts_only(doc)
+    parts.append("шрифт")
+    reset_paragraph_layout(doc)
+    parts.append("макеты")
     if replace_date_in_report_line(doc, target_date=target_date):
         parts.append(f"дата {target_date}")
     else:
         parts.append("дата не найдена")
+    apply_table_geometry(doc)
+    parts.append("строки 0,6")
     apply_layout(doc, layout)
     parts.append("сетка")
     doc.save(filepath)

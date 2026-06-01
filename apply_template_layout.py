@@ -21,6 +21,16 @@ BOLVANKI_DIR = (
 DEFAULT_GRID_COLS = ["2041", "1757", "1787", "1898", "1701", "1646"]
 ROW_HEIGHT = "340"
 ROW_HEIGHT_RULE = "atLeast"
+MIN_ROW_HEIGHT_CM = 0.6
+
+
+def hardcoded_layout() -> dict:
+    """Фиксированная сетка столбцов (без чтения docx-шаблона)."""
+    return {
+        "template": "hardcoded",
+        "grid_cols": list(DEFAULT_GRID_COLS),
+        "tblGrid": None,
+    }
 
 
 def resolve_layout_template(templates_dir: Path | None = None) -> Path:
@@ -117,6 +127,11 @@ def apply_layout(doc, layout: dict | None = None):
         if tblLayout is None:
             tblLayout = etree.SubElement(tblPr, qn("w:tblLayout"))
         tblLayout.set(qn("w:type"), "fixed")
+
+        jc = tblPr.find(qn("w:jc"))
+        if jc is None:
+            jc = etree.SubElement(tblPr, qn("w:jc"))
+        jc.set(qn("w:val"), "center")
 
         old_grid = tbl.find(qn("w:tblGrid"))
         new_grid = _build_tblGrid(grid_cols)
