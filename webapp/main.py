@@ -5,23 +5,28 @@ import shutil
 import sys
 import tempfile
 import zipfile
+from datetime import datetime
 from pathlib import Path
 
 from docx import Document
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from apply_template_layout import apply_layout, read_template_layout
+from apply_template_layout import apply_layout, read_template_layout, resolve_layout_template
 from companies import COMPANIES
 from docx_processing import (
     apply_macro_to_file,
     merge_reports,
+    prepare_uploaded_reports,
     rename_results,
     rename_templates,
 )
+
+LAYOUT_TEMPLATE_FILE = "Ежедневный отчет Шаблон.docx"
 
 try:
     from agent.ocr_agent import detect_company, merge_report_into_template
@@ -149,6 +154,42 @@ async def check_descriptions_stream():
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
+class PrepareBody(BaseModel):
+    date: str | None = None  # YYYY-MM-DD
+
+
+def _layout_template_path() -> Path:
+    path = (TEMPLATES_DIR / LAYOUT_TEMPLATE_FILE).resolve()
+    if not path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Положите «{LAYOUT_TEMPLATE_FILE}» в папку болванок: {path}",
+        )
+    return path
+
+
+@app.post("/macro/prepare")
+async def macro_prepare(body: PrepareBody | None = None):
+    body = body or PrepareBody()
+    template_path = _layout_template_path()
+    try:
+        layout = read_template_layout(template_path)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    if body.date:
+        try:
+            d = datetime.strptime(body.date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="date: формат YYYY-MM-DD")
+        target_date = d.strftime("%d.%m.%Y")
+    else:
+        target_date = datetime.now().strftime("%d.%m.%Y")
+
+    log = prepare_uploaded_reports(str(UPLOAD_DIR), layout, target_date)
+    return {"log": log, "template": template_path.name, "date": target_date}
+
+
 @app.post("/macro/{macro_name}")
 async def run_macro(macro_name: str):
     allowed = {"HighlightSecondRow_No5991", "NewMacros", "ReplaceDateInReportLine", "ReplaceDateInReportLine2", "ApplyTemplateLayout"}
@@ -156,9 +197,7 @@ async def run_macro(macro_name: str):
         raise HTTPException(status_code=400, detail="Неизвестный макрос")
 
     if macro_name == "ApplyTemplateLayout":
-        template_path = (TEMPLATES_DIR / "Ежедневный отчет Шаблон.docx").resolve()
-        if not template_path.exists():
-            raise HTTPException(status_code=404, detail=f"Шаблон не найден: {template_path}")
+        template_path = _layout_template_path()
         layout = read_template_layout(template_path)
         log = []
         for f in UPLOAD_DIR.iterdir():

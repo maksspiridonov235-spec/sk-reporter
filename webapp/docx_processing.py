@@ -10,7 +10,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Literal, Optional
 
 from docx import Document
 from docx.oxml.ns import qn
