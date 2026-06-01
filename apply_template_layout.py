@@ -19,6 +19,8 @@ BOLVANKI_DIR = (
 
 # Захардкоженная сетка (как в «Ежедневный отчет Шаблон.docx»)
 DEFAULT_GRID_COLS = ["2041", "1757", "1787", "1898", "1701", "1646"]
+# Часть отчётов (в т.ч. Громов): 7-я узкая колонка
+DEFAULT_GRID_COLS_7 = ["1974", "1698", "1725", "1837", "1647", "1594", "355"]
 ROW_HEIGHT = "340"
 ROW_HEIGHT_RULE = "atLeast"
 MIN_ROW_HEIGHT_CM = 0.6
@@ -152,6 +154,32 @@ def _set_tc_width(tc, width_dxa: str) -> None:
     tc_w.set(qn("w:type"), "dxa")
 
 
+
+def _max_row_occupancy(tbl) -> int:
+    max_occ = 0
+    for tr in tbl.findall(qn("w:tr")):
+        max_occ = max(max_occ, _row_occupied_cols(tr, 16))
+    return max_occ
+
+
+def _grid_cols_for_table(tbl, standard_6: list[str]) -> list[str]:
+    """6 колонок → эталон; 7 колонок → сетка из файла (не ломаем Громова)."""
+    file_cols = _grid_cols_from_tbl(tbl)
+    max_occ = _max_row_occupancy(tbl)
+
+    if len(file_cols) == 7 and max_occ == 7:
+        return list(file_cols)
+    if len(file_cols) == 6 and max_occ == 6:
+        return list(standard_6)
+    if max_occ == 7:
+        return list(file_cols) if len(file_cols) == 7 else list(DEFAULT_GRID_COLS_7)
+    if max_occ == 6:
+        return list(standard_6)
+    if file_cols:
+        return file_cols
+    return list(standard_6)
+
+
 def diagnose_table(tbl, grid_cols: list[str]) -> list[str]:
     ncol = len(grid_cols)
     issues: list[str] = []
@@ -173,7 +201,7 @@ def diagnose_table(tbl, grid_cols: list[str]) -> list[str]:
 
 
 def diagnose_document(doc, layout: dict | None = None) -> list[str]:
-    grid_cols = (layout or {}).get("grid_cols") or list(DEFAULT_GRID_COLS)
+    standard = (layout or {}).get("grid_cols") or list(DEFAULT_GRID_COLS)
     out: list[str] = []
     if not doc.tables:
         out.append("нет таблиц")
@@ -181,9 +209,12 @@ def diagnose_document(doc, layout: dict | None = None) -> list[str]:
     for i, table in enumerate(doc.tables):
         tbl = table._tbl
         nrows = len(table.rows)
-        issues = diagnose_table(tbl, grid_cols)
+        expected = _grid_cols_for_table(tbl, standard)
+        issues = diagnose_table(tbl, expected)
         if issues:
             out.append(f"табл.{i + 1} ({nrows} стр.): " + "; ".join(issues))
+        elif len(expected) == 7:
+            out.append(f"табл.{i + 1} ({nrows} стр.): 7 колонок — своя сетка (OK)")
     return out
 
 
@@ -201,9 +232,7 @@ def _main_table_indices(doc) -> list[int]:
 
 def apply_layout(doc, layout: dict | None = None, only_main_table: bool = True) -> list[str]:
     """Возвращает предупреждения по документу."""
-    grid_cols = (layout or {}).get("grid_cols") or list(DEFAULT_GRID_COLS)
-    cumsum = _grid_cumsum(grid_cols)
-    table_width = str(cumsum[-1])
+    standard_cols = (layout or {}).get("grid_cols") or list(DEFAULT_GRID_COLS)
     warnings = diagnose_document(doc, layout)
 
     indices = _main_table_indices(doc) if only_main_table else list(range(len(doc.tables)))
@@ -211,6 +240,9 @@ def apply_layout(doc, layout: dict | None = None, only_main_table: bool = True) 
     for ti in indices:
         table = doc.tables[ti]
         tbl = table._tbl
+        grid_cols = _grid_cols_for_table(tbl, standard_cols)
+        cumsum = _grid_cumsum(grid_cols)
+        table_width = str(cumsum[-1])
 
         tbl_pr = tbl.find(qn("w:tblPr"))
         if tbl_pr is None:
