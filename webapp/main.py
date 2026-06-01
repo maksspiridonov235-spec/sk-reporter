@@ -117,6 +117,33 @@ async def list_reports():
     return {"files": sorted(files)}
 
 
+
+
+@app.get("/diagnose/reports")
+async def diagnose_reports():
+    """Диагностика сетки загруженных отчётов (для отладки Громова и др.)."""
+    from apply_template_layout import diagnose_document, hardcoded_layout
+
+    layout = hardcoded_layout()
+    out = []
+    for f in sorted(UPLOAD_DIR.iterdir()):
+        if f.suffix.lower() not in (".docx", ".doc"):
+            continue
+        try:
+            doc = Document(os.fspath(f))
+            warns = diagnose_document(doc, layout)
+            out.append({
+                "file": f.name,
+                "tables": len(doc.tables),
+                "rows": [len(t.rows) for t in doc.tables],
+                "images": len(doc.inline_shapes),
+                "issues": warns,
+                "ok": not warns,
+            })
+        except Exception as e:
+            out.append({"file": f.name, "ok": False, "issues": [str(e)]})
+    return {"reports": out, "grid_cols": layout["grid_cols"]}
+
 @app.post("/check/descriptions/stream")
 async def check_descriptions_stream():
     from agent.check_agent import check_report
