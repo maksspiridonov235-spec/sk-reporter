@@ -642,8 +642,6 @@ def prepare_report_file(filepath: str, layout: dict, target_date: str) -> tuple[
     except Exception as e:
         return False, str(e)
     parts = []
-    n = highlight_second_row(doc)
-    parts.append(f"таблиц {n}")
     format_document(doc)
     parts.append("формат")
     if replace_date_in_report_line(doc, target_date=target_date):
