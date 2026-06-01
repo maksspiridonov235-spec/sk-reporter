@@ -125,6 +125,14 @@
       max-height: 260px; overflow-y: auto;
     }
     .detail-block.open { display: block; }
+    .macro-log-box {
+      display: none; margin-top: 8px; padding: 8px 10px;
+      font-size: 11px; line-height: 1.45; font-family: ui-monospace, monospace;
+      background: #1e293b; color: #e2e8f0; border-radius: 6px;
+      max-height: 220px; overflow-y: auto; white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .macro-log-box.visible { display: block; }
     .detail-row {
       display: flex; align-items: baseline; gap: 6px;
       padding: 3px 0; border-bottom: 1px solid #f3f4f6;
@@ -259,6 +267,7 @@
       <input type="date" id="macroReportDate" style="width:100%;padding:6px 8px;margin-bottom:8px;border:1px solid #ccc;border-radius:6px;font-size:13px"/>
       <button class="btn btn-green" style="margin-bottom:8px" id="btnPrepare" onclick="prepareReports()">Подготовить отчёты</button>
       <div style="font-size:11px;color:#888;margin-bottom:8px">Заливка, шрифт, макеты, картинки 5,33×4 см, дата, строки, сетка.</div>
+      <pre id="macroPrepareLog" class="macro-log-box" aria-live="polite"></pre>
       <details style="font-size:12px;color:#555"><summary style="cursor:pointer;margin-bottom:6px">По отдельности</summary>
       <button class="btn btn-blue" style="margin-bottom:6px"
               onclick="runMacro('HighlightSecondRow_No5991')">Выделить 2-ю строку таблиц</button>
@@ -400,7 +409,8 @@
     txt.textContent = msg;
   }
 
-  function finalizeOpCard(card, statusId, stats, details, fileCards) {
+  function finalizeOpCard(card, statusId, stats, details, fileCards, options) {
+    options = options || {};
     const liveEl = document.getElementById(statusId);
     if (liveEl) liveEl.remove();
 
@@ -411,12 +421,20 @@
     ).join('');
     card.appendChild(statsContainer);
 
-    const hasDetails = (details && details.length) || (fileCards && fileCards.length);
+    if (options.meta) {
+      const metaEl = document.createElement('div');
+      metaEl.style.cssText = 'font-size:12px;color:#6b7280;margin-top:6px';
+      metaEl.textContent = options.meta;
+      card.appendChild(metaEl);
+    }
+
+    const hasFileCards = Array.isArray(fileCards) && fileCards.length > 0;
+    const hasDetails = (details && details.length) || hasFileCards;
     if (hasDetails) {
       const detailId = 'det_' + Date.now() + '_' + Math.random().toString(36).slice(2);
       const toggleBtn = document.createElement('button');
       toggleBtn.className = 'detail-toggle';
-      toggleBtn.textContent = 'Подробности ▼';
+      toggleBtn.textContent = options.expandDetails ? 'Подробности ▲' : 'Подробности ▼';
       toggleBtn.onclick = () => {
         const block = document.getElementById(detailId);
         block.classList.toggle('open');
@@ -425,7 +443,7 @@
       card.appendChild(toggleBtn);
 
       const detailBlock = document.createElement('div');
-      detailBlock.className = 'detail-block';
+      detailBlock.className = 'detail-block' + (options.expandDetails ? ' open' : '');
       detailBlock.id = detailId;
 
       if (details && details.length) {
@@ -441,7 +459,7 @@
         });
       }
 
-      if (fileCards && fileCards.length) {
+      if (hasFileCards) {
         fileCards.forEach(fc => detailBlock.appendChild(fc));
       }
 
@@ -677,31 +695,51 @@
     if (el) el.value = new Date().toISOString().slice(0, 10);
   })();
 
+
+  function showMacroLog(lines, meta) {
+    const el = document.getElementById('macroPrepareLog');
+    if (!el) return;
+    const text = (meta ? meta + '\n' : '') + (lines || []).join('\n');
+    el.textContent = text || '—';
+    el.classList.add('visible');
+  }
+
+  function logLinesToDetails(log) {
+    const lines = Array.isArray(log) ? log : [];
+    return lines.map(line => ({
+      icon: line.startsWith('[ERR]') ? '✗' : '✓',
+      name: line.replace(/^\[(OK|ERR)\]\s*/, ''),
+      badge: line.startsWith('[ERR]') ? 'Ошибка' : 'OK',
+      badgeClass: line.startsWith('[ERR]') ? 'db-err' : 'db-ok',
+    }));
+  }
+
   async function prepareReports() {
     const btn = document.getElementById('btnPrepare');
     const dateVal = document.getElementById('macroReportDate')?.value || null;
     if (!btn) return;
     btn.disabled = true;
+    showMacroLog(['Запрос…'], null);
     const { card, statusId } = createOpCard('Подготовка отчётов');
-    setCardStatus(statusId, 'Заливка, шрифт, макеты, дата, строки, сетка...');
+    setCardStatus(statusId, 'Заливка, шрифт, макеты, картинки, дата, строки, сетка...');
     try {
       const data = await apiFetch('/macro/prepare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date: dateVal }),
       }, statusId);
-      const details = data.log.map(line => ({
-        icon: line.startsWith('[ERR]') ? '✗' : '✓',
-        name: line.replace(/^\[(OK|ERR)\]\s*/, ''),
-        badge: line.startsWith('[ERR]') ? 'Ошибка' : 'OK',
-        badgeClass: line.startsWith('[ERR]') ? 'db-err' : 'db-ok',
-      }));
-      const errCount = data.log.filter(l => l.startsWith('[ERR]')).length;
+      const lines = Array.isArray(data.log) ? data.log : [`[ERR] Нет log в ответе: ${JSON.stringify(data)}`];
+      const meta = `Дата: ${data.date || '—'} | ${data.template || ''}`;
+      showMacroLog(lines, meta);
+      const details = logLinesToDetails(lines);
+      const errCount = lines.filter(l => l.startsWith('[ERR]')).length;
       finalizeOpCard(card, statusId, [
-        { label: `OK: ${data.log.length - errCount}`, color: 'green' },
+        { label: `OK: ${lines.length - errCount}`, color: 'green' },
         ...(errCount ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
-      ], details, `Эталон: ${data.template}, дата: ${data.date}`);
-    } catch (_) {}
+      ], details, null, { expandDetails: true, meta });
+    } catch (e) {
+      showMacroLog([`[ERR] ${e.message}`], null);
+    }
     btn.disabled = false;
   }
 
@@ -711,25 +749,28 @@
       'NewMacros': 'Форматирование документа',
       'ReplaceDateInReportLine': 'Замена даты на сегодняшнюю',
       'ReplaceDateInReportLine2': 'Замена даты на вчерашнюю',
+      'FormatFontsOnly': 'Шрифт TNR 10',
+      'ResetParagraphLayout': 'Обнулить макеты',
+      'ApplyTableGeometry': 'Строки 0,6 + по центру',
+      'ResizeInlineImages': 'Картинки 5,33×4 см',
       'ApplyTemplateLayout': 'Применить размеры шаблона',
     };
     const { card, statusId } = createOpCard(names[name] || name);
     setCardStatus(statusId, `Запускаю: ${names[name] || name}...`);
     try {
       const data = await apiFetch(`/macro/${name}`, { method: 'POST' }, statusId);
-      const details = data.log.map(line => ({
-        icon: line.startsWith('[ERR]') ? '✗' : '✓',
-        name: line.replace(/^\[(OK|ERR)\]\s*/, ''),
-        badge: line.startsWith('[ERR]') ? 'Ошибка' : 'OK',
-        badgeClass: line.startsWith('[ERR]') ? 'db-err' : 'db-ok',
-      }));
-      const errCount = data.log.filter(l => l.startsWith('[ERR]')).length;
-      const okCount = data.log.length - errCount;
+      const lines = Array.isArray(data.log) ? data.log : [`[ERR] Нет log: ${JSON.stringify(data)}`];
+      showMacroLog(lines, names[name] || name);
+      const details = logLinesToDetails(lines);
+      const errCount = lines.filter(l => l.startsWith('[ERR]')).length;
+      const okCount = lines.length - errCount;
       finalizeOpCard(card, statusId, [
         ...(okCount > 0 ? [{ label: `OK: ${okCount}`, color: 'green' }] : []),
         ...(errCount > 0 ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
-      ], details, null);
-    } catch (_) {}
+      ], details, null, { expandDetails: true });
+    } catch (e) {
+      showMacroLog([`[ERR] ${e.message}`], null);
+    }
   }
 
   // ── Переименование ────────────────────────────────────────────────────────
