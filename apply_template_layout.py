@@ -137,13 +137,16 @@ def apply_layout(doc, layout: dict | None = None):
                     tcPr = etree.SubElement(tc, qn("w:tcPr"))
                     tc.insert(0, tcPr)
 
-                v_merge = tcPr.find(qn("w:vMerge"))
-                if v_merge is not None and v_merge.get(qn("w:val")) != "restart":
-                    continue
-
                 gs_el = tcPr.find(qn("w:gridSpan"))
                 span = int(gs_el.get(qn("w:val"))) if gs_el is not None else 1
                 span = max(1, min(span, len(grid_cols) - col_idx))
+
+                v_merge = tcPr.find(qn("w:vMerge"))
+                if v_merge is not None and v_merge.get(qn("w:val")) != "restart":
+                    # continuation-ячейка всё равно занимает колонки в этой строке,
+                    # иначе дальше ширины посчитаются со смещением.
+                    col_idx += span
+                    continue
 
                 cell_w = str(cumsum[col_idx + span] - cumsum[col_idx])
                 tcW = tcPr.find(qn("w:tcW"))
