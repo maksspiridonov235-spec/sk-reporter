@@ -755,8 +755,12 @@ def prepare_report_file(filepath: str, layout: dict, target_date: str) -> tuple[
         parts.append("дата не найдена")
     apply_table_geometry(doc)
     parts.append("строки 0,6")
-    apply_layout(doc, layout)
+    layout_warns = apply_layout(doc, layout, only_main_table=True)
     parts.append("сетка")
+    if layout_warns:
+        parts.append("⚠ " + layout_warns[0])
+        if len(layout_warns) > 1:
+            parts.append(f"(+{len(layout_warns) - 1} предупр.)")
     doc.save(filepath)
     return True, ", ".join(parts)
 

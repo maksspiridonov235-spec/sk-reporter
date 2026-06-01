@@ -17,15 +17,15 @@ BOLVANKI_DIR = (
     / "болванки (шаблоны не вырезать только копировать)"
 )
 
-# запасные значения, если в шаблоне нет tblGrid
+# Захардкоженная сетка (как в «Ежедневный отчет Шаблон.docx»)
 DEFAULT_GRID_COLS = ["2041", "1757", "1787", "1898", "1701", "1646"]
 ROW_HEIGHT = "340"
 ROW_HEIGHT_RULE = "atLeast"
 MIN_ROW_HEIGHT_CM = 0.6
+MIN_ROWS_FOR_MAIN_TABLE = 8
 
 
 def hardcoded_layout() -> dict:
-    """Фиксированная сетка столбцов (без чтения docx-шаблона)."""
     return {
         "template": "hardcoded",
         "grid_cols": list(DEFAULT_GRID_COLS),
@@ -34,7 +34,6 @@ def hardcoded_layout() -> dict:
 
 
 def resolve_layout_template(templates_dir: Path | None = None) -> Path:
-    """Эталон для сетки: Шаблон.docx → *Шаблон* → ЮНС → любой docx в болванках."""
     templates_dir = Path(templates_dir or BOLVANKI_DIR)
     if not templates_dir.is_dir():
         raise FileNotFoundError(f"Папка болванок не найдена: {templates_dir}")
@@ -74,7 +73,6 @@ def _grid_cols_from_tbl(tbl) -> list[str]:
 
 
 def read_template_layout(template_path: Path) -> dict:
-    """Читает tblGrid и список ширин колонок из первой таблицы шаблона."""
     doc = Document(os.fspath(template_path))
     if not doc.tables:
         raise ValueError(f"В шаблоне нет таблиц: {template_path}")
@@ -103,34 +101,136 @@ def _grid_cumsum(grid_cols: list[str]) -> list[int]:
     return cs
 
 
-def apply_layout(doc, layout: dict | None = None):
-    """Фиксированная сетка столбцов (tblGrid + ширины ячеек по gridSpan)."""
+def _row_start_col(tr) -> int:
+    tr_pr = tr.find(qn("w:trPr"))
+    if tr_pr is None:
+        return 0
+    gb = tr_pr.find(qn("w:gridBefore"))
+    if gb is None:
+        return 0
+    return int(gb.get(qn("w:val"), 0))
+
+
+def _row_occupied_cols(tr, ncol: int) -> int:
+    col_idx = _row_start_col(tr)
+    for tc in tr.findall(qn("w:tc")):
+        if col_idx >= ncol:
+            break
+        tc_pr = tc.find(qn("w:tcPr"))
+        span = 1
+        if tc_pr is not None:
+            gs = tc_pr.find(qn("w:gridSpan"))
+            if gs is not None:
+                span = max(1, int(gs.get(qn("w:val"), 1)))
+            vm = tc_pr.find(qn("w:vMerge"))
+            if vm is not None and vm.get(qn("w:val")) != "restart":
+                col_idx += span
+                continue
+        col_idx += span
+    return col_idx
+
+
+def _normalize_row_tr(tr) -> None:
+    """Убирает gridBefore — частый артефакт, ломает подсчёт колонок."""
+    tr_pr = tr.find(qn("w:trPr"))
+    if tr_pr is None:
+        return
+    gb = tr_pr.find(qn("w:gridBefore"))
+    if gb is not None:
+        tr_pr.remove(gb)
+
+
+def _set_tc_width(tc, width_dxa: str) -> None:
+    tc_pr = tc.find(qn("w:tcPr"))
+    if tc_pr is None:
+        tc_pr = etree.SubElement(tc, qn("w:tcPr"))
+        tc.insert(0, tc_pr)
+    tc_w = tc_pr.find(qn("w:tcW"))
+    if tc_w is None:
+        tc_w = etree.SubElement(tc_pr, qn("w:tcW"))
+    tc_w.set(qn("w:w"), width_dxa)
+    tc_w.set(qn("w:type"), "dxa")
+
+
+def diagnose_table(tbl, grid_cols: list[str]) -> list[str]:
+    ncol = len(grid_cols)
+    issues: list[str] = []
+    rows = tbl.findall(qn("w:tr"))
+    tbl_grid = tbl.find(qn("w:tblGrid"))
+    file_ncol = len(tbl_grid.findall(qn("w:gridCol"))) if tbl_grid is not None else 0
+    if file_ncol and file_ncol != ncol:
+        issues.append(f"в файле {file_ncol} колонок сетки, ожид. {ncol}")
+    bad = []
+    for ri, tr in enumerate(rows):
+        occ = _row_occupied_cols(tr, ncol)
+        if occ != ncol:
+            bad.append(f"{ri + 1}({occ})")
+    if bad:
+        preview = ", ".join(bad[:6])
+        more = f" +{len(bad) - 6}" if len(bad) > 6 else ""
+        issues.append(f"битые строки: {preview}{more}")
+    return issues
+
+
+def diagnose_document(doc, layout: dict | None = None) -> list[str]:
+    grid_cols = (layout or {}).get("grid_cols") or list(DEFAULT_GRID_COLS)
+    out: list[str] = []
+    if not doc.tables:
+        out.append("нет таблиц")
+        return out
+    for i, table in enumerate(doc.tables):
+        tbl = table._tbl
+        nrows = len(table.rows)
+        issues = diagnose_table(tbl, grid_cols)
+        if issues:
+            out.append(f"табл.{i + 1} ({nrows} стр.): " + "; ".join(issues))
+    return out
+
+
+def _main_table_indices(doc) -> list[int]:
+    """Сетку вешаем на большую таблицу отчёта, мелкие не трогаем."""
+    if not doc.tables:
+        return []
+    scored = [(i, len(t.rows)) for i, t in enumerate(doc.tables)]
+    best_i, best_n = max(scored, key=lambda x: x[1])
+    if best_n >= MIN_ROWS_FOR_MAIN_TABLE:
+        return [best_i]
+    # fallback: все таблицы с хотя бы 3 строками
+    return [i for i, n in scored if n >= 3] or [0]
+
+
+def apply_layout(doc, layout: dict | None = None, only_main_table: bool = True) -> list[str]:
+    """Возвращает предупреждения по документу."""
     grid_cols = (layout or {}).get("grid_cols") or list(DEFAULT_GRID_COLS)
     cumsum = _grid_cumsum(grid_cols)
     table_width = str(cumsum[-1])
+    warnings = diagnose_document(doc, layout)
 
-    for table in doc.tables:
+    indices = _main_table_indices(doc) if only_main_table else list(range(len(doc.tables)))
+
+    for ti in indices:
+        table = doc.tables[ti]
         tbl = table._tbl
 
-        tblPr = tbl.find(qn("w:tblPr"))
-        if tblPr is None:
-            tblPr = etree.SubElement(tbl, qn("w:tblPr"))
-            tbl.insert(0, tblPr)
+        tbl_pr = tbl.find(qn("w:tblPr"))
+        if tbl_pr is None:
+            tbl_pr = etree.SubElement(tbl, qn("w:tblPr"))
+            tbl.insert(0, tbl_pr)
 
-        tblW = tblPr.find(qn("w:tblW"))
-        if tblW is None:
-            tblW = etree.SubElement(tblPr, qn("w:tblW"))
-        tblW.set(qn("w:w"), table_width)
-        tblW.set(qn("w:type"), "dxa")
+        tbl_w = tbl_pr.find(qn("w:tblW"))
+        if tbl_w is None:
+            tbl_w = etree.SubElement(tbl_pr, qn("w:tblW"))
+        tbl_w.set(qn("w:w"), table_width)
+        tbl_w.set(qn("w:type"), "dxa")
 
-        tblLayout = tblPr.find(qn("w:tblLayout"))
-        if tblLayout is None:
-            tblLayout = etree.SubElement(tblPr, qn("w:tblLayout"))
-        tblLayout.set(qn("w:type"), "fixed")
+        tbl_layout = tbl_pr.find(qn("w:tblLayout"))
+        if tbl_layout is None:
+            tbl_layout = etree.SubElement(tbl_pr, qn("w:tblLayout"))
+        tbl_layout.set(qn("w:type"), "fixed")
 
-        jc = tblPr.find(qn("w:jc"))
+        jc = tbl_pr.find(qn("w:jc"))
         if jc is None:
-            jc = etree.SubElement(tblPr, qn("w:jc"))
+            jc = etree.SubElement(tbl_pr, qn("w:jc"))
         jc.set(qn("w:val"), "center")
 
         old_grid = tbl.find(qn("w:tblGrid"))
@@ -138,45 +238,31 @@ def apply_layout(doc, layout: dict | None = None):
         if old_grid is not None:
             tbl.replace(old_grid, new_grid)
         else:
-            tblPr.addnext(new_grid)
+            tbl_pr.addnext(new_grid)
 
         for row in table.rows:
             tr = row._tr
+            _normalize_row_tr(tr)
             col_idx = 0
-            tr_pr = tr.find(qn("w:trPr"))
-            if tr_pr is not None:
-                gb = tr_pr.find(qn("w:gridBefore"))
-                if gb is not None:
-                    col_idx = int(gb.get(qn("w:val"), 0))
 
             for tc in tr.findall(qn("w:tc")):
                 if col_idx >= len(grid_cols):
                     break
 
-                tcPr = tc.find(qn("w:tcPr"))
-                if tcPr is None:
-                    tcPr = etree.SubElement(tc, qn("w:tcPr"))
-                    tc.insert(0, tcPr)
-
-                gs_el = tcPr.find(qn("w:gridSpan"))
-                span = int(gs_el.get(qn("w:val"))) if gs_el is not None else 1
-                span = max(1, min(span, len(grid_cols) - col_idx))
-
-                v_merge = tcPr.find(qn("w:vMerge"))
-                if v_merge is not None and v_merge.get(qn("w:val")) != "restart":
-                    # continuation-ячейка всё равно занимает колонки в этой строке,
-                    # иначе дальше ширины посчитаются со смещением.
-                    col_idx += span
-                    continue
+                tc_pr = tc.find(qn("w:tcPr"))
+                span = 1
+                if tc_pr is not None:
+                    gs = tc_pr.find(qn("w:gridSpan"))
+                    if gs is not None:
+                        span = max(1, int(gs.get(qn("w:val"), 1)))
+                span = min(span, len(grid_cols) - col_idx)
 
                 cell_w = str(cumsum[col_idx + span] - cumsum[col_idx])
-                tcW = tcPr.find(qn("w:tcW"))
-                if tcW is None:
-                    tcW = etree.SubElement(tcPr, qn("w:tcW"))
-                tcW.set(qn("w:w"), cell_w)
-                tcW.set(qn("w:type"), "dxa")
-
+                # Важно: ширину задаём и vMerge-continuation, иначе остаётся старый tcW
+                _set_tc_width(tc, cell_w)
                 col_idx += span
+
+    return warnings
 
 
 def main():
@@ -190,7 +276,9 @@ def main():
     layout = read_template_layout(template_path)
     doc = Document(os.fspath(input_path))
     print(f"Эталон: {template_path.name}, колонки: {layout['grid_cols']}")
-    apply_layout(doc, layout)
+    warns = apply_layout(doc, layout)
+    for w in warns:
+        print("WARN:", w)
 
     output_path = input_path.parent / f"{input_path.stem}_layout.docx"
     doc.save(os.fspath(output_path))
