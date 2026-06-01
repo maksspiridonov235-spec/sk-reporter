@@ -118,6 +118,20 @@ def apply_layout(doc, layout: dict | None = None):
             tblLayout = etree.SubElement(tblPr, qn("w:tblLayout"))
         tblLayout.set(qn("w:type"), "fixed")
 
+        # Стабилизируем геометрию таблицы между версиями Word:
+        # убираем отступ таблицы и межъячеечный интервал, влияющие на ширину.
+        tblInd = tblPr.find(qn("w:tblInd"))
+        if tblInd is None:
+            tblInd = etree.SubElement(tblPr, qn("w:tblInd"))
+        tblInd.set(qn("w:w"), "0")
+        tblInd.set(qn("w:type"), "dxa")
+
+        tblCellSpacing = tblPr.find(qn("w:tblCellSpacing"))
+        if tblCellSpacing is None:
+            tblCellSpacing = etree.SubElement(tblPr, qn("w:tblCellSpacing"))
+        tblCellSpacing.set(qn("w:w"), "0")
+        tblCellSpacing.set(qn("w:type"), "dxa")
+
         old_grid = tbl.find(qn("w:tblGrid"))
         new_grid = _build_tblGrid(grid_cols)
         if old_grid is not None:
