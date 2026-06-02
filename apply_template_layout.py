@@ -20,17 +20,9 @@ BOLVANKI_DIR = (
 # 6 колонок — эталон без изменений (не трогать при подготовке)
 DEFAULT_GRID_COLS = ["2041", "1757", "1787", "1898", "1701", "1646"]
 
-# 7 колонок (Громов и др.): первые 5 как у 6-кол., 6-я = подпись, 7-я = значение договора
-_CONTRACT_LABEL_DXA = 550
-
-
-def _build_7_col_grid() -> list[str]:
-    contract_total = int(DEFAULT_GRID_COLS[5])
-    value_w = contract_total - _CONTRACT_LABEL_DXA
-    return list(DEFAULT_GRID_COLS[:5]) + [str(_CONTRACT_LABEL_DXA), str(value_w)]
-
-
-DEFAULT_GRID_COLS_7 = _build_7_col_grid()
+# 7 колонок (Громов и др.): все 6 эталонных + узкая 7-я (355 dxa).
+# Не делим 1646 на 550+1096 — иначе блок договора не совпадает с 6-кол. эталоном.
+DEFAULT_GRID_COLS_7 = list(DEFAULT_GRID_COLS) + ["355"]
 ROW_HEIGHT = "340"
 ROW_HEIGHT_RULE = "atLeast"
 MIN_ROW_HEIGHT_CM = 0.6
@@ -245,7 +237,7 @@ def apply_layout(doc, layout: dict | None = None, only_main_table: bool = True) 
         tbl = table._tbl
         grid_cols = _grid_cols_for_table(tbl, standard_cols)
         cumsum = _grid_cumsum(grid_cols)
-        table_width = str(cumsum[-1])
+        grid_total = cumsum[-1]
 
         tbl_pr = tbl.find(qn("w:tblPr"))
         if tbl_pr is None:
@@ -255,6 +247,14 @@ def apply_layout(doc, layout: dict | None = None, only_main_table: bool = True) 
         tbl_w = tbl_pr.find(qn("w:tblW"))
         if tbl_w is None:
             tbl_w = etree.SubElement(tbl_pr, qn("w:tblW"))
+        # 7 колонок: не перезаписываем внешнюю ширину (часто уже 10830 dxa) — только сетку внутри
+        existing_tw = tbl_w.get(qn("w:w"))
+        if len(grid_cols) == 7 and existing_tw:
+            table_width = existing_tw
+            width_scale = int(existing_tw) / grid_total
+        else:
+            table_width = str(grid_total)
+            width_scale = 1.0
         tbl_w.set(qn("w:w"), table_width)
         tbl_w.set(qn("w:type"), "dxa")
 
@@ -292,7 +292,8 @@ def apply_layout(doc, layout: dict | None = None, only_main_table: bool = True) 
                         span = max(1, int(gs.get(qn("w:val"), 1)))
                 span = min(span, len(grid_cols) - col_idx)
 
-                cell_w = str(cumsum[col_idx + span] - cumsum[col_idx])
+                raw_w = cumsum[col_idx + span] - cumsum[col_idx]
+                cell_w = str(int(round(raw_w * width_scale)))
                 # Важно: ширину задаём и vMerge-continuation, иначе остаётся старый tcW
                 _set_tc_width(tc, cell_w)
                 col_idx += span
