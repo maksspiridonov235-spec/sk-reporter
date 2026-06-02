@@ -51,8 +51,10 @@ def hardcoded_layout() -> dict:
     """Совместимость со старым импортом в webapp/main.py."""
     return {
         "template": "hardcoded",
+        "grid_cols": list(GRID_COLS_6),
         "grid_cols_6": list(GRID_COLS_6),
         "grid_cols_7": list(GRID_COLS_7),
+        "tblGrid": None,
     }
 
 
