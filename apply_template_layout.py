@@ -20,9 +20,9 @@ BOLVANKI_DIR = (
 # 6 колонок — эталон без изменений (не трогать при подготовке)
 DEFAULT_GRID_COLS = ["2041", "1757", "1787", "1898", "1701", "1646"]
 
-# 7 колонок (Громов и др.): все 6 эталонных + узкая 7-я (355 dxa).
-# Не делим 1646 на 550+1096 — иначе блок договора не совпадает с 6-кол. эталоном.
-DEFAULT_GRID_COLS_7 = list(DEFAULT_GRID_COLS) + ["355"]
+# 7-кол. отчёты (Громов): в файле лишняя колонка — приводим к 6-кол. сетке
+# (объединяем 7c1+7c2 → 6c1, остальные по карте), ширины — эталон 6 колонок.
+_MAP_7COL_INDEX_TO_6COL = [0, 1, 1, 2, 3, 4, 5]
 ROW_HEIGHT = "340"
 ROW_HEIGHT_RULE = "atLeast"
 MIN_ROW_HEIGHT_CM = 0.6
@@ -34,7 +34,6 @@ def hardcoded_layout() -> dict:
     return {
         "template": "hardcoded",
         "grid_cols": list(DEFAULT_GRID_COLS),
-        "grid_cols_7": list(DEFAULT_GRID_COLS_7),
         "tblGrid": None,
     }
 
@@ -158,6 +157,86 @@ def _set_tc_width(tc, width_dxa: str) -> None:
     tc_w.set(qn("w:type"), "dxa")
 
 
+def _set_grid_span(tc, span: int) -> None:
+    tc_pr = tc.find(qn("w:tcPr"))
+    if tc_pr is None:
+        tc_pr = etree.SubElement(tc, qn("w:tcPr"))
+        tc.insert(0, tc_pr)
+    gs = tc_pr.find(qn("w:gridSpan"))
+    if span <= 1:
+        if gs is not None:
+            tc_pr.remove(gs)
+        return
+    if gs is None:
+        gs = etree.SubElement(tc_pr, qn("w:gridSpan"))
+    gs.set(qn("w:val"), str(span))
+
+
+def _remap_span_7_to_6(col7_start: int, span7: int) -> int:
+    end7 = min(col7_start + span7 - 1, 6)
+    c6_start = _MAP_7COL_INDEX_TO_6COL[col7_start]
+    c6_end = _MAP_7COL_INDEX_TO_6COL[end7]
+    return c6_end - c6_start + 1
+
+
+def _tc_is_vmerge_continue(tc) -> bool:
+    tc_pr = tc.find(qn("w:tcPr"))
+    if tc_pr is None:
+        return False
+    vm = tc_pr.find(qn("w:vMerge"))
+    return vm is not None and vm.get(qn("w:val")) != "restart"
+
+
+def _get_grid_span(tc) -> int:
+    tc_pr = tc.find(qn("w:tcPr"))
+    if tc_pr is None:
+        return 1
+    gs = tc_pr.find(qn("w:gridSpan"))
+    if gs is None:
+        return 1
+    return max(1, int(gs.get(qn("w:val"), 1)))
+
+
+def _normalize_7col_table_to_6col_grid(table) -> bool:
+    """Сжимает логическую 7-кол. разметку до 6-кол. эталона (gridSpan + tblGrid)."""
+    tbl = table._tbl
+    if _max_row_occupancy(tbl) < 7:
+        return False
+
+    for row in table.rows:
+        tr = row._tr
+        _normalize_row_tr(tr)
+        col7 = 0
+        new_spans: list[int] = []
+        tcs: list = []
+
+        for tc in tr.findall(qn("w:tc")):
+            if _tc_is_vmerge_continue(tc):
+                col7 += _get_grid_span(tc)
+                continue
+            span7 = _get_grid_span(tc)
+            span6 = _remap_span_7_to_6(col7, span7)
+            tcs.append(tc)
+            new_spans.append(span6)
+            col7 += span7
+
+        if not new_spans:
+            continue
+        if sum(new_spans) > 6:
+            # редкие пустые строки (2+3+1+1) — подгоняем без ломания структуры
+            while sum(new_spans) > 6:
+                i = max(range(len(new_spans)), key=lambda j: new_spans[j])
+                if new_spans[i] <= 1:
+                    break
+                new_spans[i] -= 1
+
+        for tc, span6 in zip(tcs, new_spans):
+            _set_grid_span(tc, span6)
+
+    return True
+
+
+
 
 def _max_row_occupancy(tbl) -> int:
     max_occ = 0
@@ -167,15 +246,13 @@ def _max_row_occupancy(tbl) -> int:
 
 
 def _grid_cols_for_table(tbl, standard_6: list[str]) -> list[str]:
-    """6 колонок → эталон 6 (как было); 7 колонок → отдельная сетка 7."""
-    file_cols = _grid_cols_from_tbl(tbl)
-    max_occ = _max_row_occupancy(tbl)
-
-    if max_occ >= 7 or len(file_cols) == 7:
-        return list(DEFAULT_GRID_COLS_7)
-    if max_occ == 6 or len(file_cols) == 6:
-        return list(standard_6)
+    """Всегда эталон 6 колонок (7-кол. таблицы предварительно нормализуются)."""
     return list(standard_6)
+
+
+def _table_needs_7_to_6_normalize(tbl) -> bool:
+    file_cols = _grid_cols_from_tbl(tbl)
+    return _max_row_occupancy(tbl) >= 7 or len(file_cols) == 7
 
 
 def diagnose_table(tbl, grid_cols: list[str]) -> list[str]:
@@ -228,16 +305,19 @@ def _main_table_indices(doc) -> list[int]:
 def apply_layout(doc, layout: dict | None = None, only_main_table: bool = True) -> list[str]:
     """Возвращает предупреждения по документу."""
     standard_cols = (layout or {}).get("grid_cols") or list(DEFAULT_GRID_COLS)
-    warnings = diagnose_document(doc, layout)
-
     indices = _main_table_indices(doc) if only_main_table else list(range(len(doc.tables)))
+
+    for ti in indices:
+        tbl = doc.tables[ti]._tbl
+        if _table_needs_7_to_6_normalize(tbl):
+            _normalize_7col_table_to_6col_grid(doc.tables[ti])
 
     for ti in indices:
         table = doc.tables[ti]
         tbl = table._tbl
         grid_cols = _grid_cols_for_table(tbl, standard_cols)
         cumsum = _grid_cumsum(grid_cols)
-        grid_total = cumsum[-1]
+        table_width = str(cumsum[-1])
 
         tbl_pr = tbl.find(qn("w:tblPr"))
         if tbl_pr is None:
@@ -247,14 +327,6 @@ def apply_layout(doc, layout: dict | None = None, only_main_table: bool = True) 
         tbl_w = tbl_pr.find(qn("w:tblW"))
         if tbl_w is None:
             tbl_w = etree.SubElement(tbl_pr, qn("w:tblW"))
-        # 7 колонок: не перезаписываем внешнюю ширину (часто уже 10830 dxa) — только сетку внутри
-        existing_tw = tbl_w.get(qn("w:w"))
-        if len(grid_cols) == 7 and existing_tw:
-            table_width = existing_tw
-            width_scale = int(existing_tw) / grid_total
-        else:
-            table_width = str(grid_total)
-            width_scale = 1.0
         tbl_w.set(qn("w:w"), table_width)
         tbl_w.set(qn("w:type"), "dxa")
 
@@ -292,12 +364,12 @@ def apply_layout(doc, layout: dict | None = None, only_main_table: bool = True) 
                         span = max(1, int(gs.get(qn("w:val"), 1)))
                 span = min(span, len(grid_cols) - col_idx)
 
-                raw_w = cumsum[col_idx + span] - cumsum[col_idx]
-                cell_w = str(int(round(raw_w * width_scale)))
+                cell_w = str(cumsum[col_idx + span] - cumsum[col_idx])
                 # Важно: ширину задаём и vMerge-continuation, иначе остаётся старый tcW
                 _set_tc_width(tc, cell_w)
                 col_idx += span
 
+    warnings = diagnose_document(doc, layout)
     return warnings
 
 
