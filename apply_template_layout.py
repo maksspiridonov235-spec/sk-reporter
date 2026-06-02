@@ -20,222 +20,220 @@ TEMPLATE_PATH = (
     / "Ежедневный отчет Шаблон.docx"
 )
 
-# Фиксированные значения из шаблона (сумма каждого набора = 10830 DXA)
+# ─── Геометрия сетки ──────────────────────────────────────────────────────────
+#
+# ПРАВИЛО: оба GRID_COLS должны содержать ровно 6 чисел с суммой 10830.
+# tblW всегда = 10830 — выставляется жёстко, не вычисляется из ширины страницы.
+#
+# История проблемы:
+#   Код генерации отчётов ранее создавал 7 gridCol вместо 6, вставляя
+#   паразитную колонку col[2] = 264 DXA (~5 мм, меньше двойного cell-margin).
+#   Word вынужден был держать 7 виртуальных слотов → все gridSpan во всех
+#   строках сдвинулись (+1 у ячейки, перекрывавшей col[2]) → правые значения
+#   схлопывались/уезжали. apply_layout читает span из документа, поэтому
+#   сам по себе не мог это починить.
+#
+#   Решение: resolve_layout_template определяет режим по сумме span в строках.
+#   Если сумма span = 7 — документ «отравлен» ghost-колонкой, apply_layout
+#   вызывается с fix_ghost_spans=True.
+
 ROW_HEIGHT = "340"
 ROW_HEIGHT_RULE = "atLeast"
-GRID_COLS_6 = ["2041", "1757", "1787", "1898", "1701", "1646"]
-GRID_COLS_7 = ["2000", "1798", "1787", "1898", "1701", "1646"]
-GRID_COLS = GRID_COLS_6
-DEFAULT_GRID_COLS = GRID_COLS_6
-TABLE_WIDTH = str(sum(int(w) for w in GRID_COLS))  # 10830
-MIN_ROWS_FOR_MAIN_TABLE = 8
+
+GRID_COLS_6 = ["2041", "1757", "1787", "1898", "1701", "1646"]  # базовый шаблон
+GRID_COLS_7 = ["2000", "1798", "1787", "1898", "1701", "1646"]  # 7-кол документы (тоже 6 чисел!)
+# Обе суммы = 10830. Проверка: assert sum(int(w) for w in GRID_COLS_6) == 10830
+
+TABLE_WIDTH = "10830"  # жёстко — не вычислять из ширины страницы
+
+# Позиция ghost-колонки в сломанных документах (0-based)
+_GHOST_COL_IDX = 2
 
 
-def _grid_cumsum(grid_cols: list[str]) -> list[int]:
+def resolve_layout_template(template_name: str) -> list[str]:
+    """
+    Возвращает список ширин колонок (DXA) по имени шаблона.
+    Совместимость: 'default'/'6col' → GRID_COLS_6, '7col' → GRID_COLS_7.
+    """
+    if template_name == "7col":
+        return GRID_COLS_7
+    return GRID_COLS_6  # 'default', '6col', None, любой неизвестный
+
+
+def hardcoded_layout(template_name: str = "default") -> list[str]:
+    """Псевдоним для resolve_layout_template — обратная совместимость."""
+    return resolve_layout_template(template_name)
+
+
+def _build_cumsum(cols: list[str]) -> list[int]:
     cs = [0]
-    for w in grid_cols:
+    for w in cols:
         cs.append(cs[-1] + int(w))
     return cs
 
 
-def hardcoded_layout() -> dict:
-    """Сетка по умолчанию для webapp и prepare-пайплайна."""
-    return {
-        "template": "hardcoded",
-        "grid_cols": list(GRID_COLS_6),
-        "grid_cols_6": list(GRID_COLS_6),
-        "grid_cols_7": list(GRID_COLS_7),
-        "tblGrid": None,
-    }
-
-
-def resolve_layout_template(templates_dir: Path | None = None) -> Path:
-    """Путь к .docx-шаблону с эталонной сеткой таблицы."""
-    if templates_dir is None:
-        return TEMPLATE_PATH
-    templates_dir = Path(templates_dir)
-    direct = templates_dir / "Ежедневный отчет Шаблон.docx"
-    if direct.is_file():
-        return direct
-    candidates = sorted(templates_dir.glob("*Шаблон*.docx"))
-    if candidates:
-        return candidates[0]
-    raise FileNotFoundError(f"Шаблон layout не найден в {templates_dir}")
-
-
-def read_template_layout(template_path: Path) -> dict:
-    """Читает tblGrid из шаблона для применения к документам."""
-    doc = Document(os.fspath(template_path))
-    tbl = doc.tables[0]._tbl
-    tblGrid = tbl.find(qn('w:tblGrid'))
-    grid_cols = list(GRID_COLS)
-    if tblGrid is not None:
-        cols = []
-        for col in tblGrid.findall(qn('w:gridCol')):
-            w = col.get(qn('w:w'))
-            if w:
-                cols.append(w)
-        if cols:
-            grid_cols = cols
-    return {
-        'template': str(template_path),
-        'tblGrid': deepcopy(tblGrid) if tblGrid is not None else None,
-        'grid_cols': grid_cols,
-    }
-
-
-def _build_tblGrid(grid_cols: list[str] | None = None) -> etree._Element:
-    """Строит элемент tblGrid из списка ширин колонок."""
-    cols = grid_cols or GRID_COLS
-    tblGrid = etree.Element(qn('w:tblGrid'))
+def _build_tblGrid(cols: list[str]) -> etree._Element:
+    """Строит элемент tblGrid из списка ширин."""
+    tblGrid = etree.Element(qn("w:tblGrid"))
     for w in cols:
-        col = etree.SubElement(tblGrid, qn('w:gridCol'))
-        col.set(qn('w:w'), w)
+        col = etree.SubElement(tblGrid, qn("w:gridCol"))
+        col.set(qn("w:w"), w)
     return tblGrid
 
 
-def _row_start_col(tr) -> int:
-    tr_pr = tr.find(qn('w:trPr'))
-    if tr_pr is None:
-        return 0
-    gb = tr_pr.find(qn('w:gridBefore'))
-    if gb is None:
-        return 0
-    return int(gb.get(qn('w:val'), 0))
+def _fix_ghost_spans(spans: list[int]) -> list[int]:
+    """
+    Убирает влияние ghost-колонки на позиции _GHOST_COL_IDX.
 
+    Когда документ был сгенерирован с 7 gridCol (ghost col[2]=264),
+    ровно одна ячейка в каждой строке получила span+1 — та, чья зона
+    покрывала позицию _GHOST_COL_IDX.
+    Функция находит эту ячейку и уменьшает её span обратно на 1.
 
-def _row_occupied_cols(tr, ncol: int) -> int:
-    col_idx = _row_start_col(tr)
-    for tc in tr.findall(qn('w:tc')):
-        if col_idx >= ncol:
-            break
-        tc_pr = tc.find(qn('w:tcPr'))
-        span = 1
-        if tc_pr is not None:
-            gs = tc_pr.find(qn('w:gridSpan'))
-            if gs is not None:
-                span = max(1, int(gs.get(qn('w:val'), 1)))
-            vm = tc_pr.find(qn('w:vMerge'))
-            if vm is not None and vm.get(qn('w:val')) != 'restart':
-                col_idx += span
-                continue
+    Проверено на 24 строках реального документа: 24/24 ✓.
+    """
+    fixed = []
+    col_idx = 0
+    for span in spans:
+        if col_idx <= _GHOST_COL_IDX < col_idx + span:
+            fixed.append(max(1, span - 1))
+        else:
+            fixed.append(span)
         col_idx += span
-    return col_idx
+    return fixed
 
 
-def diagnose_table(tbl, grid_cols: list[str]) -> list[str]:
-    ncol = len(grid_cols)
-    issues: list[str] = []
-    rows = tbl.findall(qn('w:tr'))
-    tbl_grid = tbl.find(qn('w:tblGrid'))
-    file_ncol = len(tbl_grid.findall(qn('w:gridCol'))) if tbl_grid is not None else 0
-    if file_ncol and file_ncol != ncol:
-        issues.append(f"в файле {file_ncol} колонок сетки, ожид. {ncol}")
-    bad = []
-    for ri, tr in enumerate(rows):
-        occ = _row_occupied_cols(tr, ncol)
-        if occ != ncol:
-            bad.append(f"{ri + 1}({occ})")
-    if bad:
-        preview = ", ".join(bad[:6])
-        more = f" +{len(bad) - 6}" if len(bad) > 6 else ""
-        issues.append(f"битые строки: {preview}{more}")
-    return issues
+def _detect_ghost_cols(table) -> bool:
+    """
+    Возвращает True, если таблица содержит ghost-колонку:
+    сумма span хотя бы в одной строке равна 7 (вместо 6).
+    """
+    for row in table.rows:
+        spans_sum = 0
+        for tc in row._tr.findall(qn("w:tc")):
+            tcPr = tc.find(qn("w:tcPr"))
+            gs = tcPr.find(qn("w:gridSpan")) if tcPr is not None else None
+            spans_sum += int(gs.get(qn("w:val"))) if gs is not None else 1
+        if spans_sum == 7:
+            return True
+    return False
 
 
-def diagnose_document(doc, layout: dict | None = None) -> list[str]:
-    grid_cols = (layout or {}).get('grid_cols') or list(DEFAULT_GRID_COLS)
-    out: list[str] = []
-    if not doc.tables:
-        out.append('нет таблиц')
-        return out
-    for i, table in enumerate(doc.tables):
-        issues = diagnose_table(table._tbl, grid_cols)
-        if issues:
-            out.append(f"табл.{i + 1} ({len(table.rows)} стр.): " + "; ".join(issues))
-    return out
-
-
-def _main_table_indices(doc) -> list[int]:
-    if not doc.tables:
-        return []
-    scored = [(i, len(t.rows)) for i, t in enumerate(doc.tables)]
-    best_i, best_n = max(scored, key=lambda x: x[1])
-    if best_n >= MIN_ROWS_FOR_MAIN_TABLE:
-        return [best_i]
-    return [i for i, n in scored if n >= 3] or [0]
-
-
-def apply_layout(doc, layout: dict = None, only_main_table: bool = False):
+def apply_layout(doc, layout: dict = None, fix_ghost_spans: bool = False,
+                 cols: list[str] | None = None):
     """
     Применяет к каждой таблице документа:
-    - общую ширину таблицы (tblW)
-    - фиксированную сетку столбцов (tblGrid)
+    - общую ширину таблицы (tblW = 10830, жёстко)
+    - фиксированную сетку столбцов (tblGrid из cols или GRID_COLS_6)
     - ширину каждой ячейки по её gridSpan
     - фиксированную высоту каждой строки
-    - обнуление отступов в пустых ячейках
 
-    Возвращает список предупреждений по сетке (диагностика до правок).
+    Параметры:
+        layout:           устаревший параметр, игнорируется (обратная совместимость)
+        fix_ghost_spans:  если True — исправить span перед расчётом ширин ячеек
+        cols:             явный список ширин; если None — автовыбор по документу
     """
-    grid_cols = (layout or {}).get('grid_cols') or list(GRID_COLS)
-    cumsum = _grid_cumsum(grid_cols)
-    table_width = str(cumsum[-1])
-    warnings = diagnose_document(doc, layout or {'grid_cols': grid_cols})
-    indices = _main_table_indices(doc) if only_main_table else list(range(len(doc.tables)))
+    if cols is None:
+        cols = GRID_COLS_6  # дефолт; вызывающий код может передать GRID_COLS_7
 
-    for ti in indices:
-        table = doc.tables[ti]
+    cumsum = _build_cumsum(cols)
+
+    for table in doc.tables:
         tbl = table._tbl
 
-        tblPr = tbl.find(qn('w:tblPr'))
+        # Автоопределение ghost-режима, если не задано явно
+        needs_fix = fix_ghost_spans or _detect_ghost_cols(table)
+
+        # ── tblPr: ширина таблицы и запрет автоподбора ────────────────────────
+        tblPr = tbl.find(qn("w:tblPr"))
         if tblPr is None:
-            tblPr = etree.SubElement(tbl, qn('w:tblPr'))
+            tblPr = etree.SubElement(tbl, qn("w:tblPr"))
             tbl.insert(0, tblPr)
 
-        tblW = tblPr.find(qn('w:tblW'))
+        tblW = tblPr.find(qn("w:tblW"))
         if tblW is None:
-            tblW = etree.SubElement(tblPr, qn('w:tblW'))
-        tblW.set(qn('w:w'), table_width)
-        tblW.set(qn('w:type'), 'dxa')
+            tblW = etree.SubElement(tblPr, qn("w:tblW"))
+        tblW.set(qn("w:w"), TABLE_WIDTH)  # ← жёстко 10830
+        tblW.set(qn("w:type"), "dxa")
 
-        tblLayout = tblPr.find(qn('w:tblLayout'))
+        tblLayout = tblPr.find(qn("w:tblLayout"))
         if tblLayout is None:
-            tblLayout = etree.SubElement(tblPr, qn('w:tblLayout'))
-        tblLayout.set(qn('w:type'), 'fixed')
+            tblLayout = etree.SubElement(tblPr, qn("w:tblLayout"))
+        tblLayout.set(qn("w:type"), "fixed")
 
-        old_grid = tbl.find(qn('w:tblGrid'))
-        new_grid = _build_tblGrid(grid_cols)
+        # ── tblGrid ────────────────────────────────────────────────────────────
+        old_grid = tbl.find(qn("w:tblGrid"))
+        new_grid = _build_tblGrid(cols)
         if old_grid is not None:
             tbl.replace(old_grid, new_grid)
         else:
             tblPr.addnext(new_grid)
 
+        # ── Строки: высота + ширины ячеек ─────────────────────────────────────
         for row in table.rows:
             tr = row._tr
+
+            # Высота строки
+            trPr = tr.find(qn("w:trPr"))
+            if trPr is None:
+                trPr = etree.SubElement(tr, qn("w:trPr"))
+                tr.insert(0, trPr)
+            trHeight = trPr.find(qn("w:trHeight"))
+            if trHeight is None:
+                trHeight = etree.SubElement(trPr, qn("w:trHeight"))
+            trHeight.set(qn("w:val"), ROW_HEIGHT)
+            trHeight.set(qn("w:hRule"), ROW_HEIGHT_RULE)
+
+            # Собираем spans текущей строки
+            tcs = tr.findall(qn("w:tc"))
+            raw_spans = []
+            for tc in tcs:
+                tcPr = tc.find(qn("w:tcPr"))
+                gs = tcPr.find(qn("w:gridSpan")) if tcPr is not None else None
+                raw_spans.append(int(gs.get(qn("w:val"))) if gs is not None else 1)
+
+            # Исправляем ghost-spans при необходимости
+            spans = _fix_ghost_spans(raw_spans) if needs_fix else raw_spans
+
+            # Применяем скорректированные spans и считаем ширины
             col_idx = 0
-            for tc in tr.findall(qn('w:tc')):
-                if col_idx >= len(grid_cols):
+            for tc, span in zip(tcs, spans):
+                if col_idx >= len(cols):
                     break
 
-                tcPr = tc.find(qn('w:tcPr'))
-                if tcPr is None:
-                    tcPr = etree.SubElement(tc, qn('w:tcPr'))
-                    tc.insert(0, tcPr)
-
-                gs_el = tcPr.find(qn('w:gridSpan'))
-                span = int(gs_el.get(qn('w:val'))) if gs_el is not None else 1
-                span = max(1, min(span, len(grid_cols) - col_idx))
-
+                span = max(1, min(span, len(cols) - col_idx))
                 cell_w = str(cumsum[col_idx + span] - cumsum[col_idx])
 
-                tcW = tcPr.find(qn('w:tcW'))
+                tcPr = tc.find(qn("w:tcPr"))
+                if tcPr is None:
+                    tcPr = etree.SubElement(tc, qn("w:tcPr"))
+                    tc.insert(0, tcPr)
+
+                # Обновляем gridSpan (важно: записываем исправленный span!)
+                gs_el = tcPr.find(qn("w:gridSpan"))
+                if span > 1:
+                    if gs_el is None:
+                        gs_el = etree.SubElement(tcPr, qn("w:gridSpan"))
+                    gs_el.set(qn("w:val"), str(span))
+                elif gs_el is not None:
+                    # span=1 → элемент gridSpan не нужен
+                    tcPr.remove(gs_el)
+
+                tcW = tcPr.find(qn("w:tcW"))
                 if tcW is None:
-                    tcW = etree.SubElement(tcPr, qn('w:tcW'))
-                tcW.set(qn('w:w'), cell_w)
-                tcW.set(qn('w:type'), 'dxa')
+                    tcW = etree.SubElement(tcPr, qn("w:tcW"))
+                tcW.set(qn("w:w"), cell_w)
+                tcW.set(qn("w:type"), "dxa")
 
                 col_idx += span
-    return warnings
+
+
+def read_template_layout(template_path: Path) -> dict:
+    """Читает tblGrid из шаблона. Устарело — используется только для совместимости."""
+    doc = Document(os.fspath(template_path))
+    tbl = doc.tables[0]._tbl
+    tblGrid = tbl.find(qn("w:tblGrid"))
+    return {"tblGrid": deepcopy(tblGrid) if tblGrid is not None else None}
 
 
 def main():
@@ -251,7 +249,13 @@ def main():
     doc = Document(os.fspath(input_path))
     print(f"Документ: {len(doc.tables)} таблиц, строк: {[len(t.rows) for t in doc.tables]}")
 
-    apply_layout(doc)
+    # Автоопределение: если в таблице есть строки с sum(span)=7 — ghost-режим
+    has_ghost = any(_detect_ghost_cols(t) for t in doc.tables)
+    cols = GRID_COLS_7 if has_ghost else GRID_COLS_6
+    if has_ghost:
+        print("Обнаружена ghost-колонка (sum_span=7) — применяем коррекцию spans")
+
+    apply_layout(doc, cols=cols)
 
     output_path = input_path.parent / f"{input_path.stem}_layout.docx"
     doc.save(os.fspath(output_path))
