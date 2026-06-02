@@ -24,7 +24,6 @@ TEMPLATE_PATH = (
 ROW_HEIGHT = "340"
 ROW_HEIGHT_RULE = "atLeast"
 GRID_COLS_6 = ["2041", "1757", "1787", "1898", "1701", "1646"]
-# Временно держим 7-колоночный набор тем же по ширинам.
 GRID_COLS_7 = ["2041", "1757", "1787", "1898", "1701", "1646"]
 GRID_COLS = GRID_COLS_6
 TABLE_WIDTH = str(sum(int(w) for w in GRID_COLS))  # 10830
@@ -44,6 +43,31 @@ def read_template_layout(template_path: Path) -> dict:
     return {'tblGrid': deepcopy(tblGrid) if tblGrid is not None else None}
 
 
+def hardcoded_layout() -> dict:
+    """Совместимость со старой версией webapp/main.py."""
+    return {
+        "template": "hardcoded",
+        "grid_cols": list(GRID_COLS_6),
+        "grid_cols_6": list(GRID_COLS_6),
+        "grid_cols_7": list(GRID_COLS_7),
+        "tblGrid": None,
+    }
+
+
+def resolve_layout_template(templates_dir: Path | None = None) -> Path:
+    """Совместимость со старой версией webapp/main.py."""
+    if templates_dir is None:
+        return TEMPLATE_PATH
+    templates_dir = Path(templates_dir)
+    direct = templates_dir / "Ежедневный отчет Шаблон.docx"
+    if direct.exists():
+        return direct
+    candidates = sorted(templates_dir.glob("*Шаблон*.docx"))
+    if candidates:
+        return candidates[0]
+    raise FileNotFoundError(f"Шаблон layout не найден в {templates_dir}")
+
+
 def _build_tblGrid() -> etree._Element:
     """Строит элемент tblGrid из фиксированных значений."""
     tblGrid = etree.Element(qn('w:tblGrid'))
@@ -53,7 +77,7 @@ def _build_tblGrid() -> etree._Element:
     return tblGrid
 
 
-def apply_layout(doc, layout: dict = None):
+def apply_layout(doc, layout: dict = None, only_main_table: bool = False):
     """
     Применяет к каждой таблице документа:
     - общую ширину таблицы (tblW)
@@ -62,6 +86,8 @@ def apply_layout(doc, layout: dict = None):
     - фиксированную высоту каждой строки
     - обнуление отступов в пустых ячейках
     """
+    _ = layout
+    _ = only_main_table
     for table in doc.tables:
         tbl = table._tbl
 
@@ -119,6 +145,7 @@ def apply_layout(doc, layout: dict = None):
                 tcW.set(qn('w:type'), 'dxa')
 
                 col_idx += span
+    return []
 
 
 def main():
