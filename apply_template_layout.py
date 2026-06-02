@@ -17,22 +17,25 @@ BOLVANKI_DIR = (
     / "болванки (шаблоны не вырезать только копировать)"
 )
 
-# 6 колонок — эталон без изменений (не трогать при подготовке)
-DEFAULT_GRID_COLS = ["2041", "1757", "1787", "1898", "1701", "1646"]
+# 6 колонок — исходный эталон (Пряхин и большинство отчётов)
+DEFAULT_GRID_COLS_6 = ["2041", "1757", "1787", "1898", "1701", "1646"]
 
-# 7-кол. Громов: сетка 2041…1701 + (1291+355|550+1096) = 7-я и 6-я = блок договора.
-# Приводим к 6-кол. эталону: первые 5 gridCol совпадают, 6-я+7-я → одна 6-я (1646),
-# плюс в строках «Отчет №» схлопываем gridCol 1+2 в одну ячейку.
-# В шапке заказчика span5→span4 (убирается лишняя 1701 dxa из блока «ДАННЫЕ»).
-# В «Название/ООО» span4→span3 (то же). Договор: «Номер»+значение → кол.4+5 эталона.
+# 7 колонок — целевая сетка Громова для всех таблиц после prepare/merge
+# Первые 5 = как эталон, 6+7 = блок договора (1291+355 = 1646)
+_GROMOV_CONTRACT_LABEL_DXA = "1291"
+_GROMOV_CONTRACT_VALUE_DXA = "355"
+DEFAULT_GRID_COLS = list(DEFAULT_GRID_COLS_6[:5]) + [
+    _GROMOV_CONTRACT_LABEL_DXA,
+    _GROMOV_CONTRACT_VALUE_DXA,
+]
 
-# Эталон 6-кол. (Пряхин) — образец раскладки строк
+# Эталон 6-кол. — образец раскладки строк (источник для 6→7)
 ETALON_REPORT_PATH = (
     Path(__file__).parent
     / "Ежедневный отчет (ЮНС) от 26.04.2026 г. (БКНС-4) Пряхин И.Н..docx"
 )
 
-# Сопоставление gridSpan 7→6: выведено из пар строк gromov7 ↔ эталон (один шаблон)
+# gridSpan 7→6 (справочно); для prepare используем обратное 6→7
 _SPAN_PATTERN_7_TO_6: dict[tuple[int, ...], tuple[int, ...]] = {
     (4, 1, 1, 1): (3, 1, 1, 1),
     (1, 2, 1, 3): (1, 1, 1, 3),
@@ -49,6 +52,9 @@ _SPAN_PATTERN_7_TO_6: dict[tuple[int, ...], tuple[int, ...]] = {
     (3, 1, 1, 1, 1): (2, 1, 1, 1, 1),
     (2, 3, 1, 1): (2, 2, 1, 1),
 }
+_SPAN_PATTERN_6_TO_7: dict[tuple[int, ...], tuple[int, ...]] = {
+    v: k for k, v in _SPAN_PATTERN_7_TO_6.items()
+}
 
 _etalon_spans_by_signature: dict[str, tuple[int, ...]] | None = None
 ROW_HEIGHT = "340"
@@ -62,6 +68,7 @@ def hardcoded_layout() -> dict:
     return {
         "template": "hardcoded",
         "grid_cols": list(DEFAULT_GRID_COLS),
+        "grid_cols_6": list(DEFAULT_GRID_COLS_6),
         "tblGrid": None,
     }
 
@@ -218,6 +225,23 @@ def _get_grid_span(tc) -> int:
     return max(1, int(gs.get(qn("w:val"), 1)))
 
 
+
+def _col6_index_to_col7(col6: int) -> int:
+    """Обратное к 7→6: между 6c1 и 6c2 вставляется доп. gridCol в 7-кол."""
+    if col6 <= 0:
+        return 0
+    if col6 == 1:
+        return 1
+    return col6 + 1
+
+
+def _remap_span_6_to_7(col6_start: int, span6: int) -> int:
+    end6 = col6_start + span6 - 1
+    c7_start = _col6_index_to_col7(col6_start)
+    c7_end = _col6_index_to_col7(end6)
+    return c7_end - c7_start + 1
+
+
 def _row_span_pattern(tr) -> tuple[int, ...]:
     spans: list[int] = []
     for tc in tr.findall(qn("w:tc")):
@@ -268,62 +292,79 @@ def _load_etalon_span_signatures() -> dict[str, tuple[int, ...]]:
     return out
 
 
-def _target_spans_6_for_7col_row(tr, pattern7: tuple[int, ...], n_cells: int) -> tuple[int, ...] | None:
-    if pattern7 in _SPAN_PATTERN_7_TO_6:
-        target = _SPAN_PATTERN_7_TO_6[pattern7]
+def _row_span_pattern_6(tr) -> tuple[int, ...] | None:
+    spans = _row_span_pattern(tr)
+    if not spans or sum(spans) != 6:
+        return None
+    return spans
+
+
+def _target_spans_7_for_6col_row(tr, pattern6: tuple[int, ...], n_cells: int) -> tuple[int, ...] | None:
+    if pattern6 in _SPAN_PATTERN_6_TO_7:
+        target = _SPAN_PATTERN_6_TO_7[pattern6]
         if len(target) == n_cells:
             return target
 
-    lookup = _load_etalon_span_signatures()
-    sig = _row_signature(tr)
-    if sig in lookup and len(lookup[sig]) == n_cells:
-        return lookup[sig]
-    parts = sig.split("||")
-    if parts and parts[0] in lookup and len(lookup[parts[0]]) == n_cells:
-        return lookup[parts[0]]
+    parts = _row_signature(tr).split("||")
+    head = parts[0] if parts else ""
 
-    # Типовые строки по ключевым словам (как в эталоне)
-    head = parts[0] if parts else sig
     if "статус строительного" in head:
-        return (2, 1, 1, 1, 1) if n_cells == 5 else None
-    if "описание действий" in head:
-        return (4, 1, 1) if n_cells == 3 else None
+        return (3, 1, 1, 1, 1) if n_cells == 5 else None
+    if "описание действий" in head or (head and head[0].isdigit() and "." in head[:4]):
+        return (5, 1, 1) if n_cells == 3 else None
     if "погодная характеристика" in head:
-        return (1, 3, 2) if n_cells == 3 else None
-    if head in ("+10°с", "+15°с", "+20°с") or (head.startswith("+") and "°" in head):
-        return (1, 3, 2) if n_cells == 3 else None
+        return (1, 4, 2) if n_cells == 3 else None
+    if head.startswith("+") and "°" in head:
+        return (1, 4, 2) if n_cells == 3 else None
     if "результат строительного" in head:
-        return (6,) if n_cells == 1 else None
+        return (7,) if n_cells == 1 else None
+    if "данные заказчика" in head:
+        return (5, 2) if n_cells == 2 else None
+    if head in ("тел.:", "тел:"):
+        return (1, 3, 2, 1) if n_cells == 4 else None
+    if not head.strip() and pattern6 == (2, 2, 1, 1):
+        return (2, 3, 1, 1)
 
     return None
 
 
-def _normalize_7col_table_to_6col_grid(table) -> bool:
-    """7-кол. → 6-кол.: gridSpan как в эталоне (по типу строки), без «минус одна колонка» вслепую."""
-    tbl = table._tbl
-    if _max_row_occupancy(tbl) < 7:
-        return False
-
+def _normalize_6col_table_to_7col_grid(table) -> bool:
+    """6-кол. отчёт → раскладка строк как у Громова (7 gridCol)."""
+    changed = False
     for row in table.rows:
         tr = row._tr
         _normalize_row_tr(tr)
-        pattern7 = _row_span_pattern_7(tr)
-        if pattern7 is None:
+        if _row_occupied_cols(tr, 8) != 6:
             continue
 
         tcs = [tc for tc in tr.findall(qn("w:tc")) if not _tc_is_vmerge_continue(tc)]
         if not tcs:
             continue
 
-        target = _target_spans_6_for_7col_row(tr, pattern7, len(tcs))
-        if target is None:
-            continue
-        for tc, span6 in zip(tcs, target):
-            _set_grid_span(tc, span6)
+        pattern6 = _row_span_pattern_6(tr)
+        target = None
+        if pattern6 is not None:
+            target = _target_spans_7_for_6col_row(tr, pattern6, len(tcs))
+            if target is not None and len(target) != len(tcs):
+                target = None
 
-    return True
+        if len(tcs) == 2 and sum(_get_grid_span(tc) for tc in tcs) == 4:
+            # подписи с vMerge: две видимые ячейки span2+span2 → 4+3
+            _set_grid_span(tcs[0], 4)
+            _set_grid_span(tcs[1], 3)
+        else:
+            col6 = 0
+            for i, tc in enumerate(tcs):
+                span6 = _get_grid_span(tc)
+                if target is not None:
+                    span7 = target[i]
+                else:
+                    span7 = _remap_span_6_to_7(col6, span6)
+                _set_grid_span(tc, span7)
+                col6 += span6
+        changed = True
 
-
+    return changed
 
 
 def _max_row_occupancy(tbl) -> int:
@@ -333,14 +374,16 @@ def _max_row_occupancy(tbl) -> int:
     return max_occ
 
 
-def _grid_cols_for_table(tbl, standard_6: list[str]) -> list[str]:
-    """Всегда эталон 6 колонок (7-кол. таблицы предварительно нормализуются)."""
-    return list(standard_6)
+def _grid_cols_for_table(tbl, layout_cols: list[str] | None = None) -> list[str]:
+    """Целевая сетка — 7 колонок (Громов) для всех отчётных таблиц."""
+    return list(DEFAULT_GRID_COLS)
 
 
-def _table_needs_7_to_6_normalize(tbl) -> bool:
-    file_cols = _grid_cols_from_tbl(tbl)
-    return _max_row_occupancy(tbl) >= 7 or len(file_cols) == 7
+def _table_needs_6_to_7_normalize(tbl) -> bool:
+    """Есть 6-колоночные строки — разворачиваем в 7 (сетка Громова)."""
+    if _max_row_occupancy(tbl) >= 7 and len(_grid_cols_from_tbl(tbl)) >= 7:
+        return False
+    return _max_row_occupancy(tbl) <= 6 or len(_grid_cols_from_tbl(tbl)) <= 6
 
 
 def diagnose_table(tbl, grid_cols: list[str]) -> list[str]:
@@ -364,7 +407,7 @@ def diagnose_table(tbl, grid_cols: list[str]) -> list[str]:
 
 
 def diagnose_document(doc, layout: dict | None = None) -> list[str]:
-    standard = (layout or {}).get("grid_cols") or list(DEFAULT_GRID_COLS)
+    standard = list(DEFAULT_GRID_COLS)
     out: list[str] = []
     if not doc.tables:
         out.append("нет таблиц")
@@ -372,7 +415,7 @@ def diagnose_document(doc, layout: dict | None = None) -> list[str]:
     for i, table in enumerate(doc.tables):
         tbl = table._tbl
         nrows = len(table.rows)
-        expected = _grid_cols_for_table(tbl, standard)
+        expected = _grid_cols_for_table(tbl)
         issues = diagnose_table(tbl, expected)
         if issues:
             out.append(f"табл.{i + 1} ({nrows} стр.): " + "; ".join(issues))
@@ -392,18 +435,16 @@ def _main_table_indices(doc) -> list[int]:
 
 def apply_layout(doc, layout: dict | None = None, only_main_table: bool = True) -> list[str]:
     """Возвращает предупреждения по документу."""
-    standard_cols = (layout or {}).get("grid_cols") or list(DEFAULT_GRID_COLS)
+    target_cols = list(DEFAULT_GRID_COLS)
     indices = _main_table_indices(doc) if only_main_table else list(range(len(doc.tables)))
-
-    for ti in indices:
-        tbl = doc.tables[ti]._tbl
-        if _table_needs_7_to_6_normalize(tbl):
-            _normalize_7col_table_to_6col_grid(doc.tables[ti])
 
     for ti in indices:
         table = doc.tables[ti]
         tbl = table._tbl
-        grid_cols = _grid_cols_for_table(tbl, standard_cols)
+        if _table_needs_6_to_7_normalize(tbl):
+            _normalize_6col_table_to_7col_grid(table)
+
+        grid_cols = _grid_cols_for_table(tbl)
         cumsum = _grid_cumsum(grid_cols)
         table_width = str(cumsum[-1])
 
