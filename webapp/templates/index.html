@@ -122,7 +122,7 @@
       display: none; font-size: 12px; color: #374151;
       background: #f9fafb; border: 1px solid #e5e7eb;
       border-radius: 6px; padding: 10px 12px;
-      max-height: 480px; overflow-y: auto;
+      max-height: 260px; overflow-y: auto;
     }
     .detail-block.open { display: block; }
     .detail-row {
@@ -132,10 +132,6 @@
     .detail-row:last-child { border-bottom: none; }
     .detail-icon { width: 16px; text-align: center; flex-shrink: 0; }
     .detail-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .detail-name.wrap { white-space: normal; overflow: visible; text-overflow: unset; line-height: 1.4; }
-    .detail-row.indent { padding-left: 18px; }
-    .detail-row.file-row .detail-name { font-weight: 600; }
-    .db-warn { background: #fef3c7; color: #92400e; }
     .detail-badge {
       font-size: 11px; padding: 1px 7px; border-radius: 10px; flex-shrink: 0;
     }
@@ -259,11 +255,16 @@
 
     <div>
       <div class="section-title">Макросы (до сборки)</div>
-      <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">Дата в отчёте</label>
-      <input type="date" id="macroReportDate" style="width:100%;padding:6px 8px;margin-bottom:8px;border:1px solid #ccc;border-radius:6px;font-size:13px"/>
-      <button class="btn btn-green" style="margin-bottom:8px" id="btnPrepare" onclick="prepareReports()">Подготовить отчёты</button>
-      <div style="font-size:11px;color:#888;margin-bottom:8px">Заливка, шрифт, макеты, картинки 5,33×4 см, дата, строки, сетка.</div>
-      <div style="font-size:11px;color:#888;margin-bottom:8px">Заливка, шрифт, макеты, картинки, дата, строки, сетка. Подробный лог — в центре.</div>
+      <button class="btn btn-blue" style="margin-bottom:6px"
+              onclick="runMacro('HighlightSecondRow_No5991')">Выделить 2-ю строку таблиц</button>
+      <button class="btn btn-blue" style="margin-bottom:6px"
+              onclick="runMacro('NewMacros')">Форматировать документ</button>
+      <div class="btn-row" style="margin-bottom:6px">
+        <button class="btn btn-orange" onclick="runMacro('ReplaceDateInReportLine')">Дата → сегодня</button>
+        <button class="btn btn-orange" onclick="runMacro('ReplaceDateInReportLine2')">Дата → вчера</button>
+      </div>
+      <button class="btn btn-blue"
+              onclick="runMacro('ApplyTemplateLayout')">Применить размеры шаблона</button>
     </div>
 
     <hr class="divider"/>
@@ -387,8 +388,7 @@
     txt.textContent = msg;
   }
 
-  function finalizeOpCard(card, statusId, stats, details, fileCards, options) {
-    options = options || {};
+  function finalizeOpCard(card, statusId, stats, details, fileCards) {
     const liveEl = document.getElementById(statusId);
     if (liveEl) liveEl.remove();
 
@@ -399,20 +399,12 @@
     ).join('');
     card.appendChild(statsContainer);
 
-    if (options.meta) {
-      const metaEl = document.createElement('div');
-      metaEl.style.cssText = 'font-size:12px;color:#6b7280;margin-top:6px';
-      metaEl.textContent = options.meta;
-      card.appendChild(metaEl);
-    }
-
-    const hasFileCards = Array.isArray(fileCards) && fileCards.length > 0;
-    const hasDetails = (details && details.length) || hasFileCards;
+    const hasDetails = (details && details.length) || (fileCards && fileCards.length);
     if (hasDetails) {
       const detailId = 'det_' + Date.now() + '_' + Math.random().toString(36).slice(2);
       const toggleBtn = document.createElement('button');
       toggleBtn.className = 'detail-toggle';
-      toggleBtn.textContent = options.expandDetails ? 'Подробности ▲' : 'Подробности ▼';
+      toggleBtn.textContent = 'Подробности ▼';
       toggleBtn.onclick = () => {
         const block = document.getElementById(detailId);
         block.classList.toggle('open');
@@ -421,24 +413,23 @@
       card.appendChild(toggleBtn);
 
       const detailBlock = document.createElement('div');
-      detailBlock.className = 'detail-block' + (options.expandDetails ? ' open' : '');
+      detailBlock.className = 'detail-block';
       detailBlock.id = detailId;
 
       if (details && details.length) {
         details.forEach(d => {
           const row = document.createElement('div');
-          row.className = 'detail-row' + (d.indent ? ' indent' : '') + (d.fileRow ? ' file-row' : '');
-          const nameCls = 'detail-name' + (d.wrap ? ' wrap' : '');
+          row.className = 'detail-row';
           row.innerHTML = `
             <span class="detail-icon">${d.icon || ''}</span>
-            <span class="${nameCls}" title="${escHtml(d.name)}">${escHtml(d.name)}</span>
+            <span class="detail-name" title="${escHtml(d.name)}">${escHtml(d.name)}</span>
             ${d.badge ? `<span class="detail-badge ${d.badgeClass || ''}">${escHtml(d.badge)}</span>` : ''}
           `;
           detailBlock.appendChild(row);
         });
       }
 
-      if (hasFileCards) {
+      if (fileCards && fileCards.length) {
         fileCards.forEach(fc => detailBlock.appendChild(fc));
       }
 
@@ -486,7 +477,17 @@
   async function apiFetch(url, options = {}, statusId) {
     try {
       const res = await fetch(url, options);
-      const data = await res.json();
+      const contentType = res.headers.get('content-type') || '';
+      let data = null;
+
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        // Some backend failures return plain text like "Internal Server Error".
+        data = { detail: text || res.statusText };
+      }
+
       if (!res.ok) throw new Error(data.detail || res.statusText);
       return data;
     } catch (e) {
@@ -669,96 +670,31 @@
 
   // ── Макросы ───────────────────────────────────────────────────────────────
 
-  (function initMacroDate() {
-    const el = document.getElementById('macroReportDate');
-    if (el) el.value = new Date().toISOString().slice(0, 10);
-  })();
-
-
-  function logLinesToDetails(log, extra) {
-    const details = [];
-    extra = extra || {};
-    if (extra.meta) {
-      details.push({ icon: 'ℹ', name: extra.meta, wrap: true, badge: 'Параметры', badgeClass: '' });
-    }
-    if (extra.grid_cols && extra.grid_cols.length) {
-      details.push({
-        icon: '⊞',
-        name: 'Колонки (dxa): ' + extra.grid_cols.join(' + '),
-        wrap: true,
-        badge: 'Сетка',
-        badgeClass: '',
-      });
-    }
-    for (const line of (Array.isArray(log) ? log : [])) {
-      const isErr = line.startsWith('[ERR]');
-      const body = line.replace(/^\[(OK|ERR)\]\s*/, '');
-      const colon = body.indexOf(':');
-      if (colon > 0) {
-        const file = body.slice(0, colon).trim();
-        const rest = body.slice(colon + 1).trim();
-        details.push({
-          icon: isErr ? '✗' : '📄',
-          name: file,
-          badge: isErr ? 'Ошибка' : 'Файл',
-          badgeClass: isErr ? 'db-err' : 'db-ok',
-          fileRow: true,
-        });
-        if (rest) {
-          rest.split(/,\s*/).forEach((part, i) => {
-            const p = part.trim();
-            if (!p) return;
-            const warn = p.includes('⚠');
-            details.push({
-              icon: warn ? '⚠' : '→',
-              name: p,
-              badge: warn ? 'Внимание' : ('Шаг ' + (i + 1)),
-              badgeClass: warn ? 'db-warn' : '',
-              wrap: true,
-              indent: true,
-            });
-          });
-        }
-      } else {
-        details.push({
-          icon: isErr ? '✗' : '✓',
-          name: body,
-          badge: isErr ? 'Ошибка' : 'OK',
-          badgeClass: isErr ? 'db-err' : 'db-ok',
-          wrap: true,
-        });
-      }
-    }
-    return details;
-  }
-
-  async function prepareReports() {
-    const btn = document.getElementById('btnPrepare');
-    const dateVal = document.getElementById('macroReportDate')?.value || null;
-    if (!btn) return;
-    btn.disabled = true;
-    const { card, statusId } = createOpCard('Подготовка отчётов');
-    setCardStatus(statusId, 'Заливка, шрифт, макеты, картинки, дата, строки, сетка...');
+  async function runMacro(name) {
+    const names = {
+      'HighlightSecondRow_No5991': 'Выделение 2-й строки таблиц',
+      'NewMacros': 'Форматирование документа',
+      'ReplaceDateInReportLine': 'Замена даты на сегодняшнюю',
+      'ReplaceDateInReportLine2': 'Замена даты на вчерашнюю',
+      'ApplyTemplateLayout': 'Применить размеры шаблона',
+    };
+    const { card, statusId } = createOpCard(names[name] || name);
+    setCardStatus(statusId, `Запускаю: ${names[name] || name}...`);
     try {
-      const data = await apiFetch('/macro/prepare', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: dateVal }),
-      }, statusId);
-      const lines = Array.isArray(data.log) ? data.log : [`[ERR] Нет log в ответе: ${JSON.stringify(data)}`];
-      const meta = `Дата: ${data.date || '—'} · ${data.template || 'сетка'}`;
-      const details = logLinesToDetails(lines, { meta, grid_cols: data.grid_cols });
-      const errCount = lines.filter(l => l.startsWith('[ERR]')).length;
+      const data = await apiFetch(`/macro/${name}`, { method: 'POST' }, statusId);
+      const details = data.log.map(line => ({
+        icon: line.startsWith('[ERR]') ? '✗' : '✓',
+        name: line.replace(/^\[(OK|ERR)\]\s*/, ''),
+        badge: line.startsWith('[ERR]') ? 'Ошибка' : 'OK',
+        badgeClass: line.startsWith('[ERR]') ? 'db-err' : 'db-ok',
+      }));
+      const errCount = data.log.filter(l => l.startsWith('[ERR]')).length;
+      const okCount = data.log.length - errCount;
       finalizeOpCard(card, statusId, [
-        { label: `OK: ${lines.length - errCount}`, color: 'green' },
-        ...(errCount ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
-      ], details, null, { expandDetails: true });
-    } catch (e) {
-      finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], [
-        { icon: '✗', name: e.message, wrap: true, badge: 'Ошибка', badgeClass: 'db-err' },
-      ], null, { expandDetails: true });
-    }
-    btn.disabled = false;
+        ...(okCount > 0 ? [{ label: `OK: ${okCount}`, color: 'green' }] : []),
+        ...(errCount > 0 ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
+      ], details, null);
+    } catch (_) {}
   }
 
   // ── Переименование ────────────────────────────────────────────────────────

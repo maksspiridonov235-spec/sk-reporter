@@ -5,28 +5,24 @@ import shutil
 import sys
 import tempfile
 import zipfile
-from datetime import datetime
 from pathlib import Path
 
 from docx import Document
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from apply_template_layout import apply_layout, hardcoded_layout, read_template_layout, resolve_layout_template
+from apply_template_layout import apply_layout, read_template_layout
 from companies import COMPANIES
 from docx_processing import (
     apply_macro_to_file,
     merge_reports,
-    prepare_uploaded_reports,
     rename_results,
     rename_templates,
 )
-
-LAYOUT_TEMPLATE_FILE = "Ежедневный отчет Шаблон.docx"
 
 try:
     from agent.ocr_agent import detect_company, merge_report_into_template
@@ -50,6 +46,15 @@ TEMPLATES_DIR = Path(__file__).parent.parent / "contractor_report" / "болва
 if not TEMPLATES_DIR.exists():
     raise RuntimeError(f"Папка с болванками не найдена: {TEMPLATES_DIR}")
 print(f"[INFO] Templates dir: {TEMPLATES_DIR} ({len(list(TEMPLATES_DIR.glob('*.docx')))} шаблонов)")
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    # Ensure frontend always gets JSON instead of plain "Internal Server Error".
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Внутренняя ошибка сервера: {str(exc)}"},
+    )
 
 
 def _do_merge(template_path: str, report_paths: list[str], output_path: str) -> int:
@@ -117,33 +122,6 @@ async def list_reports():
     return {"files": sorted(files)}
 
 
-
-
-@app.get("/diagnose/reports")
-async def diagnose_reports():
-    """Диагностика сетки загруженных отчётов (для отладки Громова и др.)."""
-    from apply_template_layout import diagnose_document, hardcoded_layout
-
-    layout = hardcoded_layout()
-    out = []
-    for f in sorted(UPLOAD_DIR.iterdir()):
-        if f.suffix.lower() not in (".docx", ".doc"):
-            continue
-        try:
-            doc = Document(os.fspath(f))
-            warns = diagnose_document(doc, layout)
-            out.append({
-                "file": f.name,
-                "tables": len(doc.tables),
-                "rows": [len(t.rows) for t in doc.tables],
-                "images": len(doc.inline_shapes),
-                "issues": warns,
-                "ok": not warns,
-            })
-        except Exception as e:
-            out.append({"file": f.name, "ok": False, "issues": [str(e)]})
-    return {"reports": out, "grid_cols": layout["grid_cols"]}
-
 @app.post("/check/descriptions/stream")
 async def check_descriptions_stream():
     from agent.check_agent import check_report
@@ -181,52 +159,17 @@ async def check_descriptions_stream():
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
-class PrepareBody(BaseModel):
-    date: str | None = None  # YYYY-MM-DD
-
-
-def _layout_template_path() -> Path:
-    path = (TEMPLATES_DIR / LAYOUT_TEMPLATE_FILE).resolve()
-    if not path.is_file():
-        raise HTTPException(
-            status_code=404,
-            detail=f"Положите «{LAYOUT_TEMPLATE_FILE}» в папку болванок: {path}",
-        )
-    return path
-
-
-@app.post("/macro/prepare")
-async def macro_prepare(body: PrepareBody | None = None):
-    body = body or PrepareBody()
-    layout = hardcoded_layout()
-
-    if body.date:
-        try:
-            d = datetime.strptime(body.date, "%Y-%m-%d")
-        except ValueError:
-            raise HTTPException(status_code=400, detail="date: формат YYYY-MM-DD")
-        target_date = d.strftime("%d.%m.%Y")
-    else:
-        target_date = datetime.now().strftime("%d.%m.%Y")
-
-    log = prepare_uploaded_reports(str(UPLOAD_DIR), layout, target_date)
-    return {
-        "log": log,
-        "template": "сетка захардкожена",
-        "grid_cols": layout["grid_cols"],
-        "grid_cols_7": layout.get("grid_cols_7"),
-        "date": target_date,
-    }
-
-
 @app.post("/macro/{macro_name}")
 async def run_macro(macro_name: str):
-    allowed = {"HighlightSecondRow_No5991", "FormatFontsOnly", "ResetParagraphLayout", "ApplyTableGeometry", "ResizeInlineImages", "NewMacros", "ReplaceDateInReportLine", "ReplaceDateInReportLine2", "ApplyTemplateLayout"}
+    allowed = {"HighlightSecondRow_No5991", "NewMacros", "ReplaceDateInReportLine", "ReplaceDateInReportLine2", "ApplyTemplateLayout"}
     if macro_name not in allowed:
         raise HTTPException(status_code=400, detail="Неизвестный макрос")
 
     if macro_name == "ApplyTemplateLayout":
-        layout = hardcoded_layout()
+        template_path = (TEMPLATES_DIR / "Ежедневный отчет Шаблон.docx").resolve()
+        if not template_path.exists():
+            raise HTTPException(status_code=404, detail=f"Шаблон не найден: {template_path}")
+        layout = read_template_layout(template_path)
         log = []
         for f in UPLOAD_DIR.iterdir():
             if f.suffix.lower() != ".docx":
