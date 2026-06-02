@@ -261,9 +261,8 @@
       <div class="section-title">Макросы (до сборки)</div>
       <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">Дата в отчёте</label>
       <input type="date" id="macroReportDate" style="width:100%;padding:6px 8px;margin-bottom:8px;border:1px solid #ccc;border-radius:6px;font-size:13px"/>
-      <button class="btn btn-green" style="margin-bottom:6px" id="btnPrepare" onclick="prepareReports()">Подготовить отчёты</button>
-      <button class="btn btn-orange" style="margin-bottom:8px" id="btnBolvankaDate" onclick="updateBolvankaDate()">Дата в болванках</button>
-      <div style="font-size:11px;color:#888">Подготовка — загруженные отчёты. Болванки — файлы в папке contractor_report. Одна дата сверху.</div>
+      <button class="btn btn-green" style="margin-bottom:8px" id="btnPrepare" onclick="prepareReports()">Подготовить отчёты</button>
+      <div style="font-size:11px;color:#888">Загруженные отчёты и болванки в contractor_report — одна дата сверху.</div>
     </div>
 
     <hr class="divider"/>
@@ -745,6 +744,36 @@
     return details;
   }
 
+  async function runBolvankaDateUpdate(dateVal) {
+    const { card, statusId } = createOpCard('Дата в болванках');
+    setCardStatus(statusId, `Обновляю болванки на ${dateVal}...`);
+    try {
+      const data = await apiFetch('/rename/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: dateVal }),
+      }, statusId);
+      const lines = Array.isArray(data.log) ? data.log : [];
+      const details = lines.map(line => ({
+        icon: line.startsWith('[ERR]') ? '✗' : '✓',
+        name: line.replace(/^\[(OK|ERR)\]\s*/, ''),
+        badge: line.startsWith('[ERR]') ? 'Ошибка' : 'OK',
+        badgeClass: line.startsWith('[ERR]') ? 'db-err' : 'db-ok',
+        wrap: true,
+      }));
+      const errCount = lines.filter(l => l.startsWith('[ERR]')).length;
+      finalizeOpCard(card, statusId, [
+        { label: `Дата: ${data.date || dateVal}`, color: 'blue' },
+        { label: `OK: ${lines.length - errCount}`, color: 'green' },
+        ...(errCount ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
+      ], details, null, { expandDetails: true });
+    } catch (e) {
+      finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], [
+        { icon: '✗', name: e.message, wrap: true, badge: 'Ошибка', badgeClass: 'db-err' },
+      ], null, { expandDetails: true });
+    }
+  }
+
   async function prepareReports() {
     const btn = document.getElementById('btnPrepare');
     if (!btn) return;
@@ -777,50 +806,11 @@
         { icon: '✗', name: e.message, wrap: true, badge: 'Ошибка', badgeClass: 'db-err' },
       ], null, { expandDetails: true });
     }
+    await runBolvankaDateUpdate(dateVal);
     btn.disabled = false;
   }
 
   // ── Переименование ────────────────────────────────────────────────────────
-
-  async function updateBolvankaDate() {
-    const btn = document.getElementById('btnBolvankaDate');
-    let dateVal;
-    try {
-      dateVal = getMacroReportDate();
-    } catch (e) {
-      alert(e.message);
-      return;
-    }
-    if (btn) btn.disabled = true;
-    const { card, statusId } = createOpCard('Дата в болванках');
-    setCardStatus(statusId, `Обновляю болванки на ${dateVal}...`);
-    try {
-      const data = await apiFetch('/rename/templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: dateVal }),
-      }, statusId);
-      const lines = Array.isArray(data.log) ? data.log : [];
-      const details = lines.map(line => ({
-        icon: line.startsWith('[ERR]') ? '✗' : '✓',
-        name: line.replace(/^\[(OK|ERR)\]\s*/, ''),
-        badge: line.startsWith('[ERR]') ? 'Ошибка' : 'OK',
-        badgeClass: line.startsWith('[ERR]') ? 'db-err' : 'db-ok',
-        wrap: true,
-      }));
-      const errCount = lines.filter(l => l.startsWith('[ERR]')).length;
-      finalizeOpCard(card, statusId, [
-        { label: `Дата: ${data.date || dateVal}`, color: 'blue' },
-        { label: `OK: ${lines.length - errCount}`, color: 'green' },
-        ...(errCount ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
-      ], details, null, { expandDetails: true });
-    } catch (e) {
-      finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], [
-        { icon: '✗', name: e.message, wrap: true, badge: 'Ошибка', badgeClass: 'db-err' },
-      ], null, { expandDetails: true });
-    }
-    if (btn) btn.disabled = false;
-  }
 
   async function renameResultsWithDate() {
     let dateVal;
