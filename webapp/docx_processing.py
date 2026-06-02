@@ -108,88 +108,6 @@ def highlight_second_row(doc: Document) -> int:
     return processed
 
 
-# ── Макрос 2: NewMacros (форматирование документа) ─────────────────────────
-
-def format_document(doc: Document) -> None:
-    """
-    - Шрифт Times New Roman 10pt для всего текста
-    - Отступы и интервалы = 0, одинарный межстрочный
-    - Ширина всех таблиц = 18.33 см, выравнивание по центру
-    - Все инлайн-картинки → 5.33 × 4 см
-    """
-    # 18.33 см в единицах dxa (twentieths of a point): 1 cm = 567 dxa
-    TABLE_WIDTH_DXA = int(18.33 * 567)
-    def _format_paras(paragraphs):
-        for para in paragraphs:
-            pPr = para._p.get_or_add_pPr()
-            # Интервалы
-            spacing = pPr.find(qn("w:spacing"))
-            if spacing is None:
-                spacing = etree.SubElement(pPr, qn("w:spacing"))
-            spacing.set(qn("w:before"), "0")
-            spacing.set(qn("w:after"), "0")
-            spacing.set(qn("w:line"), "240")
-            spacing.set(qn("w:lineRule"), "auto")
-            # Шрифт и размер для каждого run
-            for run in para.runs:
-                run.font.name = "Times New Roman"
-                run.font.size = Pt(10)
-            # Если параграф вообще без runs — задаём через rPr по умолчанию
-            rPr = pPr.find(qn("w:rPr"))
-            if rPr is None:
-                rPr = etree.SubElement(pPr, qn("w:rPr"))
-            rFonts = rPr.find(qn("w:rFonts"))
-            if rFonts is None:
-                rFonts = etree.SubElement(rPr, qn("w:rFonts"))
-            rFonts.set(qn("w:ascii"), "Times New Roman")
-            rFonts.set(qn("w:hAnsi"), "Times New Roman")
-            sz = rPr.find(qn("w:sz"))
-            if sz is None:
-                sz = etree.SubElement(rPr, qn("w:sz"))
-            sz.set(qn("w:val"), "20")  # 10pt = 20 half-points
-            szCs = rPr.find(qn("w:szCs"))
-            if szCs is None:
-                szCs = etree.SubElement(rPr, qn("w:szCs"))
-            szCs.set(qn("w:val"), "20")
-
-    # Параграфы вне таблиц
-    _format_paras(doc.paragraphs)
-
-    # Таблицы
-    for tbl in doc.tables:
-        tblEl = tbl._tbl
-        tblPr = tblEl.find(qn("w:tblPr"))
-        if tblPr is None:
-            tblPr = etree.SubElement(tblEl, qn("w:tblPr"))
-
-        # Ширина таблицы
-        tblW = tblPr.find(qn("w:tblW"))
-        if tblW is None:
-            tblW = etree.SubElement(tblPr, qn("w:tblW"))
-        tblW.set(qn("w:w"), str(TABLE_WIDTH_DXA))
-        tblW.set(qn("w:type"), "dxa")
-
-        # Выравнивание по центру
-        jc = tblPr.find(qn("w:jc"))
-        if jc is None:
-            jc = etree.SubElement(tblPr, qn("w:jc"))
-        jc.set(qn("w:val"), "center")
-
-        # Запрет авторастяжки
-        autofit = tblPr.find(qn("w:tblLayout"))
-        if autofit is None:
-            autofit = etree.SubElement(tblPr, qn("w:tblLayout"))
-        autofit.set(qn("w:type"), "fixed")
-
-        for row in tbl.rows:
-            for cell in row.cells:
-                _format_paras(cell.paragraphs)
-
-    resize_inline_images(doc)
-
-
-
-
 # ── Картинки ────────────────────────────────────────────────────────────────
 
 IMG_WIDTH_CM = 5.33
@@ -684,15 +602,10 @@ def rename_files(folder: str, mode: Literal["today", "yesterday"]) -> list[str]:
 
 # ── Переименование результатов ──────────────────────────────────────────────
 
-def rename_results(folder: str, mode: Literal["today", "yesterday"]) -> list[str]:
+def rename_results(folder: str, target_date: str) -> list[str]:
     """
     Переименовывает Евракор_merged.docx → Евракор_Ежедневный отчёт СК за DD.MM.YYYY.docx
     """
-    new_date = (
-        datetime.now().strftime("%d.%m.%Y")
-        if mode == "today"
-        else (datetime.now() - timedelta(days=1)).strftime("%d.%m.%Y")
-    )
     log = []
     for filename in os.listdir(folder):
         if not filename.lower().endswith((".docx", ".doc")):
@@ -701,105 +614,119 @@ def rename_results(folder: str, mode: Literal["today", "yesterday"]) -> list[str
             continue
         company = filename.replace("_merged.docx", "").replace("_merged.doc", "")
         ext = ".docx" if filename.lower().endswith(".docx") else ".doc"
-        new_name = f"{company}_Ежедневный отчёт СК за {new_date}{ext}"
+        new_name = f"{company}_Ежедневный отчёт СК за {target_date}{ext}"
         filepath = os.path.join(folder, filename)
         try:
-            # Заменяем дату внутри документа
             doc = Document(filepath)
-            replace_date_in_report_line(doc, mode)
+            replace_date_in_report_line(doc, target_date=target_date)
             doc.save(filepath)
-            # Переименовываем файл
             os.rename(filepath, os.path.join(folder, new_name))
-            log.append(f"Переименован: {filename} → {new_name}")
+            log.append(f"[OK] {filename} → {new_name}")
         except Exception as e:
-            log.append(f"Ошибка: {filename} — {e}")
+            log.append(f"[ERR] {filename}: {e}")
     return log
 
 
-def rename_templates(folder: str, mode: Literal["today", "yesterday"]) -> list[str]:
-    """
-    Добавляет дату в конец первого параграфа каждого шаблона.
-    Шаблоны заканчиваются на "за " без даты.
-    """
-    new_date = (
-        datetime.now().strftime("%d.%m.%Y")
-        if mode == "today"
-        else (datetime.now() - timedelta(days=1)).strftime("%d.%m.%Y")
-    )
-    log = []
-    for filename in os.listdir(folder):
-        if not filename.lower().endswith((".docx", ".doc")):
-            continue
-        filepath = os.path.join(folder, filename)
-        try:
-            doc = Document(filepath)
-            found = False
+# Дата в шапке болванки: DD.MM.YYYYг
+_BOLVANKA_DATE_RE = re.compile(r"\d{1,2}[./\-]\d{1,2}[./\-]\d{2,4}\s*г")
+# В имени файла: …2025г.docx — «г» перед точкой расширения
+_BOLVANKA_DATE_IN_FILENAME_RE = re.compile(
+    r"\d{1,2}[./\-]\d{1,2}[./\-]\d{2,4}г(?=\.)"
+)
 
-            # Ищем первый параграф заканчивающийся на "за"
+
+def _write_paragraph_text(para, new_text: str) -> None:
+    if para.runs:
+        para.runs[0].text = new_text
+        for run in para.runs[1:]:
+            r = run._element
+            r.getparent().remove(r)
+    else:
+        para.add_run(new_text)
+
+
+def _set_title_line_date(para, target_date: str) -> bool:
+    """
+    Строка шапки болванки «Отчёт … за DD.MM.YYYYг».
+    Заменяет существующую дату или дописывает после «за», если даты ещё нет.
+    """
+    full_text = "".join(run.text for run in para.runs)
+    stripped = full_text.strip()
+    if not stripped or "за" not in stripped.lower():
+        return False
+
+    dated_suffix = f"{target_date}г"
+
+    if _BOLVANKA_DATE_RE.search(full_text):
+        new_text = _BOLVANKA_DATE_RE.sub(dated_suffix, full_text, count=1)
+    elif stripped.endswith("за") or stripped.endswith("за "):
+        new_text = full_text.rstrip()
+        if not new_text.endswith(" "):
+            new_text += " "
+        new_text += dated_suffix
+    else:
+        m = re.search(r"(\bза)\s*\S*\s*$", full_text, re.IGNORECASE)
+        if not m:
+            return False
+        new_text = full_text[: m.start(2)] + " " + dated_suffix
+
+    _write_paragraph_text(para, new_text)
+    return True
+
+
+def rename_templates(folder: str, target_date: str) -> list[str]:
+    """
+    Обновляет дату во всех болванках:
+    - строка «Отчёт … за …» в документе (дописать или заменить старую дату);
+    - имя файла «…за DD.MM.YYYYг.docx».
+    """
+    log = []
+    folder_path = Path(folder)
+
+    for filepath in sorted(folder_path.iterdir()):
+        if filepath.suffix.lower() not in (".docx", ".doc"):
+            continue
+        try:
+            doc = Document(os.fspath(filepath))
+            updated = []
+
             for para in doc.paragraphs:
-                para_text = para.text.strip()
-                if para_text.endswith("за"):
-                    # Добавляем дату в конец
-                    if para.runs:
-                        para.runs[-1].text += new_date + "г"
-                    else:
-                        para.add_run(new_date + "г")
-                    found = True
+                text = para.text.strip()
+                if not text:
+                    continue
+                if "отчёт" in text.lower() and "за" in text.lower():
+                    if _set_title_line_date(para, target_date):
+                        updated.append("заголовок")
                     break
 
-            if not found:
-                log.append(f"Пропущен (не найден параграф с 'за'): {filename}")
+            if replace_date_in_report_line(doc, target_date=target_date):
+                updated.append("таблица")
+
+            has_name_date = bool(_BOLVANKA_DATE_IN_FILENAME_RE.search(filepath.name))
+            if not updated and not has_name_date:
+                log.append(f"[ERR] {filepath.name}: нет строки «Отчёт … за» и даты в имени")
                 continue
 
-            doc.save(filepath)
-            log.append(f"Добавлена дата: {filename} → {new_date}г")
+            doc.save(os.fspath(filepath))
+
+            new_name = (
+                _BOLVANKA_DATE_IN_FILENAME_RE.sub(f"{target_date}г", filepath.name, count=1)
+                if has_name_date
+                else filepath.name
+            )
+            parts = ", ".join(updated) if updated else "имя файла"
+            if new_name != filepath.name:
+                new_path = filepath.parent / new_name
+                if new_path.exists() and new_path.resolve() != filepath.resolve():
+                    log.append(f"[ERR] {filepath.name}: имя занято ({new_name})")
+                else:
+                    filepath.rename(new_path)
+                    log.append(f"[OK] {new_name}: {target_date}г ({parts})")
+            else:
+                log.append(f"[OK] {filepath.name}: {target_date}г ({parts})")
         except Exception as e:
-            log.append(f"Ошибка: {filename} — {e}")
+            log.append(f"[ERR] {filepath.name}: {e}")
     return log
-
-
-# ── Применение макроса к файлу ──────────────────────────────────────────────
-
-def apply_macro_to_file(filepath: str, macro_name: str) -> tuple[bool, str]:
-    """
-    Применяет один из макросов к файлу, сохраняет его.
-    Возвращает (успех, сообщение).
-    """
-    try:
-        doc = Document(filepath)
-    except Exception as e:
-        return False, str(e)
-
-    if macro_name == "HighlightSecondRow_No5991":
-        n = highlight_second_row(doc)
-        msg = f"Обработано таблиц: {n}"
-    elif macro_name == "ResizeInlineImages":
-        n = resize_inline_images(doc)
-        msg = f"Картинки: {n} шт. → {IMG_WIDTH_CM}×{IMG_HEIGHT_CM} см"
-    elif macro_name == "FormatFontsOnly":
-        format_fonts_only(doc)
-        msg = "Шрифт Times New Roman 10 pt"
-    elif macro_name == "ResetParagraphLayout":
-        reset_paragraph_layout(doc)
-        msg = "Макеты абзацев обнулены"
-    elif macro_name == "ApplyTableGeometry":
-        apply_table_geometry(doc)
-        msg = "Высота строк ≥0,6 см, выравнивание по центру"
-    elif macro_name == "NewMacros":
-        format_document(doc)
-        msg = "Полное форматирование (устар.)"
-    elif macro_name == "ReplaceDateInReportLine":
-        ok = replace_date_in_report_line(doc, "today")
-        msg = "Дата заменена на сегодняшнюю" if ok else "Строка с датой не найдена"
-    elif macro_name == "ReplaceDateInReportLine2":
-        ok = replace_date_in_report_line(doc, "yesterday")
-        msg = "Дата заменена на вчерашнюю" if ok else "Строка с датой не найдена"
-    else:
-        return False, f"Неизвестный макрос: {macro_name}"
-
-    doc.save(filepath)
-    return True, msg
-
 
 
 def prepare_report_file(filepath: str, layout: dict, target_date: str) -> tuple[bool, str]:

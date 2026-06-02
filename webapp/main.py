@@ -16,10 +16,9 @@ from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from apply_template_layout import apply_layout, hardcoded_layout, read_template_layout, resolve_layout_template
+from apply_template_layout import hardcoded_layout
 from companies import COMPANIES
 from docx_processing import (
-    apply_macro_to_file,
     merge_reports,
     prepare_uploaded_reports,
     rename_results,
@@ -190,7 +189,19 @@ async def check_descriptions_stream():
 
 
 class PrepareBody(BaseModel):
-    date: str | None = None  # YYYY-MM-DD
+    date: str | None = None  # YYYY-MM-DD из поля «Дата в отчёте»
+
+
+def _parse_report_date(body: PrepareBody | None) -> str:
+    if not body or not body.date:
+        raise HTTPException(
+            status_code=400,
+            detail="Укажите date (YYYY-MM-DD) — поле «Дата в отчёте» в блоке «Макросы (до сборки)»",
+        )
+    try:
+        return datetime.strptime(body.date, "%Y-%m-%d").strftime("%d.%m.%Y")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="date: формат YYYY-MM-DD")
 
 
 def _layout_template_path() -> Path:
@@ -205,18 +216,8 @@ def _layout_template_path() -> Path:
 
 @app.post("/macro/prepare")
 async def macro_prepare(body: PrepareBody | None = None):
-    body = body or PrepareBody()
+    target_date = _parse_report_date(body)
     layout = hardcoded_layout()
-
-    if body.date:
-        try:
-            d = datetime.strptime(body.date, "%Y-%m-%d")
-        except ValueError:
-            raise HTTPException(status_code=400, detail="date: формат YYYY-MM-DD")
-        target_date = d.strftime("%d.%m.%Y")
-    else:
-        target_date = datetime.now().strftime("%d.%m.%Y")
-
     log = prepare_uploaded_reports(str(UPLOAD_DIR), layout, target_date)
     return {
         "log": log,
@@ -227,48 +228,18 @@ async def macro_prepare(body: PrepareBody | None = None):
     }
 
 
-@app.post("/macro/{macro_name}")
-async def run_macro(macro_name: str):
-    allowed = {"HighlightSecondRow_No5991", "FormatFontsOnly", "ResetParagraphLayout", "ApplyTableGeometry", "ResizeInlineImages", "NewMacros", "ReplaceDateInReportLine", "ReplaceDateInReportLine2", "ApplyTemplateLayout"}
-    if macro_name not in allowed:
-        raise HTTPException(status_code=400, detail="Неизвестный макрос")
-
-    if macro_name == "ApplyTemplateLayout":
-        layout = hardcoded_layout()
-        log = []
-        for f in UPLOAD_DIR.iterdir():
-            if f.suffix.lower() != ".docx":
-                continue
-            try:
-                doc = Document(os.fspath(f))
-                apply_layout(doc, layout)
-                doc.save(os.fspath(f))
-                log.append(f"[OK] {f.name}")
-            except Exception as e:
-                log.append(f"[ERR] {f.name}: {e}")
-        return {"log": log}
-
-    log = []
-    for f in UPLOAD_DIR.iterdir():
-        if f.suffix.lower() not in (".docx", ".doc"):
-            continue
-        ok, msg = apply_macro_to_file(str(f), macro_name)
-        log.append(f"[{'OK' if ok else 'ERR'}] {f.name}: {msg}")
-    return {"log": log}
+@app.post("/rename/templates")
+async def rename_templates_endpoint(body: PrepareBody):
+    target_date = _parse_report_date(body)
+    log = rename_templates(str(TEMPLATES_DIR), target_date)
+    return {"log": log, "date": target_date}
 
 
-@app.post("/rename/templates/{mode}")
-async def rename_templates_only(mode: str):
-    if mode not in ("today", "yesterday"):
-        raise HTTPException(status_code=400, detail="mode должен быть today или yesterday")
-    return {"log": rename_templates(str(TEMPLATES_DIR), mode)}
-
-
-@app.post("/rename/results/{mode}")
-async def rename_results_only(mode: str):
-    if mode not in ("today", "yesterday"):
-        raise HTTPException(status_code=400, detail="mode должен быть today или yesterday")
-    return {"log": rename_results(str(RESULT_DIR), mode)}
+@app.post("/rename/results")
+async def rename_results_endpoint(body: PrepareBody):
+    target_date = _parse_report_date(body)
+    log = rename_results(str(RESULT_DIR), target_date)
+    return {"log": log, "date": target_date}
 
 
 def _sse(data: dict) -> str:
