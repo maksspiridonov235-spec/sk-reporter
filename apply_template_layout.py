@@ -19,8 +19,8 @@ BOLVANKI_DIR = (
 
 # Захардкоженная сетка (как в «Ежедневный отчет Шаблон.docx»)
 DEFAULT_GRID_COLS = ["2041", "1757", "1787", "1898", "1701", "1646"]
-# 7 колонок: все 6 эталонных + узкая 7-я (355). Шапка держит 1646 dxa на 6-й колонке.
-DEFAULT_GRID_COLS_7 = DEFAULT_GRID_COLS + ["355"]
+# 7 колонок: первые 5 как эталон; блок договора 550+1096=1646 (метка|значение).
+DEFAULT_GRID_COLS_7 = DEFAULT_GRID_COLS[:5] + ["550", "1096"]
 ROW_HEIGHT = "340"
 ROW_HEIGHT_RULE = "atLeast"
 MIN_ROW_HEIGHT_CM = 0.6
@@ -212,14 +212,13 @@ def diagnose_document(doc, layout: dict | None = None) -> list[str]:
 
 
 def _main_table_indices(doc) -> list[int]:
-    """Сетку вешаем на большую таблицу отчёта, мелкие не трогаем."""
+    """Сетку на все таблицы-отчёты (>= MIN_ROWS), в т.ч. в merged.docx."""
     if not doc.tables:
         return []
     scored = [(i, len(t.rows)) for i, t in enumerate(doc.tables)]
-    best_i, best_n = max(scored, key=lambda x: x[1])
-    if best_n >= MIN_ROWS_FOR_MAIN_TABLE:
-        return [best_i]
-    # fallback: все таблицы с хотя бы 3 строками
+    qualifying = [i for i, n in scored if n >= MIN_ROWS_FOR_MAIN_TABLE]
+    if qualifying:
+        return qualifying
     return [i for i, n in scored if n >= 3] or [0]
 
 
