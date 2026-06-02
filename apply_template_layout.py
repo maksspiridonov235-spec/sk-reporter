@@ -119,8 +119,24 @@ def _detect_ghost_cols(table) -> bool:
     return False
 
 
-def apply_layout(doc, layout: dict = None, fix_ghost_spans: bool = False,
-                 cols: list[str] | None = None):
+def _main_table_indices(doc) -> list[int]:
+    """Берём самую большую таблицу отчёта, fallback — все >=3 строк."""
+    if not doc.tables:
+        return []
+    scored = [(i, len(t.rows)) for i, t in enumerate(doc.tables)]
+    best_i, best_n = max(scored, key=lambda x: x[1])
+    if best_n >= 8:
+        return [best_i]
+    return [i for i, n in scored if n >= 3] or [0]
+
+
+def apply_layout(
+    doc,
+    layout: dict = None,
+    only_main_table: bool = False,
+    fix_ghost_spans: bool = False,
+    cols: list[str] | None = None,
+):
     """
     Применяет к каждой таблице документа:
     - общую ширину таблицы (tblW = 10830, жёстко)
@@ -129,20 +145,29 @@ def apply_layout(doc, layout: dict = None, fix_ghost_spans: bool = False,
     - фиксированную высоту каждой строки
 
     Параметры:
-        layout:           устаревший параметр, игнорируется (обратная совместимость)
+        layout:           словарь layout (legacy), может содержать "grid_cols"
+        only_main_table:  если True — применить только к основной таблице отчёта
         fix_ghost_spans:  если True — исправить span перед расчётом ширин ячеек
         cols:             явный список ширин; если None — автовыбор по документу
     """
+    warnings: list[str] = []
     if cols is None:
-        cols = GRID_COLS_6  # дефолт; вызывающий код может передать GRID_COLS_7
+        if isinstance(layout, dict) and layout.get("grid_cols"):
+            cols = list(layout["grid_cols"])
+        else:
+            cols = GRID_COLS_6  # дефолт; вызывающий код может передать GRID_COLS_7
 
     cumsum = _build_cumsum(cols)
+    indices = _main_table_indices(doc) if only_main_table else list(range(len(doc.tables)))
 
-    for table in doc.tables:
+    for i in indices:
+        table = doc.tables[i]
         tbl = table._tbl
 
         # Автоопределение ghost-режима, если не задано явно
         needs_fix = fix_ghost_spans or _detect_ghost_cols(table)
+        if needs_fix:
+            warnings.append(f"табл.{i + 1}: обнаружена ghost-колонка (sum_span=7), spans скорректированы")
 
         # ── tblPr: ширина таблицы и запрет автоподбора ────────────────────────
         tblPr = tbl.find(qn("w:tblPr"))
@@ -226,6 +251,7 @@ def apply_layout(doc, layout: dict = None, fix_ghost_spans: bool = False,
                 tcW.set(qn("w:type"), "dxa")
 
                 col_idx += span
+    return warnings
 
 
 def read_template_layout(template_path: Path) -> dict:
