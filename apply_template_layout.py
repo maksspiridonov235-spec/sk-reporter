@@ -48,9 +48,10 @@ TABLE_WIDTH = "10830"  # жёстко — не вычислять из шири�
 
 # Позиция ghost-колонки в сломанных документах (0-based)
 _GHOST_COL_IDX = 2
+DEFAULT_GRID_COLS = GRID_COLS_6
 
 
-def resolve_layout_template(template_name: str) -> list[str]:
+def resolve_layout_template(template_name: str = "default") -> list[str]:
     """
     Возвращает список ширин колонок (DXA) по имени шаблона.
     Совместимость: 'default'/'6col' → GRID_COLS_6, '7col' → GRID_COLS_7.
@@ -61,8 +62,15 @@ def resolve_layout_template(template_name: str) -> list[str]:
 
 
 def hardcoded_layout(template_name: str = "default") -> list[str]:
-    """Псевдоним для resolve_layout_template — обратная совместимость."""
-    return resolve_layout_template(template_name)
+    """Возвращает legacy-словарь, который ждут webapp/main.py и скрипты."""
+    cols = list(resolve_layout_template(template_name))
+    return {
+        "template": "hardcoded",
+        "grid_cols": cols,
+        "grid_cols_6": list(GRID_COLS_6),
+        "grid_cols_7": list(GRID_COLS_7),
+        "tblGrid": None,
+    }
 
 
 def _build_cumsum(cols: list[str]) -> list[int]:
@@ -128,6 +136,27 @@ def _main_table_indices(doc) -> list[int]:
     if best_n >= 8:
         return [best_i]
     return [i for i, n in scored if n >= 3] or [0]
+
+
+def diagnose_document(doc, layout: dict | None = None) -> list[str]:
+    """Минимальная диагностика геометрии таблиц для /diagnose/reports."""
+    grid_cols = (layout or {}).get("grid_cols") or list(DEFAULT_GRID_COLS)
+    expected = len(grid_cols)
+    out: list[str] = []
+    if not doc.tables:
+        return ["нет таблиц"]
+    for i, table in enumerate(doc.tables):
+        issues: list[str] = []
+        grid = table._tbl.find(qn("w:tblGrid"))
+        if grid is not None:
+            actual_cols = len(grid.findall(qn("w:gridCol")))
+            if actual_cols != expected:
+                issues.append(f"в файле {actual_cols} колонок сетки, ожид. {expected}")
+        if _detect_ghost_cols(table):
+            issues.append("обнаружены строки с sum(span)=7 (ghost)")
+        if issues:
+            out.append(f"табл.{i + 1} ({len(table.rows)} стр.): " + "; ".join(issues))
+    return out
 
 
 def apply_layout(
@@ -259,7 +288,17 @@ def read_template_layout(template_path: Path) -> dict:
     doc = Document(os.fspath(template_path))
     tbl = doc.tables[0]._tbl
     tblGrid = tbl.find(qn("w:tblGrid"))
-    return {"tblGrid": deepcopy(tblGrid) if tblGrid is not None else None}
+    grid_cols = []
+    if tblGrid is not None:
+        for col in tblGrid.findall(qn("w:gridCol")):
+            w = col.get(qn("w:w"))
+            if w:
+                grid_cols.append(w)
+    return {
+        "template": str(template_path),
+        "tblGrid": deepcopy(tblGrid) if tblGrid is not None else None,
+        "grid_cols": grid_cols or list(DEFAULT_GRID_COLS),
+    }
 
 
 def main():
