@@ -26,7 +26,13 @@ DEFAULT_GRID_COLS = ["2041", "1757", "1787", "1898", "1701", "1646"]
 # В шапке заказчика span5→span4 (убирается лишняя 1701 dxa из блока «ДАННЫЕ»).
 # В «Название/ООО» span4→span3 (то же). Договор: «Номер»+значение → кол.4+5 эталона.
 
-# Типовые раскладки gridSpan (7 кол.) → эталон (6 кол.), как у Пряхина
+# Эталон 6-кол. (Пряхин) — образец раскладки строк
+ETALON_REPORT_PATH = (
+    Path(__file__).parent
+    / "Ежедневный отчет (ЮНС) от 26.04.2026 г. (БКНС-4) Пряхин И.Н..docx"
+)
+
+# Сопоставление gridSpan 7→6: выведено из пар строк gromov7 ↔ эталон (один шаблон)
 _SPAN_PATTERN_7_TO_6: dict[tuple[int, ...], tuple[int, ...]] = {
     (4, 1, 1, 1): (3, 1, 1, 1),
     (1, 2, 1, 3): (1, 1, 1, 3),
@@ -40,11 +46,11 @@ _SPAN_PATTERN_7_TO_6: dict[tuple[int, ...], tuple[int, ...]] = {
     (1, 2, 1, 1, 1, 1): (1, 1, 1, 1, 1, 1),
     (1, 3, 2, 1): (1, 2, 2, 1),
     (1, 4, 2): (1, 3, 2),
-    (2, 3, 1, 1): (1, 3, 1, 1),
+    (3, 1, 1, 1, 1): (2, 1, 1, 1, 1),
+    (2, 3, 1, 1): (2, 2, 1, 1),
 }
 
-# Карта индексов gridCol: 7c1+7c2 → 6c1; 7c4..7c6 → 6c3..6c5
-_MAP_7COL_INDEX_TO_6COL = [0, 1, 1, 2, 3, 4, 5]
+_etalon_spans_by_signature: dict[str, tuple[int, ...]] | None = None
 ROW_HEIGHT = "340"
 ROW_HEIGHT_RULE = "atLeast"
 MIN_ROW_HEIGHT_CM = 0.6
@@ -194,13 +200,6 @@ def _set_grid_span(tc, span: int) -> None:
     gs.set(qn("w:val"), str(span))
 
 
-def _remap_span_7_to_6(col7_start: int, span7: int) -> int:
-    end7 = min(col7_start + span7 - 1, 6)
-    c6_start = _MAP_7COL_INDEX_TO_6COL[col7_start]
-    c6_end = _MAP_7COL_INDEX_TO_6COL[end7]
-    return c6_end - c6_start + 1
-
-
 def _tc_is_vmerge_continue(tc) -> bool:
     tc_pr = tc.find(qn("w:tcPr"))
     if tc_pr is None:
@@ -219,20 +218,88 @@ def _get_grid_span(tc) -> int:
     return max(1, int(gs.get(qn("w:val"), 1)))
 
 
-def _row_span_pattern_7(tr) -> tuple[int, ...] | None:
-    """Сумма span по строке (без vMerge-continuation)."""
+def _row_span_pattern(tr) -> tuple[int, ...]:
     spans: list[int] = []
     for tc in tr.findall(qn("w:tc")):
         if _tc_is_vmerge_continue(tc):
             continue
         spans.append(_get_grid_span(tc))
-    if not spans or sum(spans) != 7:
-        return None
     return tuple(spans)
 
 
+def _row_span_pattern_7(tr) -> tuple[int, ...] | None:
+    spans = _row_span_pattern(tr)
+    if not spans or sum(spans) != 7:
+        return None
+    return spans
+
+
+def _row_signature(tr) -> str:
+    parts: list[str] = []
+    for tc in tr.findall(qn("w:tc")):
+        if _tc_is_vmerge_continue(tc):
+            continue
+        text = "".join(t.text for t in tc.iter(qn("w:t")) if t.text).strip()
+        parts.append(text[:40].lower())
+    return "||".join(parts)
+
+
+def _load_etalon_span_signatures() -> dict[str, tuple[int, ...]]:
+    global _etalon_spans_by_signature
+    if _etalon_spans_by_signature is not None:
+        return _etalon_spans_by_signature
+
+    out: dict[str, tuple[int, ...]] = {}
+    if ETALON_REPORT_PATH.is_file():
+        doc = Document(os.fspath(ETALON_REPORT_PATH))
+        if doc.tables:
+            for tr in doc.tables[0]._tbl.findall(qn("w:tr")):
+                spans = _row_span_pattern(tr)
+                if not spans or sum(spans) != 6:
+                    continue
+                sig = _row_signature(tr)
+                out[sig] = spans
+                if parts := sig.split("||"):
+                    out[parts[0]] = spans
+                    if len(parts) > 1:
+                        out[parts[0] + "||" + parts[1]] = spans
+
+    _etalon_spans_by_signature = out
+    return out
+
+
+def _target_spans_6_for_7col_row(tr, pattern7: tuple[int, ...], n_cells: int) -> tuple[int, ...] | None:
+    if pattern7 in _SPAN_PATTERN_7_TO_6:
+        target = _SPAN_PATTERN_7_TO_6[pattern7]
+        if len(target) == n_cells:
+            return target
+
+    lookup = _load_etalon_span_signatures()
+    sig = _row_signature(tr)
+    if sig in lookup and len(lookup[sig]) == n_cells:
+        return lookup[sig]
+    parts = sig.split("||")
+    if parts and parts[0] in lookup and len(lookup[parts[0]]) == n_cells:
+        return lookup[parts[0]]
+
+    # Типовые строки по ключевым словам (как в эталоне)
+    head = parts[0] if parts else sig
+    if "статус строительного" in head:
+        return (2, 1, 1, 1, 1) if n_cells == 5 else None
+    if "описание действий" in head:
+        return (4, 1, 1) if n_cells == 3 else None
+    if "погодная характеристика" in head:
+        return (1, 3, 2) if n_cells == 3 else None
+    if head in ("+10°с", "+15°с", "+20°с") or (head.startswith("+") and "°" in head):
+        return (1, 3, 2) if n_cells == 3 else None
+    if "результат строительного" in head:
+        return (6,) if n_cells == 1 else None
+
+    return None
+
+
 def _normalize_7col_table_to_6col_grid(table) -> bool:
-    """7-кол. таблица → 6-кол. эталон: gridSpan по шаблону строк, затем tblGrid 6 кол."""
+    """7-кол. → 6-кол.: gridSpan как в эталоне (по типу строки), без «минус одна колонка» вслепую."""
     tbl = table._tbl
     if _max_row_occupancy(tbl) < 7:
         return False
@@ -241,42 +308,17 @@ def _normalize_7col_table_to_6col_grid(table) -> bool:
         tr = row._tr
         _normalize_row_tr(tr)
         pattern7 = _row_span_pattern_7(tr)
-        tcs: list = []
-        for tc in tr.findall(qn("w:tc")):
-            if not _tc_is_vmerge_continue(tc):
-                tcs.append(tc)
+        if pattern7 is None:
+            continue
 
+        tcs = [tc for tc in tr.findall(qn("w:tc")) if not _tc_is_vmerge_continue(tc)]
         if not tcs:
             continue
 
-        if pattern7 and pattern7 in _SPAN_PATTERN_7_TO_6:
-            target = _SPAN_PATTERN_7_TO_6[pattern7]
-            if len(target) == len(tcs):
-                for tc, span6 in zip(tcs, target):
-                    _set_grid_span(tc, span6)
-                continue
-
-        col7 = 0
-        new_spans: list[int] = []
-        remap_tcs: list = []
-        for tc in tr.findall(qn("w:tc")):
-            if _tc_is_vmerge_continue(tc):
-                col7 += _get_grid_span(tc)
-                continue
-            span7 = _get_grid_span(tc)
-            new_spans.append(_remap_span_7_to_6(col7, span7))
-            remap_tcs.append(tc)
-            col7 += span7
-
-        if not new_spans:
+        target = _target_spans_6_for_7col_row(tr, pattern7, len(tcs))
+        if target is None:
             continue
-        while sum(new_spans) > 6:
-            i = max(range(len(new_spans)), key=lambda j: new_spans[j])
-            if new_spans[i] <= 1:
-                break
-            new_spans[i] -= 1
-
-        for tc, span6 in zip(remap_tcs, new_spans):
+        for tc, span6 in zip(tcs, target):
             _set_grid_span(tc, span6)
 
     return True
