@@ -63,49 +63,99 @@
     .help-trigger[aria-expanded="true"] {
       background: #1a56a0; color: #fff; border-color: #1a56a0;
     }
-    .sidebar-block-help { position: relative; }
-    .help-popover {
-      display: none; position: absolute; left: 0; right: 0; top: 22px;
-      z-index: 30; background: #fff; border: 1px solid #bfdbfe;
-      border-radius: 8px; padding: 10px 12px; font-size: 12px;
-      overflow-y: auto; overflow-x: hidden;
-      line-height: 1.45; color: #374151; box-shadow: 0 6px 16px rgba(0,0,0,.12);
-      text-transform: none; letter-spacing: normal; font-weight: normal;
+    /* Справка — в центральной ленте, сайдбар с кнопками остаётся видимым */
+    .help-guide-panel {
+      display: none;
+      background: #fff;
+      border: 1px solid #bfdbfe;
+      border-radius: 12px;
+      padding: 14px 16px 16px;
+      font-size: 12px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      line-height: 1.45;
+      color: #374151;
+      box-shadow: 0 2px 10px rgba(26, 86, 160, .08);
+      text-transform: none;
+      letter-spacing: normal;
+      font-weight: normal;
+      flex-shrink: 0;
     }
-    .help-popover.is-open { display: block; }
-    .help-popover strong { color: #1a56a0; font-size: 12px; }
-    .help-popover ul { margin: 6px 0 8px; padding-left: 16px; }
-    .help-popover li { margin-bottom: 4px; }
-    .help-popover li:last-child { margin-bottom: 0; }
-    .help-popover .help-note {
+    .help-guide-panel.is-open { display: block; }
+    .help-guide-panel.with-logs.is-open {
+      max-height: min(42vh, 320px) !important;
+      margin-top: 8px;
+      border-style: dashed;
+    }
+    .help-guide-panel.with-logs .help-guide-hint-extra {
+      display: block;
+      font-size: 11px;
+      color: #1a56a0;
+      margin-top: 6px;
+    }
+    .help-guide-hint-extra { display: none; }
+    .help-guide-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .help-guide-header strong { color: #1a56a0; font-size: 14px; line-height: 1.3; }
+    .help-guide-hint {
+      font-size: 11px;
+      color: #64748b;
+      margin: 4px 0 0;
+      font-weight: normal;
+    }
+    .help-guide-close {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      background: #f9fafb;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+    }
+    .help-guide-close:hover { background: #eff6ff; border-color: #bfdbfe; color: #1a56a0; }
+    .help-guide-panel ul { margin: 6px 0 8px; padding-left: 16px; }
+    .help-guide-panel li { margin-bottom: 4px; }
+    .help-guide-panel li:last-child { margin-bottom: 0; }
+    .help-guide-panel .help-note {
       margin: 0; padding-top: 8px; border-top: 1px solid #e5e7eb;
       font-size: 11px; color: #6b7280; line-height: 1.45;
     }
-    .help-popover .help-lead {
+    .help-guide-panel .help-lead {
       margin: 0 0 8px; line-height: 1.45; color: #374151;
     }
-    .help-popover .help-steps {
+    .help-guide-panel .help-steps {
       margin: 0 0 10px; padding-left: 18px; color: #374151;
     }
-    .help-popover .help-steps li { margin-bottom: 3px; }
-    .help-popover .help-item {
+    .help-guide-panel .help-steps li { margin-bottom: 3px; }
+    .help-guide-panel .help-item {
       margin-bottom: 10px; padding-bottom: 10px;
       border-bottom: 1px solid #eef2f7;
     }
-    .help-popover .help-item:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-    .help-popover .help-item-title {
+    .help-guide-panel .help-item:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .help-guide-panel .help-item-title {
       display: block; font-weight: 600; color: #1a56a0; margin-bottom: 4px; font-size: 12px;
     }
-    .help-popover .help-item p {
+    .help-guide-panel .help-item p {
       margin: 0 0 4px; line-height: 1.45; color: #374151; font-size: 12px;
     }
-    .help-popover .help-item p:last-child { margin-bottom: 0; }
-    .help-popover .help-tag {
+    .help-guide-panel .help-item p:last-child { margin-bottom: 0; }
+    .help-guide-panel .help-tag {
       display: inline-block; font-size: 10px; font-weight: 600;
       padding: 1px 5px; border-radius: 4px; margin-right: 4px; vertical-align: baseline;
     }
-    .help-popover .help-tag-ok { background: #dcfce7; color: #166534; }
-    .help-popover .help-tag-no { background: #fef3c7; color: #92400e; }
+    .help-guide-panel .help-tag-ok { background: #dcfce7; color: #166534; }
+    .help-guide-panel .help-tag-no { background: #fef3c7; color: #92400e; }
     .upload-zone {
       border: 2px dashed #aac4e8; border-radius: 8px; padding: 12px;
       text-align: center; cursor: pointer; background: #f5f9ff;
@@ -473,38 +523,7 @@
     <div class="sidebar-block-help" id="reportsBlock">
       <div class="section-header-row">
         <div class="section-title">Отчёты от инженеров</div>
-        <button type="button" class="help-trigger" id="helpPrepareBtn" aria-expanded="false" aria-controls="helpPreparePopover" aria-label="Справка">?</button>
-      </div>
-      <div class="help-popover" id="helpPreparePopover" role="dialog" aria-labelledby="helpPrepareBtn">
-        <strong>Справка: подготовка к сборке</strong>
-        <p class="help-lead">Здесь вы задаёте дату и приводите файлы в порядок <strong>до</strong> кнопки «Сформировать». Ход работы — в центральной ленте: карточки с прогрессом и подробным логом (ширину ленты можно потянуть за левый край).</p>
-
-        <p class="help-lead" style="margin-bottom:4px"><strong>Если садитесь за отчёт впервые — порядок такой:</strong></p>
-        <ol class="help-steps">
-          <li>Загрузите файлы инженеров в блок «Отчёты от инженеров».</li>
-          <li>Выберите <strong>дату в отчёте</strong> (календарь в блоке «Подготовка к сборке» ниже).</li>
-          <li>Нажмите <strong>Подготовить</strong> — справа будет две карточки (см. ниже).</li>
-          <li>Нажмите <strong>Сформировать</strong> — склейка, затем переименование готовых файлов (две карточки справа).</li>
-        </ol>
-
-        <div class="help-item">
-          <span class="help-item-title">Дата в отчёте (поле с календарём)</span>
-          <p>Это дата, которая должна быть в готовом отчёте: в шапке «Отчёт … за …» и в таблице (формат ДД.ММ.ГГГГ).</p>
-          <p><span class="help-tag help-tag-ok">Используется</span> при «Подготовить» и при «Сформировать» (дата внутри и в имени готовых файлов).</p>
-          <p><span class="help-tag help-tag-no">Сама не меняет файлы</span> — только сохраняет выбранную дату для кнопок.</p>
-        </div>
-
-        <div class="help-item">
-          <span class="help-item-title">Подготовить (зелёная кнопка)</span>
-          <p>Одно нажатие запускает <strong>две операции подряд</strong>. В ленте справа появятся две отдельные карточки — не путайте их с переименованием файлов на диске.</p>
-          <p><strong>1) Карточка «Подготовка отчётов»</strong> — ваши загруженные файлы из «Отчёты от инженеров». Внутри каждого Word-файла программа:</p>
-          <p style="padding-left:10px;margin-top:2px">заливка второй строки таблицы; единый шрифт; сброс лишних отступов; размер картинок; <strong>дата в тексте таблицы</strong>; высота строк; выравнивание сетки по эталону.</p>
-          <p><span class="help-tag help-tag-ok">Имена загруженных файлов не меняются</span> — меняется только содержимое внутри.</p>
-          <p><strong>2) Карточка «Дата в тексте болванок»</strong> — шаблоны компаний в папке болванок на сервере. Внутри каждой болванки:</p>
-          <p style="padding-left:10px;margin-top:2px">строка «Отчёт … за …» в начале документа; дата в таблице отчёта — на выбранную в календаре.</p>
-          <p><span class="help-tag help-tag-ok">Имена файлов болванок на диске не меняются</span> — в логе будет фраза «имя файла на диске не менялось». Старую дату в названии файла можно не трогать: важна дата <em>внутри</em> Word.</p>
-          <p>Если в логе ошибка по файлу — в этом шаблоне не нашлась строка «Отчёт … за»; откройте болванку в Word и проверьте шапку.</p>
-        </div>
+        <button type="button" class="help-trigger" id="helpPrepareBtn" aria-expanded="false" aria-controls="helpPreparePopover" aria-label="Справка: открыть в центральной панели">?</button>
       </div>
       <div class="upload-zone" onclick="document.getElementById('inp-reports').click()">
         <input type="file" id="inp-reports" multiple accept=".docx,.doc" onchange="uploadReports(this)"/>
@@ -571,6 +590,44 @@
         <span class="empty-hint-icon">📂</span>
         <span>Загрузите отчёты и выберите операцию</span>
       </div>
+      <div class="help-guide-panel" id="helpPreparePopover" role="dialog" aria-labelledby="helpPrepareTitle" aria-modal="false">
+        <div class="help-guide-header">
+          <div>
+            <strong id="helpPrepareTitle">Справка: подготовка к сборке</strong>
+            <p class="help-guide-hint">Слева остаются все кнопки — читайте справку и смотрите на интерфейс одновременно.</p>
+            <p class="help-guide-hint-extra">Логи операций остаются выше; справка открывается внизу ленты и не перекрывает их.</p>
+          </div>
+          <button type="button" class="help-guide-close" id="helpPrepareClose" aria-label="Закрыть справку">×</button>
+        </div>
+        <p class="help-lead">Здесь вы задаёте дату и приводите файлы в порядок <strong>до</strong> кнопки «Сформировать». Ход работы — в этой центральной ленте: карточки с прогрессом и подробным логом (ширину ленты можно потянуть за левый край).</p>
+
+        <p class="help-lead" style="margin-bottom:4px"><strong>Если садитесь за отчёт впервые — порядок такой:</strong></p>
+        <ol class="help-steps">
+          <li>Загрузите файлы инженеров в блок «Отчёты от инженеров» (слева).</li>
+          <li>Выберите <strong>дату в отчёте</strong> (календарь в блоке «Подготовка к сборке»).</li>
+          <li>Нажмите <strong>Подготовить</strong> — выше появятся две карточки лога (см. ниже).</li>
+          <li>Нажмите <strong>Сформировать</strong> — склейка и переименование готовых (ещё карточки в ленте).</li>
+        </ol>
+
+        <div class="help-item">
+          <span class="help-item-title">Дата в отчёте (поле с календарём)</span>
+          <p>Это дата, которая должна быть в готовом отчёте: в шапке «Отчёт … за …» и в таблице (формат ДД.ММ.ГГГГ).</p>
+          <p><span class="help-tag help-tag-ok">Используется</span> при «Подготовить» и при «Сформировать» (дата внутри и в имени готовых файлов).</p>
+          <p><span class="help-tag help-tag-no">Сама не меняет файлы</span> — только сохраняет выбранную дату для кнопок.</p>
+        </div>
+
+        <div class="help-item">
+          <span class="help-item-title">Подготовить (зелёная кнопка)</span>
+          <p>Одно нажатие запускает <strong>две операции подряд</strong>. В ленте появятся две отдельные карточки — это не переименование файлов на диске.</p>
+          <p><strong>1) Карточка «Подготовка отчётов»</strong> — ваши загруженные файлы из «Отчёты от инженеров». Внутри каждого Word-файла программа:</p>
+          <p style="padding-left:10px;margin-top:2px">заливка второй строки таблицы; единый шрифт; сброс лишних отступов; размер картинок; <strong>дата в тексте таблицы</strong>; высота строк; выравнивание сетки по эталону.</p>
+          <p><span class="help-tag help-tag-ok">Имена загруженных файлов не меняются</span> — меняется только содержимое внутри.</p>
+          <p><strong>2) Карточка «Дата в тексте болванок»</strong> — шаблоны компаний в папке болванок на сервере. Внутри каждой болванки:</p>
+          <p style="padding-left:10px;margin-top:2px">строка «Отчёт … за …» в начале документа; дата в таблице отчёта — на выбранную в календаре.</p>
+          <p><span class="help-tag help-tag-ok">Имена файлов болванок на диске не меняются</span> — в логе: «файл на диске: то же имя». Старую дату в названии файла можно не трогать: важна дата <em>внутри</em> Word.</p>
+          <p>Если в логе ошибка по файлу — в этом шаблоне не нашлась строка «Отчёт … за»; откройте болванку в Word и проверьте шапку.</p>
+        </div>
+      </div>
     </div>
     </div>
   </div>
@@ -599,6 +656,17 @@
   // ── Activity panel API ────────────────────────────────────────────────────
 
   const MAX_OP_CARDS = 20;
+
+  function refreshActivityEmptyHint() {
+    const emptyHint = document.getElementById('emptyHint');
+    const panel = document.getElementById('activityPanel');
+    const pop = document.getElementById('helpPreparePopover');
+    if (!emptyHint || !panel) return;
+    const hasCards = panel.querySelectorAll('.op-card').length > 0;
+    const helpOpen = pop && pop.classList.contains('is-open');
+    emptyHint.style.display = (hasCards || helpOpen) ? 'none' : '';
+  }
+
   const OP_SUBTITLES = {
     'Подготовка отчётов': 'Меняется содержимое загруженных .docx; имена файлов на диске те же.',
     'Дата в тексте болванок': 'Меняется текст внутри шаблонов; файлы на диске не переименовываются.',
@@ -632,7 +700,6 @@
 
   function createOpCard(title, subtitle) {
     const panel = document.getElementById('activityPanel');
-    document.getElementById('emptyHint').style.display = 'none';
     const statusId = 'ls_' + Date.now() + '_' + Math.random().toString(36).slice(2);
     const progressId = 'pr_' + Date.now() + '_' + Math.random().toString(36).slice(2);
     const sub = subtitle || OP_SUBTITLES[title] || '';
@@ -663,10 +730,13 @@
         </div>
       </div>
     `;
-    panel.insertBefore(card, document.getElementById('emptyHint'));
+    const logAnchor = document.getElementById('helpPreparePopover') || document.getElementById('emptyHint');
+    panel.insertBefore(card, logAnchor);
     attachOpCardCollapse(card);
     collapseOtherOpCards(card);
-    panel.scrollTop = panel.scrollHeight;
+    refreshActivityEmptyHint();
+    if (typeof window.closePrepareHelp === 'function') window.closePrepareHelp();
+    panel.scrollTop = 0;
     _trimHistory();
     return { card, statusId, progressId };
   }
@@ -1140,27 +1210,47 @@
     });
   })();
 
+  function activityHasLogCards() {
+    const panel = document.getElementById('activityPanel');
+    return panel && panel.querySelectorAll('.op-card').length > 0;
+  }
+
   (function initPrepareBlockHelp() {
     const btn = document.getElementById('helpPrepareBtn');
+    const closeBtn = document.getElementById('helpPrepareClose');
     const pop = document.getElementById('helpPreparePopover');
-    const block = document.getElementById('reportsBlock');
-    if (!btn || !pop || !block) return;
+    const panel = document.getElementById('activityPanel');
+    if (!btn || !pop) return;
 
-    function syncHelpPopoverHeight() {
+    function syncHelpPanelHeight() {
       if (!pop.classList.contains('is-open')) return;
+      const hasLogs = activityHasLogCards();
+      pop.classList.toggle('with-logs', hasLogs);
       const top = pop.getBoundingClientRect().top;
-      const gap = 12;
-      const available = window.innerHeight - top - gap;
-      pop.style.maxHeight = Math.max(120, Math.floor(available)) + 'px';
+      const available = window.innerHeight - top - 20;
+      const cap = hasLogs ? Math.min(available, Math.floor(window.innerHeight * 0.42), 320) : available;
+      pop.style.maxHeight = Math.max(160, Math.floor(cap)) + 'px';
     }
 
     function setOpen(open) {
       pop.classList.toggle('is-open', open);
       btn.setAttribute('aria-expanded', open ? 'true' : 'false');
       if (open) {
-        requestAnimationFrame(() => requestAnimationFrame(syncHelpPopoverHeight));
+        refreshActivityEmptyHint();
+        requestAnimationFrame(() => {
+          syncHelpPanelHeight();
+          const hasLogs = activityHasLogCards();
+          if (hasLogs) {
+            const firstCard = panel && panel.querySelector('.op-card');
+            if (firstCard) firstCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else {
+            pop.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
       } else {
+        pop.classList.remove('with-logs');
         pop.style.maxHeight = '';
+        refreshActivityEmptyHint();
       }
     }
 
@@ -1168,28 +1258,23 @@
       setOpen(!pop.classList.contains('is-open'));
     }
 
-    window.addEventListener('resize', syncHelpPopoverHeight);
+    window.closePrepareHelp = () => setOpen(false);
+
+    window.addEventListener('resize', syncHelpPanelHeight);
 
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       toggle();
     });
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setOpen(false);
+      });
+    }
 
-    let hoverCloseTimer;
-    btn.addEventListener('mouseenter', () => {
-      clearTimeout(hoverCloseTimer);
-      setOpen(true);
-    });
-    block.addEventListener('mouseleave', () => {
-      hoverCloseTimer = setTimeout(() => setOpen(false), 200);
-    });
-    block.addEventListener('mouseenter', () => clearTimeout(hoverCloseTimer));
-
-    document.addEventListener('click', (e) => {
-      if (!block.contains(e.target)) setOpen(false);
-    });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape' && pop.classList.contains('is-open')) setOpen(false);
     });
   })();
 
