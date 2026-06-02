@@ -53,19 +53,36 @@
       display: flex; align-items: center; gap: 6px; margin-bottom: 2px;
     }
     .section-header-row .section-title { margin-bottom: 0; flex: 1; }
+    .section-header-row--solo { justify-content: flex-end; margin-bottom: 4px; }
     .help-trigger {
-      width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+      flex-shrink: 0;
       border: 1px solid #cbd5e1; background: #f8fafc; color: #64748b;
-      font-size: 11px; font-weight: bold; cursor: pointer; padding: 0;
-      line-height: 16px; text-align: center;
+      font-size: 11px; font-weight: 600; cursor: pointer;
+      padding: 4px 10px; line-height: 1.2; text-align: center;
+      border-radius: 6px; white-space: nowrap;
     }
     .help-trigger:hover,
     .help-trigger[aria-expanded="true"] {
       background: #1a56a0; color: #fff; border-color: #1a56a0;
     }
-    /* Справка — в центральной ленте, сайдбар с кнопками остаётся видимым */
+    /* Справка — оверлей поверх ленты логов; сайдбар с кнопками не затрагивается */
+    .help-guide-backdrop {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 24;
+      background: rgba(15, 23, 42, .06);
+      pointer-events: auto;
+    }
+    .help-guide-backdrop.is-open { display: block; }
     .help-guide-panel {
       display: none;
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      bottom: 16px;
+      left: 16px;
+      z-index: 30;
       background: #fff;
       border: 1px solid #bfdbfe;
       border-radius: 12px;
@@ -75,25 +92,12 @@
       overflow-x: hidden;
       line-height: 1.45;
       color: #374151;
-      box-shadow: 0 2px 10px rgba(26, 86, 160, .08);
+      box-shadow: 0 8px 28px rgba(26, 86, 160, .18);
       text-transform: none;
       letter-spacing: normal;
       font-weight: normal;
-      flex-shrink: 0;
     }
     .help-guide-panel.is-open { display: block; }
-    .help-guide-panel.with-logs.is-open {
-      max-height: min(42vh, 320px) !important;
-      margin-top: 8px;
-      border-style: dashed;
-    }
-    .help-guide-panel.with-logs .help-guide-hint-extra {
-      display: block;
-      font-size: 11px;
-      color: #1a56a0;
-      margin-top: 6px;
-    }
-    .help-guide-hint-extra { display: none; }
     .help-guide-header {
       display: flex;
       align-items: flex-start;
@@ -230,13 +234,35 @@
 
     /* Лента операций */
     .activity-panel {
+      position: relative;
       flex: 1;
+      overflow: hidden;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .activity-panel-scroll {
+      flex: 1;
+      min-height: 0;
       overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-gutter: stable;
+    }
+    .activity-panel-scroll::-webkit-scrollbar { width: 10px; }
+    .activity-panel-scroll::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 5px;
+    }
+    .activity-panel-scroll::-webkit-scrollbar-track { background: #f8fafc; }
+    .activity-panel-inner {
+      box-sizing: border-box;
+      width: 100%;
+      min-width: 0;
       padding: 16px 20px 24px;
       display: flex;
       flex-direction: column;
       gap: 14px;
-      min-width: 0;
+      min-height: 100%;
     }
 
     .live-status.hidden { display: none; }
@@ -440,16 +466,33 @@
     .empty-hint {
       flex: 1; display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      color: #9ca3af; font-size: 14px; gap: 6px;
+      color: #6b7280; font-size: 13px; gap: 8px;
+      text-align: center; max-width: 360px; margin: 0 auto;
+      line-height: 1.45;
     }
-    .empty-hint-icon { font-size: 32px; }
+    .empty-hint-icon { font-size: 32px; line-height: 1; }
+    .empty-hint-title {
+      font-size: 15px; font-weight: 600; color: #374151;
+    }
+    .empty-hint-lead { color: #6b7280; }
+    .empty-hint-steps {
+      margin: 4px 0 0; padding-left: 20px; text-align: left;
+      color: #6b7280; font-size: 12px;
+    }
+    .empty-hint-steps li { margin-bottom: 4px; }
+    .empty-hint-steps li:last-child { margin-bottom: 0; }
+    .empty-hint-note {
+      font-size: 12px; color: #9ca3af; margin-top: 4px;
+    }
 
-    /* Правая панель */
+    /* Правая панель: прокрутка на .results-track — полоса сбоку, не сужает список */
     .results-shell {
       flex-shrink: 0;
       display: flex;
       height: 100%;
       min-width: 280px;
+      background: #fff;
+      border-left: 1px solid #ddd;
     }
     .results-resize-handle {
       width: 5px;
@@ -467,13 +510,30 @@
       min-width: 280px;
       max-width: min(560px, 55vw);
       flex-shrink: 0;
-      background: #fff;
-      border-left: 1px solid #ddd;
+      height: 100%;
       display: flex;
       flex-direction: column;
-      padding: 16px;
-      gap: 8px;
+      overflow: hidden;
+    }
+    .results-track {
+      flex: 1;
+      min-height: 0;
       overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-gutter: stable;
+    }
+    .results-track::-webkit-scrollbar { width: 10px; }
+    .results-track::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 5px;
+    }
+    .results-track::-webkit-scrollbar-track { background: #f8fafc; }
+    .results-inner {
+      box-sizing: border-box;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
     .results-title {
       font-size: 11px; font-weight: bold; text-transform: uppercase;
@@ -521,9 +581,8 @@
   <div class="sidebar">
 
     <div class="sidebar-block-help" id="reportsBlock">
-      <div class="section-header-row">
-        <div class="section-title">Отчёты от инженеров</div>
-        <button type="button" class="help-trigger" id="helpPrepareBtn" aria-expanded="false" aria-controls="helpPreparePopover" aria-label="Справка: открыть в центральной панели">?</button>
+      <div class="section-header-row section-header-row--solo">
+        <button type="button" class="help-trigger" id="helpPrepareBtn" aria-expanded="false" aria-controls="helpPreparePopover" aria-label="Справка: открыть в центральной панели">Справка</button>
       </div>
       <div class="upload-zone" onclick="document.getElementById('inp-reports').click()">
         <input type="file" id="inp-reports" multiple accept=".docx,.doc" onchange="uploadReports(this)"/>
@@ -536,23 +595,20 @@
     <hr class="divider"/>
 
     <div>
-      <div class="section-title">Проверка и исправление</div>
       <button class="btn btn-blue" id="btnCheck" onclick="startCheck()">Проверить и исправить</button>
-      <button class="btn btn-gray" style="margin-top:6px" onclick="downloadAllFixed()">Скачать все (ZIP)</button>
+      <button class="btn btn-gray" style="margin-top:6px" onclick="downloadAllFixed()">Скачать (ZIP)</button>
     </div>
 
     <hr class="divider"/>
 
     <div>
-      <div class="section-title">Руководитель отчёта</div>
       <button class="btn btn-blue" style="margin-bottom:6px" onclick="switchLeader('aniskov')">Аниськов В.И.</button>
-      <button class="btn btn-orange" onclick="switchLeader('mandzhiev')">Манджиев И.А. (И.О.)</button>
+      <button class="btn btn-orange" onclick="switchLeader('mandzhiev')">Манджиев И.А.</button>
     </div>
 
     <hr class="divider"/>
 
     <div id="prepareBlock">
-      <div class="section-title">Подготовка к сборке</div>
       <input type="date" id="macroReportDate" aria-label="Дата в отчёте" style="width:100%;padding:6px 8px;margin-top:4px;margin-bottom:8px;border:1px solid #ccc;border-radius:6px;font-size:13px"/>
       <button class="btn btn-green" style="margin-bottom:0" id="btnPrepare" onclick="prepareReports()">Подготовить</button>
     </div>
@@ -582,20 +638,31 @@
     <div class="main" id="mainPanel">
     <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
     <div class="activity-panel" id="activityPanel">
+      <div class="activity-panel-scroll" id="activityPanelScroll">
+      <div class="activity-panel-inner" id="activityPanelInner">
       <div class="live-status hidden" id="liveStatus">
         <span class="spinner" id="liveSpinner"></span>
         <span class="live-status-text" id="liveStatusText"></span>
       </div>
       <div class="empty-hint" id="emptyHint">
-        <span class="empty-hint-icon">📂</span>
-        <span>Загрузите отчёты и выберите операцию</span>
+        <span class="empty-hint-icon" aria-hidden="true">📋</span>
+        <span class="empty-hint-title">Лента операций</span>
+        <span class="empty-hint-lead">Здесь появятся карточки с прогрессом и подробным логом — после нажатия кнопок слева.</span>
+        <ol class="empty-hint-steps">
+          <li>Загрузите отчёты инженеров (.docx) в левой колонке.</li>
+          <li>Выберите дату → «Подготовить» → «Сформировать» (при необходимости «Проверить и исправить»).</li>
+          <li>Готовые файлы — справа в блоке «Сформированные».</li>
+        </ol>
+        <span class="empty-hint-note">Пошаговая инструкция — кнопка «Справка» над загрузкой.</span>
       </div>
-      <div class="help-guide-panel" id="helpPreparePopover" role="dialog" aria-labelledby="helpPrepareTitle" aria-modal="false">
+      </div>
+      </div>
+      <div class="help-guide-backdrop" id="helpPrepareBackdrop" aria-hidden="true"></div>
+      <div class="help-guide-panel" id="helpPreparePopover" role="dialog" aria-labelledby="helpPrepareTitle" aria-modal="true">
         <div class="help-guide-header">
           <div>
             <strong id="helpPrepareTitle">Справка: подготовка к сборке</strong>
-            <p class="help-guide-hint">Слева остаются все кнопки — читайте справку и смотрите на интерфейс одновременно.</p>
-            <p class="help-guide-hint-extra">Логи операций остаются выше; справка открывается внизу ленты и не перекрывает их.</p>
+            <p class="help-guide-hint">Слева остаются все кнопки — читайте справку и смотрите на интерфейс одновременно. Окно поверх ленты логов.</p>
           </div>
           <button type="button" class="help-guide-close" id="helpPrepareClose" aria-label="Закрыть справку">×</button>
         </div>
@@ -605,7 +672,7 @@
         <ol class="help-steps">
           <li>Загрузите файлы инженеров в блок «Отчёты от инженеров» (слева).</li>
           <li>Выберите <strong>дату в отчёте</strong> (календарь в блоке «Подготовка к сборке»).</li>
-          <li>Нажмите <strong>Подготовить</strong> — выше появятся две карточки лога (см. ниже).</li>
+          <li>Нажмите <strong>Подготовить</strong> — в ленте появятся две карточки лога (см. ниже).</li>
           <li>Нажмите <strong>Сформировать</strong> — склейка и переименование готовых (ещё карточки в ленте).</li>
         </ol>
 
@@ -636,11 +703,15 @@
   <div class="results-shell">
     <div class="results-resize-handle" id="resultsResizeHandle" title="Потяните — изменить ширину" aria-hidden="true"></div>
     <div class="results-panel" id="resultsPanel">
-      <div class="result-section-title">Исправленные файлы</div>
-      <div id="fixedFiles"><div class="no-results">Пока нет</div></div>
+      <div class="results-track">
+        <div class="results-inner">
+          <div class="result-section-title">Проверенные и исправленные</div>
+          <div id="fixedFiles"><div class="no-results">Пока нет</div></div>
 
-      <div class="result-section-title">Готовые отчёты</div>
-      <div id="results-list"><div class="no-results">Пока нет</div></div>
+          <div class="result-section-title">Сформированные</div>
+          <div id="results-list"><div class="no-results">Пока нет</div></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -657,12 +728,23 @@
 
   const MAX_OP_CARDS = 20;
 
+  function getActivityTrackEl() {
+    return document.getElementById('activityPanelScroll');
+  }
+
+  function getActivityScrollEl() {
+    return document.getElementById('activityPanelInner')
+      || getActivityTrackEl()
+      || document.getElementById('activityPanel');
+  }
+
   function refreshActivityEmptyHint() {
     const emptyHint = document.getElementById('emptyHint');
-    const panel = document.getElementById('activityPanel');
+    const panel = getActivityScrollEl();
     const pop = document.getElementById('helpPreparePopover');
     if (!emptyHint || !panel) return;
-    const hasCards = panel.querySelectorAll('.op-card').length > 0;
+    const scrollRoot = document.getElementById('activityPanelInner') || panel;
+    const hasCards = scrollRoot.querySelectorAll('.op-card').length > 0;
     const helpOpen = pop && pop.classList.contains('is-open');
     emptyHint.style.display = (hasCards || helpOpen) ? 'none' : '';
   }
@@ -676,7 +758,7 @@
   };
 
   function _trimHistory() {
-    const panel = document.getElementById('activityPanel');
+    const panel = getActivityScrollEl();
     const cards = panel.querySelectorAll('.op-card');
     if (cards.length > MAX_OP_CARDS) {
       for (let i = 0; i < cards.length - MAX_OP_CARDS; i++) cards[i].remove();
@@ -699,7 +781,7 @@
   }
 
   function createOpCard(title, subtitle) {
-    const panel = document.getElementById('activityPanel');
+    const panel = getActivityScrollEl();
     const statusId = 'ls_' + Date.now() + '_' + Math.random().toString(36).slice(2);
     const progressId = 'pr_' + Date.now() + '_' + Math.random().toString(36).slice(2);
     const sub = subtitle || OP_SUBTITLES[title] || '';
@@ -730,13 +812,12 @@
         </div>
       </div>
     `;
-    const logAnchor = document.getElementById('helpPreparePopover') || document.getElementById('emptyHint');
-    panel.insertBefore(card, logAnchor);
+    panel.insertBefore(card, document.getElementById('emptyHint'));
     attachOpCardCollapse(card);
     collapseOtherOpCards(card);
     refreshActivityEmptyHint();
-    if (typeof window.closePrepareHelp === 'function') window.closePrepareHelp();
-    panel.scrollTop = 0;
+    const track = getActivityTrackEl();
+    if (track) track.scrollTop = 0;
     _trimHistory();
     return { card, statusId, progressId };
   }
@@ -1210,48 +1291,21 @@
     });
   })();
 
-  function activityHasLogCards() {
-    const panel = document.getElementById('activityPanel');
-    return panel && panel.querySelectorAll('.op-card').length > 0;
-  }
-
   (function initPrepareBlockHelp() {
     const btn = document.getElementById('helpPrepareBtn');
     const closeBtn = document.getElementById('helpPrepareClose');
     const pop = document.getElementById('helpPreparePopover');
-    const panel = document.getElementById('activityPanel');
+    const backdrop = document.getElementById('helpPrepareBackdrop');
     if (!btn || !pop) return;
-
-    function syncHelpPanelHeight() {
-      if (!pop.classList.contains('is-open')) return;
-      const hasLogs = activityHasLogCards();
-      pop.classList.toggle('with-logs', hasLogs);
-      const top = pop.getBoundingClientRect().top;
-      const available = window.innerHeight - top - 20;
-      const cap = hasLogs ? Math.min(available, Math.floor(window.innerHeight * 0.42), 320) : available;
-      pop.style.maxHeight = Math.max(160, Math.floor(cap)) + 'px';
-    }
 
     function setOpen(open) {
       pop.classList.toggle('is-open', open);
-      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      if (open) {
-        refreshActivityEmptyHint();
-        requestAnimationFrame(() => {
-          syncHelpPanelHeight();
-          const hasLogs = activityHasLogCards();
-          if (hasLogs) {
-            const firstCard = panel && panel.querySelector('.op-card');
-            if (firstCard) firstCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          } else {
-            pop.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        });
-      } else {
-        pop.classList.remove('with-logs');
-        pop.style.maxHeight = '';
-        refreshActivityEmptyHint();
+      if (backdrop) {
+        backdrop.classList.toggle('is-open', open);
+        backdrop.setAttribute('aria-hidden', open ? 'false' : 'true');
       }
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      refreshActivityEmptyHint();
     }
 
     function toggle() {
@@ -1259,8 +1313,6 @@
     }
 
     window.closePrepareHelp = () => setOpen(false);
-
-    window.addEventListener('resize', syncHelpPanelHeight);
 
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1271,6 +1323,9 @@
         e.stopPropagation();
         setOpen(false);
       });
+    }
+    if (backdrop) {
+      backdrop.addEventListener('click', () => setOpen(false));
     }
 
     document.addEventListener('keydown', (e) => {
