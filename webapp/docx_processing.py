@@ -629,12 +629,6 @@ def rename_results(folder: str, target_date: str) -> list[str]:
 
 # Дата в шапке болванки: DD.MM.YYYYг
 _BOLVANKA_DATE_RE = re.compile(r"\d{1,2}[./\-]\d{1,2}[./\-]\d{2,4}\s*г")
-# В имени файла: …2025г.docx — «г» перед точкой расширения
-_BOLVANKA_DATE_IN_FILENAME_RE = re.compile(
-    r"\d{1,2}[./\-]\d{1,2}[./\-]\d{2,4}г(?=\.)"
-)
-
-
 def _write_paragraph_text(para, new_text: str) -> None:
     if para.runs:
         para.runs[0].text = new_text
@@ -676,9 +670,9 @@ def _set_title_line_date(para, target_date: str) -> bool:
 
 def rename_templates(folder: str, target_date: str) -> list[str]:
     """
-    Обновляет дату во всех болванках:
-    - строка «Отчёт … за …» в документе (дописать или заменить старую дату);
-    - имя файла «…за DD.MM.YYYYг.docx».
+    Ставит дату внутри болванок (имена файлов не меняются):
+    - строка «Отчёт … за …» в документе;
+    - дата в таблице отчёта, если есть.
     """
     log = []
     folder_path = Path(folder)
@@ -702,28 +696,13 @@ def rename_templates(folder: str, target_date: str) -> list[str]:
             if replace_date_in_report_line(doc, target_date=target_date):
                 updated.append("таблица")
 
-            has_name_date = bool(_BOLVANKA_DATE_IN_FILENAME_RE.search(filepath.name))
-            if not updated and not has_name_date:
-                log.append(f"[ERR] {filepath.name}: нет строки «Отчёт … за» и даты в имени")
+            if not updated:
+                log.append(f"[ERR] {filepath.name}: нет строки «Отчёт … за» для замены даты")
                 continue
 
             doc.save(os.fspath(filepath))
-
-            new_name = (
-                _BOLVANKA_DATE_IN_FILENAME_RE.sub(f"{target_date}г", filepath.name, count=1)
-                if has_name_date
-                else filepath.name
-            )
-            parts = ", ".join(updated) if updated else "имя файла"
-            if new_name != filepath.name:
-                new_path = filepath.parent / new_name
-                if new_path.exists() and new_path.resolve() != filepath.resolve():
-                    log.append(f"[ERR] {filepath.name}: имя занято ({new_name})")
-                else:
-                    filepath.rename(new_path)
-                    log.append(f"[OK] {new_name}: {target_date}г ({parts})")
-            else:
-                log.append(f"[OK] {filepath.name}: {target_date}г ({parts})")
+            parts = ", ".join(updated)
+            log.append(f"[OK] {filepath.name}: {target_date}г ({parts})")
         except Exception as e:
             log.append(f"[ERR] {filepath.name}: {e}")
     return log

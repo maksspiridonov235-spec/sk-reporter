@@ -132,7 +132,7 @@ python -m uvicorn main:app --reload --port 8000
 - `POST /merge/{company}` - Объединить отчёты компании
 - `POST /merge/all` - Объединить все отчёты
 - `POST /macro/prepare` - Подготовить загруженные отчёты (body: `{ "date": "YYYY-MM-DD" }`)
-- `POST /rename/templates` - Дата в болванках (body: `{ "date": "YYYY-MM-DD" }`)
+- `POST /rename/templates` - Дата внутри болванок, без переименования файлов (body: `{ "date": "YYYY-MM-DD" }`)
 - `POST /rename/results` - Переименовать готовые отчёты (body: `{ "date": "YYYY-MM-DD" }`)
 
 ### DELETE endpoints
