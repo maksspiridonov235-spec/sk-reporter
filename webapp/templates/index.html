@@ -60,6 +60,18 @@
       gap: 8px;
     }
     #reportsBlock .section-header-row--solo { margin-bottom: 0; }
+    #dateBlock {
+      display: flex;
+      flex-direction: column;
+    }
+    #macroReportDate {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 13px;
+      box-sizing: border-box;
+    }
     .help-trigger {
       flex-shrink: 0;
       border: 1px solid #cbd5e1; background: #f8fafc; color: #64748b;
@@ -588,6 +600,12 @@
 
     <hr class="divider"/>
 
+    <div id="dateBlock">
+      <input type="date" id="macroReportDate" aria-label="Дата в отчёте"/>
+    </div>
+
+    <hr class="divider"/>
+
     <div>
       <button class="btn btn-blue" id="btnCheck" onclick="startCheck()">Проверить и исправить</button>
       <button class="btn btn-gray" style="margin-top:6px" onclick="downloadAllFixed()">Скачать (ZIP)</button>
@@ -603,7 +621,6 @@
     <hr class="divider"/>
 
     <div id="prepareBlock">
-      <input type="date" id="macroReportDate" aria-label="Дата в отчёте" style="width:100%;padding:6px 8px;margin-top:4px;margin-bottom:8px;border:1px solid #ccc;border-radius:6px;font-size:13px"/>
       <button class="btn btn-green" style="margin-bottom:0" id="btnPrepare" onclick="prepareReports()">Подготовить</button>
     </div>
 
