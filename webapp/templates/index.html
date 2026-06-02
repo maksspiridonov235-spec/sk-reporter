@@ -54,6 +54,12 @@
     }
     .section-header-row .section-title { margin-bottom: 0; flex: 1; }
     .section-header-row--solo { justify-content: flex-end; margin-bottom: 4px; }
+    #reportsBlock.sidebar-block-help {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #reportsBlock .section-header-row--solo { margin-bottom: 0; }
     .help-trigger {
       flex-shrink: 0;
       border: 1px solid #cbd5e1; background: #f8fafc; color: #64748b;
@@ -180,8 +186,6 @@
     }
     .file-list div { padding: 2px 0; border-bottom: 1px solid #f0f0f0; }
     .file-list div:last-child { border-bottom: none; }
-    .file-count { font-size: 12px; color: #888; }
-
     .btn {
       width: 100%; padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer;
       font-size: 13px; font-weight: bold; transition: background .15s;
@@ -579,8 +583,7 @@
         <input type="file" id="inp-reports" multiple accept=".docx,.doc" onchange="uploadReports(this)"/>
         <span>Перетащите или нажмите<br>для загрузки .docx/.doc</span>
       </div>
-      <div class="file-count" id="fileCount" style="margin-top:4px">Нет файлов</div>
-      <div class="file-list" id="list-reports" style="margin-top:4px" title="Потяните за нижний угол — изменить высоту списка"><div style="color:#aaa;font-style:italic">—</div></div>
+      <div class="file-list" id="list-reports" title="Потяните за нижний угол — изменить высоту списка"><div style="color:#aaa;font-style:italic">—</div></div>
     </div>
 
     <hr class="divider"/>
@@ -1023,11 +1026,9 @@
     const data = await apiFetch('/files/reports');
     const files = data.files || [];
     const el = document.getElementById('list-reports');
-    const count = document.getElementById('fileCount');
     el.innerHTML = files.length
       ? files.map(f => `<div>${escHtml(f)}</div>`).join('')
       : '<div style="color:#aaa;font-style:italic">—</div>';
-    count.textContent = files.length ? `Загружено файлов: ${files.length}` : 'Нет файлов';
   }
 
   async function refreshResults() {
