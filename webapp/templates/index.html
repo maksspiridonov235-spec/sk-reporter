@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Отчёты СК</title>
+  <title>Ежедневные отчеты СК</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, sans-serif; background: #f0f2f5; color: #222; }
@@ -211,15 +211,6 @@
       height: 100%;
       overflow: hidden;
     }
-    .main-resize-handle {
-      width: 5px;
-      flex-shrink: 0;
-      cursor: col-resize;
-      background: transparent;
-      touch-action: none;
-    }
-    .main-resize-handle:hover,
-    .main-resize-handle.is-dragging { background: #dbeafe; }
     .main {
       flex: 1;
       min-width: 0;
@@ -570,7 +561,7 @@
 </head>
 <body>
 <header>
-  <span class="title">Отчёты СК</span>
+  <span class="title">Ежедневные отчеты СК</span>
 </header>
 
 <div class="layout">
@@ -634,7 +625,6 @@
 
   <!-- Центральная область — лента логов -->
   <div class="main-shell" id="mainShell">
-    <div class="main-resize-handle" id="mainResizeHandle" title="Потяните — ширина ленты логов" aria-hidden="true"></div>
     <div class="main" id="mainPanel">
     <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
     <div class="activity-panel" id="activityPanel">
@@ -666,7 +656,7 @@
           </div>
           <button type="button" class="help-guide-close" id="helpPrepareClose" aria-label="Закрыть справку">×</button>
         </div>
-        <p class="help-lead">Здесь вы задаёте дату и приводите файлы в порядок <strong>до</strong> кнопки «Сформировать». Ход работы — в этой центральной ленте: карточки с прогрессом и подробным логом (ширину ленты можно потянуть за левый край).</p>
+        <p class="help-lead">Здесь вы задаёте дату и приводите файлы в порядок <strong>до</strong> кнопки «Сформировать». Ход работы — в этой центральной ленте: карточки с прогрессом и подробным логом.</p>
 
         <p class="help-lead" style="margin-bottom:4px"><strong>Если садитесь за отчёт впервые — порядок такой:</strong></p>
         <ol class="help-steps">
@@ -1235,56 +1225,6 @@
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
         try { localStorage.setItem('resultsPanelWidth', String(panel.offsetWidth)); } catch (_) {}
-      }
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
-    });
-  })();
-
-  (function initMainPanelResize() {
-    const handle = document.getElementById('mainResizeHandle');
-    const shell = document.getElementById('mainShell');
-    const layout = document.querySelector('.layout');
-    if (!handle || !shell || !layout) return;
-
-    const MIN = 360;
-    const maxWidth = () => {
-      const layoutW = layout.clientWidth;
-      const results = document.getElementById('resultsPanel');
-      const side = document.querySelector('.sidebar-shell');
-      const resW = results ? results.offsetWidth + 5 : 280;
-      const sideW = side ? side.offsetWidth : 318;
-      return Math.max(MIN, layoutW - sideW - resW - 8);
-    };
-
-    try {
-      const saved = parseInt(localStorage.getItem('mainPanelWidth'), 10);
-      if (saved >= MIN) {
-        shell.style.flex = 'none';
-        shell.style.width = Math.min(saved, maxWidth()) + 'px';
-      }
-    } catch (_) {}
-
-    handle.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      const startX = e.clientX;
-      const startW = shell.offsetWidth;
-      handle.classList.add('is-dragging');
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-
-      function onMove(ev) {
-        const w = Math.min(maxWidth(), Math.max(MIN, startW + (startX - ev.clientX)));
-        shell.style.flex = 'none';
-        shell.style.width = w + 'px';
-      }
-      function onUp() {
-        handle.classList.remove('is-dragging');
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-        try { localStorage.setItem('mainPanelWidth', String(shell.offsetWidth)); } catch (_) {}
       }
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
