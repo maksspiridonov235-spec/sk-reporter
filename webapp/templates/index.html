@@ -15,11 +15,31 @@
 
     .layout { display: flex; gap: 0; height: calc(100vh - 54px); }
 
-    /* Левая панель */
-    .sidebar {
-      width: 300px; min-width: 260px; background: #fff; border-right: 1px solid #ddd;
-      display: flex; flex-direction: column; padding: 16px; gap: 10px; overflow-y: auto;
+    /* Левая панель: 300px под контент + ~18px под полосу прокрутки (кнопки не сужаются) */
+    .sidebar-shell {
+      flex-shrink: 0;
+      width: 318px;
+      height: 100%;
+      background: #fff;
+      border-right: 1px solid #ddd;
     }
+    .sidebar {
+      width: 318px;
+      box-sizing: border-box;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .sidebar::-webkit-scrollbar { width: 10px; }
+    .sidebar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 5px;
+    }
+    .sidebar::-webkit-scrollbar-track { background: #f8fafc; }
     .section-title {
       font-size: 11px; font-weight: bold; text-transform: uppercase;
       color: #888; letter-spacing: .5px; margin-bottom: 2px;
@@ -284,10 +304,45 @@
 <div class="layout">
 
   <!-- Левая панель -->
+  <div class="sidebar-shell">
   <div class="sidebar">
 
-    <div>
-      <div class="section-title">Отчёты от инженеров</div>
+    <div class="sidebar-block-help" id="reportsBlock">
+      <div class="section-header-row">
+        <div class="section-title">Отчёты от инженеров</div>
+        <button type="button" class="help-trigger" id="helpPrepareBtn" aria-expanded="false" aria-controls="helpPreparePopover" aria-label="Справка">?</button>
+      </div>
+      <div class="help-popover" id="helpPreparePopover" role="dialog" aria-labelledby="helpPrepareBtn">
+        <strong>Справка: подготовка к сборке</strong>
+        <p class="help-lead">Здесь вы задаёте дату и приводите файлы в порядок <strong>до</strong> кнопки «Сформировать». Ход работы смотрите в ленте справа — там появляются карточки с подробным логом по каждому файлу.</p>
+
+        <p class="help-lead" style="margin-bottom:4px"><strong>Если садитесь за отчёт впервые — порядок такой:</strong></p>
+        <ol class="help-steps">
+          <li>Загрузите файлы инженеров в блок «Отчёты от инженеров».</li>
+          <li>Выберите <strong>дату в отчёте</strong> (календарь в блоке «Подготовка к сборке» ниже).</li>
+          <li>Нажмите <strong>Подготовить</strong> — справа будет две карточки (см. ниже).</li>
+          <li>Нажмите <strong>Сформировать</strong> — склейка, затем переименование готовых файлов (две карточки справа).</li>
+        </ol>
+
+        <div class="help-item">
+          <span class="help-item-title">Дата в отчёте (поле с календарём)</span>
+          <p>Это дата, которая должна быть в готовом отчёте: в шапке «Отчёт … за …» и в таблице (формат ДД.ММ.ГГГГ).</p>
+          <p><span class="help-tag help-tag-ok">Используется</span> при «Подготовить» и при «Сформировать» (дата внутри и в имени готовых файлов).</p>
+          <p><span class="help-tag help-tag-no">Сама не меняет файлы</span> — только сохраняет выбранную дату для кнопок.</p>
+        </div>
+
+        <div class="help-item">
+          <span class="help-item-title">Подготовить (зелёная кнопка)</span>
+          <p>Одно нажатие запускает <strong>две операции подряд</strong>. В ленте справа появятся две отдельные карточки — не путайте их с переименованием файлов на диске.</p>
+          <p><strong>1) Карточка «Подготовка отчётов»</strong> — ваши загруженные файлы из «Отчёты от инженеров». Внутри каждого Word-файла программа:</p>
+          <p style="padding-left:10px;margin-top:2px">заливка второй строки таблицы; единый шрифт; сброс лишних отступов; размер картинок; <strong>дата в тексте таблицы</strong>; высота строк; выравнивание сетки по эталону.</p>
+          <p><span class="help-tag help-tag-ok">Имена загруженных файлов не меняются</span> — меняется только содержимое внутри.</p>
+          <p><strong>2) Карточка «Дата в тексте болванок»</strong> — шаблоны компаний в папке болванок на сервере. Внутри каждой болванки:</p>
+          <p style="padding-left:10px;margin-top:2px">строка «Отчёт … за …» в начале документа; дата в таблице отчёта — на выбранную в календаре.</p>
+          <p><span class="help-tag help-tag-ok">Имена файлов болванок на диске не меняются</span> — в логе будет фраза «имя файла на диске не менялось». Старую дату в названии файла можно не трогать: важна дата <em>внутри</em> Word.</p>
+          <p>Если в логе ошибка по файлу — в этом шаблоне не нашлась строка «Отчёт … за»; откройте болванку в Word и проверьте шапку.</p>
+        </div>
+      </div>
       <div class="upload-zone" onclick="document.getElementById('inp-reports').click()">
         <input type="file" id="inp-reports" multiple accept=".docx,.doc" onchange="uploadReports(this)"/>
         <span>Перетащите или нажмите<br>для загрузки .docx/.doc</span>
@@ -314,54 +369,19 @@
 
     <hr class="divider"/>
 
-    <div class="sidebar-block-help" id="prepareBlock">
-      <div class="section-header-row">
-        <div class="section-title">Подготовка к сборке</div>
-        <button type="button" class="help-trigger" id="helpPrepareBtn" aria-expanded="false" aria-controls="helpPreparePopover" aria-label="Справка по блоку">?</button>
-      </div>
-      <div class="help-popover" id="helpPreparePopover" role="dialog" aria-labelledby="helpPrepareBtn">
-        <strong>Справка: подготовка к сборке</strong>
-        <p class="help-lead">Здесь вы задаёте дату и приводите файлы в порядок <strong>до</strong> кнопки «Сформировать все отчёты». Ход работы смотрите в ленте справа — там появляются карточки с подробным логом по каждому файлу.</p>
-
-        <p class="help-lead" style="margin-bottom:4px"><strong>Если садитесь за отчёт впервые — порядок такой:</strong></p>
-        <ol class="help-steps">
-          <li>Загрузите файлы инженеров в блок «Отчёты от инженеров».</li>
-          <li>Выберите <strong>дату в отчёте</strong> (календарь в этом блоке).</li>
-          <li>Нажмите <strong>Подготовить отчёты</strong> — справа будет две карточки (см. ниже).</li>
-          <li>Нажмите <strong>Сформировать все отчёты</strong> — склейка, затем переименование готовых файлов (две карточки справа).</li>
-        </ol>
-
-        <div class="help-item">
-          <span class="help-item-title">Дата в отчёте (поле с календарём)</span>
-          <p>Это дата, которая должна быть в готовом отчёте: в шапке «Отчёт … за …» и в таблице (формат ДД.ММ.ГГГГ).</p>
-          <p><span class="help-tag help-tag-ok">Используется</span> при «Подготовить отчёты» и при «Сформировать все отчёты» (дата внутри и в имени готовых файлов).</p>
-          <p><span class="help-tag help-tag-no">Сама не меняет файлы</span> — только сохраняет выбранную дату для кнопок.</p>
-        </div>
-
-        <div class="help-item">
-          <span class="help-item-title">Подготовить отчёты (зелёная кнопка)</span>
-          <p>Одно нажатие запускает <strong>две операции подряд</strong>. В ленте справа появятся две отдельные карточки — не путайте их с переименованием файлов на диске.</p>
-          <p><strong>1) Карточка «Подготовка отчётов»</strong> — ваши загруженные файлы из «Отчёты от инженеров». Внутри каждого Word-файла программа:</p>
-          <p style="padding-left:10px;margin-top:2px">заливка второй строки таблицы; единый шрифт; сброс лишних отступов; размер картинок; <strong>дата в тексте таблицы</strong>; высота строк; выравнивание сетки по эталону.</p>
-          <p><span class="help-tag help-tag-ok">Имена загруженных файлов не меняются</span> — меняется только содержимое внутри.</p>
-          <p><strong>2) Карточка «Дата в тексте болванок»</strong> — шаблоны компаний в папке болванок на сервере. Внутри каждой болванки:</p>
-          <p style="padding-left:10px;margin-top:2px">строка «Отчёт … за …» в начале документа; дата в таблице отчёта — на выбранную в календаре.</p>
-          <p><span class="help-tag help-tag-ok">Имена файлов болванок на диске не меняются</span> — в логе будет фраза «имя файла на диске не менялось». Старую дату в названии файла можно не трогать: важна дата <em>внутри</em> Word.</p>
-          <p>Если в логе ошибка по файлу — в этом шаблоне не нашлась строка «Отчёт … за»; откройте болванку в Word и проверьте шапку.</p>
-        </div>
-
-      </div>
+    <div id="prepareBlock">
+      <div class="section-title">Подготовка к сборке</div>
       <input type="date" id="macroReportDate" aria-label="Дата в отчёте" style="width:100%;padding:6px 8px;margin-top:4px;margin-bottom:8px;border:1px solid #ccc;border-radius:6px;font-size:13px"/>
-      <button class="btn btn-green" style="margin-bottom:0" id="btnPrepare" onclick="prepareReports()">Подготовить отчёты</button>
+      <button class="btn btn-green" style="margin-bottom:0" id="btnPrepare" onclick="prepareReports()">Подготовить</button>
     </div>
 
     <hr class="divider"/>
 
-    <button class="btn btn-green" onclick="mergeAll()">Сформировать все отчёты</button>
+    <button class="btn btn-green" onclick="mergeAll()">Сформировать</button>
 
     <hr class="divider"/>
 
-    <button class="btn btn-gray" onclick="downloadAll()">Забрать всё (ZIP)</button>
+    <button class="btn btn-gray" onclick="downloadAll()">Скачать (ZIP)</button>
 
     <hr class="divider"/>
 
@@ -370,6 +390,7 @@
       <button class="btn btn-red" onclick="resetAll()">Сбросить всё</button>
     </div>
 
+  </div>
   </div>
 
   <!-- Центральная область — активность -->
@@ -765,7 +786,7 @@
   (function initPrepareBlockHelp() {
     const btn = document.getElementById('helpPrepareBtn');
     const pop = document.getElementById('helpPreparePopover');
-    const block = document.getElementById('prepareBlock');
+    const block = document.getElementById('reportsBlock');
     if (!btn || !pop || !block) return;
 
     function setOpen(open) {
