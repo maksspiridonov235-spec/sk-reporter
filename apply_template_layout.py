@@ -17,21 +17,47 @@ BOLVANKI_DIR = (
     / "болванки (шаблоны не вырезать только копировать)"
 )
 
-# Захардкоженная сетка (как в «Ежедневный отчет Шаблон.docx»)
-DEFAULT_GRID_COLS = ["2041", "1757", "1787", "1898", "1701", "1646"]
-# 7 колонок: первые 5 как эталон; блок договора 550+1096=1646 (метка|значение).
-DEFAULT_GRID_COLS_7 = DEFAULT_GRID_COLS[:5] + ["550", "1096"]
+# Эталонная ширина: печатная область A4 (поля L=1,14 см, R=0,57 см) → 18,00 см
+# 11906 − 1134 − 567 = 10205 dxa
+DXA_PER_CM = 567
+ETALON_TABLE_WIDTH_DXA = 10205
+
+# Пропорции 6 колонок — из эталонного отчёта инженера (сумма делится на ячейки)
+_ETALON_6_PROPORTIONS = [1725, 1844, 1870, 2115, 1179, 1838]
+_ETALON_7_VALUE_SHARE = 0.70  # col7 = значение договора, col6 = подпись
+
+
+def _scale_proportions(proportions: list[int], target_dxa: int) -> list[str]:
+    total = sum(proportions)
+    cols = [round(w * target_dxa / total) for w in proportions]
+    cols[-1] += target_dxa - sum(cols)
+    return [str(c) for c in cols]
+
+
+def _build_etalon_grid_cols() -> tuple[list[str], list[str]]:
+    g6 = _scale_proportions(_ETALON_6_PROPORTIONS, ETALON_TABLE_WIDTH_DXA)
+    contract_total = int(g6[-1])
+    label_w = max(500, round(contract_total * (1 - _ETALON_7_VALUE_SHARE)))
+    value_w = contract_total - label_w
+    g7 = g6[:5] + [str(label_w), str(value_w)]
+    return g6, g7
+
+
+DEFAULT_GRID_COLS, DEFAULT_GRID_COLS_7 = _build_etalon_grid_cols()
 ROW_HEIGHT = "340"
 ROW_HEIGHT_RULE = "atLeast"
 MIN_ROW_HEIGHT_CM = 0.6
 MIN_ROWS_FOR_MAIN_TABLE = 8
-TARGET_TABLE_WIDTH = sum(int(w) for w in DEFAULT_GRID_COLS)
+TARGET_TABLE_WIDTH = ETALON_TABLE_WIDTH_DXA
 
 
 def hardcoded_layout() -> dict:
     return {
         "template": "hardcoded",
         "grid_cols": list(DEFAULT_GRID_COLS),
+        "grid_cols_7": list(DEFAULT_GRID_COLS_7),
+        "table_width_dxa": ETALON_TABLE_WIDTH_DXA,
+        "table_width_cm": round(ETALON_TABLE_WIDTH_DXA / DXA_PER_CM, 2),
         "tblGrid": None,
     }
 
