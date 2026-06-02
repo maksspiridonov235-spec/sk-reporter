@@ -198,7 +198,40 @@ EMU_PER_CM = 360000
 DRAWING_NS = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
 EMU_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 
-PREPARE_PIPELINE_ID = "2026-06-02-img"
+PREPARE_PIPELINE_ID = "2026-06-02-layout-full"
+
+
+def _iter_all_story_xml_roots(doc: Document) -> list:
+    """Корни основного текста и колонтитулов (без повторной обработки linked)."""
+    roots: list = []
+    seen: set[int] = set()
+
+    def add(el) -> None:
+        if el is None:
+            return
+        eid = id(el)
+        if eid in seen:
+            return
+        seen.add(eid)
+        roots.append(el)
+
+    add(doc.element.body)
+    for section in doc.sections:
+        for attr in (
+            "header",
+            "footer",
+            "first_page_header",
+            "first_page_footer",
+            "even_page_header",
+            "even_page_footer",
+        ):
+            part = getattr(section, attr, None)
+            if part is None:
+                continue
+            if getattr(part, "is_linked_to_previous", False):
+                continue
+            add(getattr(part, "_element", None))
+    return roots
 
 
 def resize_inline_images(doc: Document) -> int:
@@ -227,13 +260,13 @@ MIN_ROW_HEIGHT_CM = 0.6
 
 
 def _iter_document_paragraphs(doc: Document):
-    for para in doc.paragraphs:
-        yield para
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                for para in cell.paragraphs:
-                    yield para
+    """Все абзацы документа (тело, таблицы, колонтитулы) через XML w:p."""
+    from docx.text.paragraph import Paragraph
+
+    parent = doc.element.body
+    for root in _iter_all_story_xml_roots(doc):
+        for p_el in root.iter(qn("w:p")):
+            yield Paragraph(p_el, parent)
 
 
 def _apply_font_to_paragraph(para) -> None:
@@ -265,24 +298,44 @@ def format_fonts_only(doc: Document) -> None:
         _apply_font_to_paragraph(para)
 
 
-def reset_paragraph_layout(doc: Document) -> None:
-    """Обнуление отступов и интервалов абзацев (макет)."""
-    for para in _iter_document_paragraphs(doc):
-        pPr = para._p.get_or_add_pPr()
-        spacing = pPr.find(qn("w:spacing"))
-        if spacing is None:
-            spacing = etree.SubElement(pPr, qn("w:spacing"))
-        spacing.set(qn("w:before"), "0")
-        spacing.set(qn("w:after"), "0")
-        spacing.set(qn("w:line"), "240")
-        spacing.set(qn("w:lineRule"), "auto")
-        ind = pPr.find(qn("w:ind"))
-        if ind is None:
-            ind = etree.SubElement(pPr, qn("w:ind"))
-        ind.set(qn("w:left"), "0")
-        ind.set(qn("w:right"), "0")
-        ind.set(qn("w:firstLine"), "0")
-        ind.set(qn("w:hanging"), "0")
+def _reset_paragraph_layout_element(p_el) -> None:
+    """Обнуление отступов и интервалов одного w:p (прямое форматирование)."""
+    pPr = p_el.find(qn("w:pPr"))
+    if pPr is None:
+        pPr = etree.SubElement(p_el, qn("w:pPr"))
+    spacing = pPr.find(qn("w:spacing"))
+    if spacing is None:
+        spacing = etree.SubElement(pPr, qn("w:spacing"))
+    spacing.set(qn("w:before"), "0")
+    spacing.set(qn("w:after"), "0")
+    spacing.set(qn("w:line"), "240")
+    spacing.set(qn("w:lineRule"), "auto")
+    spacing.set(qn("w:beforeAutospacing"), "0")
+    spacing.set(qn("w:afterAutospacing"), "0")
+    ind = pPr.find(qn("w:ind"))
+    if ind is None:
+        ind = etree.SubElement(pPr, qn("w:ind"))
+    for key in (
+        "left",
+        "right",
+        "firstLine",
+        "hanging",
+        "start",
+        "end",
+        "firstLineChars",
+        "hangingChars",
+    ):
+        ind.set(qn(f"w:{key}"), "0")
+
+
+def reset_paragraph_layout(doc: Document) -> int:
+    """Обнуление отступов и интервалов всех абзацев (тело + колонтитулы)."""
+    count = 0
+    for root in _iter_all_story_xml_roots(doc):
+        for p_el in root.iter(qn("w:p")):
+            _reset_paragraph_layout_element(p_el)
+            count += 1
+    return count
 
 
 def apply_table_geometry(doc: Document, min_height_cm: float = MIN_ROW_HEIGHT_CM) -> None:
@@ -761,8 +814,8 @@ def prepare_report_file(filepath: str, layout: dict, target_date: str) -> tuple[
     parts.append(f"заливка {n}")
     format_fonts_only(doc)
     parts.append("шрифт")
-    reset_paragraph_layout(doc)
-    parts.append("макеты")
+    n_layout = reset_paragraph_layout(doc)
+    parts.append(f"макеты {n_layout}")
     n_img = resize_inline_images(doc)
     parts.append(f"картинки {n_img}")
     if replace_date_in_report_line(doc, target_date=target_date):
