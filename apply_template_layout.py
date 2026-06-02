@@ -26,6 +26,32 @@ GRID_COLS_6 = ["2041", "1757", "1787", "1898", "1701", "1646"]
 GRID_COLS_7 = ["2041", "1757", "1787", "1898", "1701", "1291", "355"]
 
 
+MIN_ROWS_FOR_MAIN_TABLE = 8
+
+
+def _main_table_indices(doc) -> list[int]:
+    """Сетку на таблицы-отчёты (>= MIN_ROWS), в т.ч. в merged.docx."""
+    if not doc.tables:
+        return []
+    scored = [(i, len(t.rows)) for i, t in enumerate(doc.tables)]
+    qualifying = [i for i, n in scored if n >= MIN_ROWS_FOR_MAIN_TABLE]
+    if qualifying:
+        return qualifying
+    return [i for i, n in scored if n >= 3] or [0]
+
+
+def _set_tc_width(tc, width_dxa: str) -> None:
+    tc_pr = tc.find(qn("w:tcPr"))
+    if tc_pr is None:
+        tc_pr = etree.SubElement(tc, qn("w:tcPr"))
+        tc.insert(0, tc_pr)
+    tc_w = tc_pr.find(qn("w:tcW"))
+    if tc_w is None:
+        tc_w = etree.SubElement(tc_pr, qn("w:tcW"))
+    tc_w.set(qn("w:w"), width_dxa)
+    tc_w.set(qn("w:type"), "dxa")
+
+
 def _build_cumsum(grid_cols: list[str]) -> list[int]:
     cumsum = [0]
     for width in grid_cols:
@@ -92,13 +118,17 @@ def _detect_table_column_count(tbl) -> int:
     return 7 if max_span == 7 else 6
 
 
-def apply_layout(doc, layout: dict | None = None):
+def apply_layout(doc, layout: dict | None = None, only_main_table: bool = True) -> list[str]:
     """
-    Применяет layout к каждой таблице:
+    Применяет layout к таблицам отчёта:
     - 6-колонок -> сетка 6,
     - 7-колонок -> сетка 7.
     """
-    for table in doc.tables:
+    _ = layout
+    indices = _main_table_indices(doc) if only_main_table else list(range(len(doc.tables)))
+
+    for ti in indices:
+        table = doc.tables[ti]
         tbl = table._tbl
         col_count = _detect_table_column_count(tbl)
         grid_cols = GRID_COLS_7 if col_count == 7 else GRID_COLS_6
@@ -130,29 +160,23 @@ def apply_layout(doc, layout: dict | None = None):
 
         for row in table.rows:
             tr = row._tr
-            tcs = tr.findall(qn("w:tc"))
-
             col_idx = 0
-            for tc in tcs:
+            for tc in tr.findall(qn("w:tc")):
                 if col_idx >= len(grid_cols):
                     break
 
                 tc_pr = tc.find(qn("w:tcPr"))
-                if tc_pr is None:
-                    tc_pr = etree.SubElement(tc, qn("w:tcPr"))
-                    tc.insert(0, tc_pr)
-
-                gs_el = tc_pr.find(qn("w:gridSpan"))
-                span = int(gs_el.get(qn("w:val"))) if gs_el is not None else 1
-                span = max(1, min(span, len(grid_cols) - col_idx))
+                span = 1
+                if tc_pr is not None:
+                    gs_el = tc_pr.find(qn("w:gridSpan"))
+                    if gs_el is not None:
+                        span = max(1, int(gs_el.get(qn("w:val"), 1)))
+                span = min(span, len(grid_cols) - col_idx)
                 cell_w = str(grid_cumsum[col_idx + span] - grid_cumsum[col_idx])
-
-                tc_w = tc_pr.find(qn("w:tcW"))
-                if tc_w is None:
-                    tc_w = etree.SubElement(tc_pr, qn("w:tcW"))
-                tc_w.set(qn("w:w"), cell_w)
-                tc_w.set(qn("w:type"), "dxa")
+                _set_tc_width(tc, cell_w)
                 col_idx += span
+
+    return []
 
 
 def main():
