@@ -210,16 +210,11 @@ async def macro_prepare(body: PrepareBody | None = None):
         target_date = datetime.now().strftime("%d.%m.%Y")
 
     log = prepare_uploaded_reports(str(UPLOAD_DIR), layout, target_date)
-    w_cm = layout.get("table_width_cm", 0)
-    g6 = layout["grid_cols"]
-    g7 = layout.get("grid_cols_7", [])
     return {
         "log": log,
-        "template": f"эталон {w_cm} см (6: {'+'.join(g6)})",
-        "grid_cols": g6,
-        "grid_cols_7": g7,
-        "table_width_dxa": layout.get("table_width_dxa"),
-        "table_width_cm": w_cm,
+        "template": "сетка захардкожена",
+        "grid_cols": layout["grid_cols"],
+        "grid_cols_7": layout.get("grid_cols_7"),
         "date": target_date,
     }
 

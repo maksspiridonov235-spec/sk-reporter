@@ -17,38 +17,25 @@ BOLVANKI_DIR = (
     / "болванки (шаблоны не вырезать только копировать)"
 )
 
-# Эталонная ширина: печатная область A4 (поля L=1,14 см, R=0,57 см) → 18,00 см
-# 11906 − 1134 − 567 = 10205 dxa
-DXA_PER_CM = 567
-ETALON_TABLE_WIDTH_DXA = 10205
+# 6 колонок — эталон без изменений (не трогать при подготовке)
+DEFAULT_GRID_COLS = ["2041", "1757", "1787", "1898", "1701", "1646"]
 
-# Пропорции 6 колонок — из эталонного отчёта инженера (сумма делится на ячейки)
-_ETALON_6_PROPORTIONS = [1725, 1844, 1870, 2115, 1179, 1838]
-_ETALON_7_VALUE_SHARE = 0.70  # col7 = значение договора, col6 = подпись
+# 7 колонок (Громов и др.): первые 5 как у 6-кол., 6-я = подпись, 7-я = значение договора
+_CONTRACT_LABEL_DXA = 550
 
 
-def _scale_proportions(proportions: list[int], target_dxa: int) -> list[str]:
-    total = sum(proportions)
-    cols = [round(w * target_dxa / total) for w in proportions]
-    cols[-1] += target_dxa - sum(cols)
-    return [str(c) for c in cols]
+def _build_7_col_grid() -> list[str]:
+    contract_total = int(DEFAULT_GRID_COLS[5])
+    value_w = contract_total - _CONTRACT_LABEL_DXA
+    return list(DEFAULT_GRID_COLS[:5]) + [str(_CONTRACT_LABEL_DXA), str(value_w)]
 
 
-def _build_etalon_grid_cols() -> tuple[list[str], list[str]]:
-    g6 = _scale_proportions(_ETALON_6_PROPORTIONS, ETALON_TABLE_WIDTH_DXA)
-    contract_total = int(g6[-1])
-    label_w = max(500, round(contract_total * (1 - _ETALON_7_VALUE_SHARE)))
-    value_w = contract_total - label_w
-    g7 = g6[:5] + [str(label_w), str(value_w)]
-    return g6, g7
-
-
-DEFAULT_GRID_COLS, DEFAULT_GRID_COLS_7 = _build_etalon_grid_cols()
+DEFAULT_GRID_COLS_7 = _build_7_col_grid()
 ROW_HEIGHT = "340"
 ROW_HEIGHT_RULE = "atLeast"
 MIN_ROW_HEIGHT_CM = 0.6
 MIN_ROWS_FOR_MAIN_TABLE = 8
-TARGET_TABLE_WIDTH = ETALON_TABLE_WIDTH_DXA
+TARGET_TABLE_WIDTH = sum(int(w) for w in DEFAULT_GRID_COLS)
 
 
 def hardcoded_layout() -> dict:
@@ -56,8 +43,6 @@ def hardcoded_layout() -> dict:
         "template": "hardcoded",
         "grid_cols": list(DEFAULT_GRID_COLS),
         "grid_cols_7": list(DEFAULT_GRID_COLS_7),
-        "table_width_dxa": ETALON_TABLE_WIDTH_DXA,
-        "table_width_cm": round(ETALON_TABLE_WIDTH_DXA / DXA_PER_CM, 2),
         "tblGrid": None,
     }
 
@@ -190,7 +175,7 @@ def _max_row_occupancy(tbl) -> int:
 
 
 def _grid_cols_for_table(tbl, standard_6: list[str]) -> list[str]:
-    """6 колонок → эталон 6; 7 колонок → эталон 7 (обе суммы = TARGET_TABLE_WIDTH dxa)."""
+    """6 колонок → эталон 6 (как было); 7 колонок → отдельная сетка 7."""
     file_cols = _grid_cols_from_tbl(tbl)
     max_occ = _max_row_occupancy(tbl)
 
