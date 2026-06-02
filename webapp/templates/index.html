@@ -149,43 +149,144 @@
 
     .divider { border: none; border-top: 1px solid #e5e7eb; margin: 2px 0; }
 
-    /* Центральная область */
-    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    /* Центральная область (лента логов) */
+    .main-shell {
+      flex: 1;
+      min-width: 360px;
+      display: flex;
+      height: 100%;
+      overflow: hidden;
+    }
+    .main-resize-handle {
+      width: 5px;
+      flex-shrink: 0;
+      cursor: col-resize;
+      background: transparent;
+      touch-action: none;
+    }
+    .main-resize-handle:hover,
+    .main-resize-handle.is-dragging { background: #dbeafe; }
+    .main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
 
-    /* Прогресс */
+    /* Прогресс (глобальная полоска) */
     .progress-bar-wrap { height: 3px; background: #e5e7eb; overflow: hidden; flex-shrink: 0; }
-    .progress-bar { height: 3px; background: #1a56a0; width: 0%; transition: width .3s; }
+    .progress-bar { height: 3px; background: #1a56a0; width: 0%; transition: width .25s; }
 
-    /* Центральная панель активности */
+    /* Лента операций */
     .activity-panel {
-      flex: 1; overflow-y: auto; padding: 20px 24px;
-      display: flex; flex-direction: column; gap: 12px;
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 0;
     }
 
-    /* Живая строка статуса */
-    .live-status {
-      display: flex; align-items: center; gap: 10px;
-      background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;
-      padding: 10px 14px; font-size: 13px; color: #1e40af;
-    }
     .live-status.hidden { display: none; }
-    .live-status.done   { background: #f0fdf4; border-color: #86efac; color: #166534; }
-    .live-status.error  { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
-    .live-status-text   { flex: 1; }
 
-    /* Карточка итогов */
-    .summary-card {
-      background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
-      padding: 16px 20px; display: flex; flex-direction: column; gap: 10px;
+    /* Карточка операции */
+    .op-card.summary-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.04);
     }
+    .op-card.summary-card.is-collapsed .op-card-body { display: none; }
+    .op-card.summary-card.is-running { border-color: #93c5fd; }
+    .op-card.summary-card.is-done { border-color: #86efac; }
+    .op-card.summary-card.is-error { border-color: #fca5a5; }
+
     .summary-card-header {
-      display: flex; align-items: center; justify-content: space-between;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
     }
+    .summary-card-title-wrap { flex: 1; min-width: 0; }
     .summary-card-title {
-      font-size: 14px; font-weight: bold; color: #111;
+      font-size: 14px;
+      font-weight: bold;
+      color: #111;
+      line-height: 1.3;
+    }
+    .summary-card-subtitle {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 3px;
+      line-height: 1.4;
     }
     .summary-card-meta {
-      font-size: 12px; color: #6b7280;
+      font-size: 11px;
+      color: #9ca3af;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .op-card-collapse {
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      background: #f9fafb;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 11px;
+      line-height: 1;
+      padding: 0;
+    }
+    .op-card-collapse:hover { background: #eff6ff; border-color: #bfdbfe; color: #1a56a0; }
+
+    .op-card-body { display: flex; flex-direction: column; gap: 10px; }
+
+    /* Живая строка + прогресс внутри карточки */
+    .live-status.op-live {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: #334155;
+    }
+    .live-status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .live-status.done .live-status-row { color: #166534; }
+    .live-status.error .live-status-row { color: #991b1b; }
+    .live-status-text { flex: 1; line-height: 1.4; min-width: 0; }
+    .op-progress-track {
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .op-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #1a56a0, #3b82f6);
+      width: 0%;
+      transition: width .25s ease;
+    }
+    .op-progress-caption {
+      font-size: 11px;
+      color: #64748b;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
     }
     .summary-stats {
       display: flex; gap: 12px; flex-wrap: wrap;
@@ -206,12 +307,20 @@
       text-decoration: underline;
     }
     .detail-block {
-      display: none; font-size: 12px; color: #374151;
-      background: #f9fafb; border: 1px solid #e5e7eb;
-      border-radius: 6px; padding: 10px 12px;
-      max-height: 480px; overflow-y: auto;
+      display: none;
+      font-size: 12px;
+      color: #374151;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 10px 12px;
+      min-height: 80px;
+      max-height: min(70vh, 720px);
+      overflow: auto;
+      resize: vertical;
     }
     .detail-block.open { display: block; }
+    .detail-block.log-timeline { padding: 8px 10px; }
     .detail-row {
       display: flex; align-items: baseline; gap: 6px;
       padding: 3px 0; border-bottom: 1px solid #f3f4f6;
@@ -232,9 +341,14 @@
 
     /* Карточка файла (проверка) */
     .file-card {
-      background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-left: 4px solid #94a3b8;
+      border-radius: 8px;
       padding: 12px 14px;
     }
+    .file-card.file-card-ok { border-left-color: #22c55e; }
+    .file-card.file-card-warn { border-left-color: #f59e0b; }
     .file-card-head {
       display: flex; align-items: center; justify-content: space-between; gap: 8px;
     }
@@ -253,11 +367,23 @@
     }
     .file-card-actions a:hover { background: #1a56a0; color: #fff; }
     .report-body {
-      display: none; font-size: 12px; color: #444;
-      background: #f9fafb; border-radius: 4px; padding: 8px;
-      white-space: pre-wrap; font-family: monospace; margin-top: 8px;
-      max-height: 240px; overflow-y: auto;
+      display: none;
+      font-size: 12px;
+      color: #334155;
+      background: #fff;
+      border-radius: 6px;
+      padding: 10px 12px;
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      margin-top: 8px;
+      min-height: 100px;
+      max-height: min(65vh, 640px);
+      overflow: auto;
+      resize: vertical;
       border: 1px solid #e5e7eb;
+      line-height: 1.45;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     /* Пустое состояние */
@@ -351,7 +477,7 @@
       </div>
       <div class="help-popover" id="helpPreparePopover" role="dialog" aria-labelledby="helpPrepareBtn">
         <strong>Справка: подготовка к сборке</strong>
-        <p class="help-lead">Здесь вы задаёте дату и приводите файлы в порядок <strong>до</strong> кнопки «Сформировать». Ход работы смотрите в ленте справа — там появляются карточки с подробным логом по каждому файлу.</p>
+        <p class="help-lead">Здесь вы задаёте дату и приводите файлы в порядок <strong>до</strong> кнопки «Сформировать». Ход работы — в центральной ленте: карточки с прогрессом и подробным логом (ширину ленты можно потянуть за левый край).</p>
 
         <p class="help-lead" style="margin-bottom:4px"><strong>Если садитесь за отчёт впервые — порядок такой:</strong></p>
         <ol class="help-steps">
@@ -431,8 +557,10 @@
   </div>
   </div>
 
-  <!-- Центральная область — активность -->
-  <div class="main">
+  <!-- Центральная область — лента логов -->
+  <div class="main-shell" id="mainShell">
+    <div class="main-resize-handle" id="mainResizeHandle" title="Потяните — ширина ленты логов" aria-hidden="true"></div>
+    <div class="main" id="mainPanel">
     <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
     <div class="activity-panel" id="activityPanel">
       <div class="live-status hidden" id="liveStatus">
@@ -443,6 +571,7 @@
         <span class="empty-hint-icon">📂</span>
         <span>Загрузите отчёты и выберите операцию</span>
       </div>
+    </div>
     </div>
   </div>
 
@@ -470,6 +599,13 @@
   // ── Activity panel API ────────────────────────────────────────────────────
 
   const MAX_OP_CARDS = 20;
+  const OP_SUBTITLES = {
+    'Подготовка отчётов': 'Меняется содержимое загруженных .docx; имена файлов на диске те же.',
+    'Дата в тексте болванок': 'Меняется текст внутри шаблонов; файлы на диске не переименовываются.',
+    'Переименование готовых': 'Готовые сводные: новое имя на диске и дата в документе.',
+    'Проверка отчётов': 'AI-проверка описаний; при необходимости правки вставляются в документ.',
+    'Сборка отчётов': 'Склейка по компаниям в папку результатов.',
+  };
 
   function _trimHistory() {
     const panel = document.getElementById('activityPanel');
@@ -479,64 +615,143 @@
     }
   }
 
-  function createOpCard(title) {
+  function collapseOtherOpCards(keepCard) {
+    document.querySelectorAll('.op-card.summary-card').forEach(c => {
+      if (c !== keepCard) c.classList.add('is-collapsed');
+    });
+  }
+
+  function attachOpCardCollapse(card) {
+    const btn = card.querySelector('.op-card-collapse');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      card.classList.toggle('is-collapsed');
+      btn.textContent = card.classList.contains('is-collapsed') ? '▶' : '▼';
+    });
+  }
+
+  function createOpCard(title, subtitle) {
     const panel = document.getElementById('activityPanel');
     document.getElementById('emptyHint').style.display = 'none';
     const statusId = 'ls_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const progressId = 'pr_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const sub = subtitle || OP_SUBTITLES[title] || '';
     const card = document.createElement('div');
-    card.className = 'op-card summary-card';
+    card.className = 'op-card summary-card is-running';
     card.innerHTML = `
       <div class="summary-card-header">
-        <span class="summary-card-title">${escHtml(title)}</span>
+        <div class="summary-card-title-wrap">
+          <div class="summary-card-title">${escHtml(title)}</div>
+          ${sub ? `<div class="summary-card-subtitle">${escHtml(sub)}</div>` : ''}
+        </div>
         <span class="summary-card-meta">${new Date().toLocaleTimeString('ru')}</span>
+        <button type="button" class="op-card-collapse" aria-label="Свернуть карточку">▼</button>
       </div>
-      <div class="live-status op-live" id="${statusId}">
-        <span class="spinner"></span>
-        <span class="live-status-text"></span>
+      <div class="op-card-body">
+        <div class="live-status op-live" id="${statusId}">
+          <div class="live-status-row">
+            <span class="spinner"></span>
+            <span class="live-status-text"></span>
+          </div>
+          <div class="op-progress-wrap" id="${progressId}">
+            <div class="op-progress-track"><div class="op-progress-fill"></div></div>
+            <div class="op-progress-caption">
+              <span class="op-progress-label">Ожидание…</span>
+              <span class="op-progress-pct">0%</span>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="op-body" style="display:none"></div>
     `;
     panel.insertBefore(card, document.getElementById('emptyHint'));
+    attachOpCardCollapse(card);
+    collapseOtherOpCards(card);
     panel.scrollTop = panel.scrollHeight;
     _trimHistory();
-    return { card, statusId };
+    return { card, statusId, progressId };
   }
 
-  function setCardStatus(statusId, msg, state) {
+  function setCardProgress(statusId, progressId, current, total, msg, state) {
     const el = document.getElementById(statusId);
     if (!el) return;
+    const card = el.closest('.op-card');
     el.classList.remove('done', 'error');
     const spinner = el.querySelector('.spinner');
     const txt = el.querySelector('.live-status-text');
+    const wrap = progressId ? document.getElementById(progressId) : null;
+    const fill = wrap ? wrap.querySelector('.op-progress-fill') : null;
+    const label = wrap ? wrap.querySelector('.op-progress-label') : null;
+    const pctEl = wrap ? wrap.querySelector('.op-progress-pct') : null;
+
     if (state === 'done') {
       el.classList.add('done');
       if (spinner) spinner.style.display = 'none';
+      if (card) { card.classList.remove('is-running'); card.classList.add('is-done'); }
     } else if (state === 'error') {
       el.classList.add('error');
       if (spinner) spinner.style.display = 'none';
+      if (card) { card.classList.remove('is-running'); card.classList.add('is-error'); }
     } else {
       if (spinner) spinner.style.display = '';
+      if (card) card.classList.add('is-running');
     }
-    txt.textContent = msg;
+    if (txt && msg != null) txt.textContent = msg;
+
+    const totalN = total > 0 ? total : 0;
+    const cur = totalN ? Math.min(current, totalN) : 0;
+    const pct = totalN ? Math.round((cur / totalN) * 100) : (state === 'done' ? 100 : 0);
+    if (fill) fill.style.width = pct + '%';
+    if (pctEl) pctEl.textContent = totalN ? `${pct}% (${cur}/${totalN})` : (pct ? pct + '%' : '—');
+    if (label && totalN) label.textContent = msg || 'Выполняется…';
+  }
+
+  function setCardStatus(statusId, msg, state, progressId, progress) {
+    const p = progress || {};
+    setCardProgress(
+      statusId,
+      progressId || null,
+      p.current || 0,
+      p.total || 0,
+      msg,
+      state
+    );
+  }
+
+  function formatLogLine(line) {
+    const body = line.replace(/^\[(OK|ERR)\]\s*/, '');
+    if (body.includes('имя файла на диске не менялось')) {
+      return body.replace(
+        /;\s*имя файла на диске не менялось/,
+        ' · файл на диске: то же имя'
+      );
+    }
+    if (body.includes('на диске') && body.includes('в документе')) {
+      return body;
+    }
+    return body;
   }
 
   function finalizeOpCard(card, statusId, stats, details, fileCards, options) {
     options = options || {};
     const liveEl = document.getElementById(statusId);
     if (liveEl) liveEl.remove();
+    card.classList.remove('is-running');
+    if (options.errorState) card.classList.add('is-error');
+    else card.classList.add('is-done');
 
+    const body = card.querySelector('.op-card-body') || card;
     const statsContainer = document.createElement('div');
     statsContainer.className = 'summary-stats';
     statsContainer.innerHTML = stats.map(s =>
       `<span class="stat-chip stat-${s.color}">${escHtml(s.label)}</span>`
     ).join('');
-    card.appendChild(statsContainer);
+    body.appendChild(statsContainer);
 
     if (options.meta) {
       const metaEl = document.createElement('div');
-      metaEl.style.cssText = 'font-size:12px;color:#6b7280;margin-top:6px';
+      metaEl.style.cssText = 'font-size:12px;color:#6b7280;margin-top:2px';
       metaEl.textContent = options.meta;
-      card.appendChild(metaEl);
+      body.appendChild(metaEl);
     }
 
     const hasFileCards = Array.isArray(fileCards) && fileCards.length > 0;
@@ -545,16 +760,18 @@
       const detailId = 'det_' + Date.now() + '_' + Math.random().toString(36).slice(2);
       const toggleBtn = document.createElement('button');
       toggleBtn.className = 'detail-toggle';
-      toggleBtn.textContent = options.expandDetails ? 'Подробности ▲' : 'Подробности ▼';
+      toggleBtn.type = 'button';
+      const detailLabel = options.detailLabel || 'Подробный лог';
+      toggleBtn.textContent = options.expandDetails ? `${detailLabel} ▲` : `${detailLabel} ▼`;
       toggleBtn.onclick = () => {
         const block = document.getElementById(detailId);
         block.classList.toggle('open');
-        toggleBtn.textContent = block.classList.contains('open') ? 'Подробности ▲' : 'Подробности ▼';
+        toggleBtn.textContent = block.classList.contains('open') ? `${detailLabel} ▲` : `${detailLabel} ▼`;
       };
-      card.appendChild(toggleBtn);
+      body.appendChild(toggleBtn);
 
       const detailBlock = document.createElement('div');
-      detailBlock.className = 'detail-block' + (options.expandDetails ? ' open' : '');
+      detailBlock.className = 'detail-block log-timeline' + (options.expandDetails ? ' open' : '');
       detailBlock.id = detailId;
 
       if (details && details.length) {
@@ -575,7 +792,7 @@
         fileCards.forEach(fc => detailBlock.appendChild(fc));
       }
 
-      card.appendChild(detailBlock);
+      body.appendChild(detailBlock);
     }
   }
 
@@ -594,8 +811,8 @@
       ? `<a href="${downloadUrl}" download>Скачать исправленный</a>`
       : '';
     const el = document.createElement('div');
-    el.className = 'file-card';
-    el.style.marginTop = '6px';
+    el.className = 'file-card ' + (hasErrors ? 'file-card-warn' : 'file-card-ok');
+    el.style.marginTop = '8px';
     el.dataset.filename = filename;
     el.innerHTML = `
       <div class="file-card-head">
@@ -721,13 +938,14 @@
     const bar = document.getElementById('progressBar');
     bar.style.width = '10%';
 
-    const { card, statusId } = createOpCard('Проверка отчётов');
-    setCardStatus(statusId, 'Запускаю проверку...');
+    const { card, statusId, progressId } = createOpCard('Проверка отчётов');
+    let total = 0;
+    setCardProgress(statusId, progressId, 0, 0, 'Запускаю проверку…');
 
     const resp = await fetch('/check/descriptions/stream', { method: 'POST' });
     if (!resp.ok) {
-      setCardStatus(statusId, 'Ошибка запуска проверки', 'error');
-      finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], null, null);
+      setCardProgress(statusId, progressId, 0, 0, 'Ошибка запуска проверки', 'error');
+      finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], null, null, { errorState: true });
       btn.disabled = false;
       btn.textContent = 'Проверить и исправить';
       return;
@@ -752,13 +970,19 @@
         try { ev = JSON.parse(line.slice(6)); } catch { continue; }
 
         if (ev.type === 'start') {
-          setCardStatus(statusId, ev.msg);
-          bar.style.width = '20%';
+          total = ev.total || 0;
+          setCardProgress(statusId, progressId, 0, total, ev.msg);
+          bar.style.width = total ? '12%' : '20%';
         } else if (ev.type === 'info') {
-          setCardStatus(statusId, ev.msg);
+          setCardProgress(statusId, progressId, processed, total, ev.msg);
         } else if (ev.type === 'report') {
           processed++;
-          bar.style.width = Math.min(20 + processed * 30, 85) + '%';
+          const pctBar = total ? Math.min(12 + (processed / total) * 78, 90) : Math.min(20 + processed * 30, 85);
+          bar.style.width = pctBar + '%';
+          const shortMsg = ev.hasErrors
+            ? `${ev.filename}: замечания по описаниям`
+            : `${ev.filename}: без замечаний`;
+          setCardProgress(statusId, progressId, processed, total, shortMsg);
           collectedFileCards.push({ filename: ev.filename, hasErrors: ev.hasErrors, reportText: ev.result?.report || '', downloadUrl: null });
         } else if (ev.type === 'fixed') {
           addFixed(ev.filename, ev.download);
@@ -771,16 +995,20 @@
           const fileCardEls = collectedFileCards.map(fc =>
             buildFileCardEl(fc.filename, fc.hasErrors, fc.reportText, downloadMap[fc.filename] || null)
           );
+          setCardProgress(statusId, progressId, total || processed, total || processed, 'Проверка завершена', 'done');
           finalizeOpCard(card, statusId, [
-            { label: `Всего: ${total}`, color: 'blue' },
-            { label: `ОК: ${total - errors}`, color: 'green' },
-            ...(errors > 0 ? [{ label: `Проблем: ${errors}`, color: 'red' }] : []),
-          ], null, fileCardEls);
+            { label: `Файлов: ${total}`, color: 'blue' },
+            { label: `Без замечаний: ${total - errors}`, color: 'green' },
+            ...(errors > 0 ? [{ label: `С замечаниями: ${errors}`, color: 'amber' }] : []),
+          ], null, fileCardEls, {
+            expandDetails: true,
+            detailLabel: 'Отчёты по файлам',
+          });
           setTimeout(() => { bar.style.width = '0%'; }, 2000);
           btn.disabled = false;
           btn.textContent = 'Проверить и исправить';
         } else if (ev.type === 'error') {
-          setCardStatus(statusId, ev.msg, 'error');
+          setCardProgress(statusId, progressId, processed, total, ev.msg, 'error');
         }
       }
     }
@@ -856,6 +1084,56 @@
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
         try { localStorage.setItem('resultsPanelWidth', String(panel.offsetWidth)); } catch (_) {}
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  })();
+
+  (function initMainPanelResize() {
+    const handle = document.getElementById('mainResizeHandle');
+    const shell = document.getElementById('mainShell');
+    const layout = document.querySelector('.layout');
+    if (!handle || !shell || !layout) return;
+
+    const MIN = 360;
+    const maxWidth = () => {
+      const layoutW = layout.clientWidth;
+      const results = document.getElementById('resultsPanel');
+      const side = document.querySelector('.sidebar-shell');
+      const resW = results ? results.offsetWidth + 5 : 280;
+      const sideW = side ? side.offsetWidth : 318;
+      return Math.max(MIN, layoutW - sideW - resW - 8);
+    };
+
+    try {
+      const saved = parseInt(localStorage.getItem('mainPanelWidth'), 10);
+      if (saved >= MIN) {
+        shell.style.flex = 'none';
+        shell.style.width = Math.min(saved, maxWidth()) + 'px';
+      }
+    } catch (_) {}
+
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = shell.offsetWidth;
+      handle.classList.add('is-dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      function onMove(ev) {
+        const w = Math.min(maxWidth(), Math.max(MIN, startW + (startX - ev.clientX)));
+        shell.style.flex = 'none';
+        shell.style.width = w + 'px';
+      }
+      function onUp() {
+        handle.classList.remove('is-dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        try { localStorage.setItem('mainPanelWidth', String(shell.offsetWidth)); } catch (_) {}
       }
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
@@ -961,7 +1239,7 @@
             details.push({
               icon: warn ? '⚠' : '→',
               name: p,
-              badge: warn ? 'Внимание' : ('Шаг ' + (i + 1)),
+              badge: warn ? 'в документе' : 'в документе',
               badgeClass: warn ? 'db-warn' : '',
               wrap: true,
               indent: true,
@@ -982,8 +1260,8 @@
   }
 
   async function runBolvankaDateUpdate(dateVal) {
-    const { card, statusId } = createOpCard('Дата в тексте болванок');
-    setCardStatus(statusId, `Меняю дату внутри болванок на ${dateVal} (имена файлов не трогаем)...`);
+    const { card, statusId, progressId } = createOpCard('Дата в тексте болванок');
+    setCardProgress(statusId, progressId, 0, 0, `Обновляю текст в шаблонах на ${dateVal}…`);
     try {
       const data = await apiFetch('/rename/templates', {
         method: 'POST',
@@ -993,18 +1271,20 @@
       const lines = Array.isArray(data.log) ? data.log : [];
       const details = lines.map(line => ({
         icon: line.startsWith('[ERR]') ? '✗' : '✓',
-        name: line.replace(/^\[(OK|ERR)\]\s*/, ''),
-        badge: line.startsWith('[ERR]') ? 'Ошибка' : 'OK',
+        name: formatLogLine(line),
+        badge: line.startsWith('[ERR]') ? 'Ошибка' : 'в документе',
         badgeClass: line.startsWith('[ERR]') ? 'db-err' : 'db-ok',
         wrap: true,
       }));
       const errCount = lines.filter(l => l.startsWith('[ERR]')).length;
+      setCardProgress(statusId, progressId, lines.length, lines.length, 'Готово', 'done');
       finalizeOpCard(card, statusId, [
         { label: `Дата в тексте: ${data.date || dateVal}`, color: 'blue' },
-        { label: 'Имена файлов болванок не менялись', color: 'blue' },
-        { label: `OK: ${lines.length - errCount}`, color: 'green' },
+        { label: 'Содержимое .docx обновлено', color: 'green' },
+        { label: 'Имена на диске без изменений', color: 'blue' },
+        { label: `Шаблонов: ${lines.length - errCount}`, color: 'green' },
         ...(errCount ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
-      ], details, null, { expandDetails: true });
+      ], details, null, { expandDetails: true, detailLabel: 'По шаблонам' });
     } catch (e) {
       finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], [
         { icon: '✗', name: e.message, wrap: true, badge: 'Ошибка', badgeClass: 'db-err' },
@@ -1023,8 +1303,8 @@
       return;
     }
     btn.disabled = true;
-    const { card, statusId } = createOpCard('Подготовка отчётов');
-    setCardStatus(statusId, 'Заливка, шрифт, макеты, картинки, дата, строки, сетка...');
+    const { card, statusId, progressId } = createOpCard('Подготовка отчётов');
+    setCardProgress(statusId, progressId, 0, 0, 'Правки внутри загруженных файлов…');
     try {
       const data = await apiFetch('/macro/prepare', {
         method: 'POST',
@@ -1035,10 +1315,13 @@
       const meta = `Дата: ${data.date || '—'} · ${data.template || 'сетка'}`;
       const details = logLinesToDetails(lines, { meta, grid_cols: data.grid_cols });
       const errCount = lines.filter(l => l.startsWith('[ERR]')).length;
+      setCardProgress(statusId, progressId, lines.length, lines.length, 'Готово', 'done');
       finalizeOpCard(card, statusId, [
-        { label: `OK: ${lines.length - errCount}`, color: 'green' },
+        { label: 'Содержимое .docx обновлено', color: 'green' },
+        { label: 'Имена на диске без изменений', color: 'blue' },
+        { label: `Файлов: ${lines.length - errCount}`, color: 'green' },
         ...(errCount ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
-      ], details, null, { expandDetails: true });
+      ], details, null, { expandDetails: true, detailLabel: 'По файлам' });
     } catch (e) {
       finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], [
         { icon: '✗', name: e.message, wrap: true, badge: 'Ошибка', badgeClass: 'db-err' },
@@ -1049,8 +1332,8 @@
   }
 
   async function runRenameResults(dateVal) {
-    const { card, statusId } = createOpCard('Переименование готовых');
-    setCardStatus(statusId, `Дата ${dateVal}: имя файла и дата внутри...`);
+    const { card, statusId, progressId } = createOpCard('Переименование готовых');
+    setCardProgress(statusId, progressId, 0, 0, `Дата ${dateVal}: переименование на диске и в документе…`);
     try {
       const data = await apiFetch('/rename/results', {
         method: 'POST',
@@ -1060,17 +1343,18 @@
       const lines = Array.isArray(data.log) ? data.log : [];
       const details = lines.map(line => ({
         icon: line.startsWith('[ERR]') ? '✗' : '✓',
-        name: line.replace(/^\[(OK|ERR)\]\s*/, ''),
-        badge: line.startsWith('[ERR]') ? 'Ошибка' : 'OK',
+        name: formatLogLine(line),
+        badge: line.startsWith('[ERR]') ? 'Ошибка' : 'диск + документ',
         badgeClass: line.startsWith('[ERR]') ? 'db-err' : 'db-ok',
         wrap: true,
       }));
       const errCount = lines.filter(l => l.startsWith('[ERR]')).length;
+      setCardProgress(statusId, progressId, lines.length, lines.length, 'Готово', 'done');
       finalizeOpCard(card, statusId, [
         { label: `Дата: ${data.date || dateVal}`, color: 'blue' },
-        { label: `OK: ${lines.length - errCount}`, color: 'green' },
+        { label: `Готовых файлов: ${lines.length - errCount}`, color: 'green' },
         ...(errCount ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
-      ], details.length ? details : null, null, { expandDetails: true });
+      ], details.length ? details : null, null, { expandDetails: true, detailLabel: 'По файлам' });
     } catch (e) {
       finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], [
         { icon: '✗', name: e.message, wrap: true, badge: 'Ошибка', badgeClass: 'db-err' },
@@ -1089,8 +1373,10 @@
       return;
     }
 
-    const { card, statusId } = createOpCard('Сборка отчётов');
-    setCardStatus(statusId, 'Формирую все отчёты...');
+    const { card, statusId, progressId } = createOpCard('Сборка отчётов');
+    let mergeTotal = 0;
+    let mergeStep = 0;
+    setCardProgress(statusId, progressId, 0, 0, 'Формирую сводные отчёты…');
     const bar = document.getElementById('progressBar');
     bar.style.width = '10%';
     let mergeFinished = false;
@@ -1116,22 +1402,30 @@
           try {
             const ev = JSON.parse(line.slice(6));
             if (ev.type === 'start') {
-              bar.style.width = '20%';
+              mergeTotal = ev.total || 0;
+              setCardProgress(statusId, progressId, 0, mergeTotal, ev.msg);
+              bar.style.width = '15%';
+            } else if (ev.type === 'progress') {
+              mergeStep = ev.current || mergeStep;
+              setCardProgress(statusId, progressId, mergeStep, ev.total || mergeTotal, ev.msg);
+              const t = ev.total || mergeTotal || 1;
+              bar.style.width = Math.min(15 + (mergeStep / t) * 75, 90) + '%';
             } else if (ev.type === 'info') {
               if (!ev.msg.includes('Найдено 0 отчётов')) {
-                setCardStatus(statusId, ev.msg);
+                setCardProgress(statusId, progressId, mergeStep, mergeTotal, ev.msg);
               }
             } else if (ev.type === 'success') {
               successCount++;
-              setCardStatus(statusId, ev.msg);
+              setCardProgress(statusId, progressId, mergeStep, mergeTotal, ev.msg);
               bar.style.width = Math.min(20 + successCount * 10, 85) + '%';
             } else if (ev.type === 'warning') {
-              setCardStatus(statusId, ev.msg);
+              setCardProgress(statusId, progressId, mergeStep, mergeTotal, ev.msg);
             } else if (ev.type === 'error') {
-              setCardStatus(statusId, ev.msg, 'error');
+              setCardProgress(statusId, progressId, mergeStep, mergeTotal, ev.msg, 'error');
             } else if (ev.type === 'done') {
               mergeFinished = true;
               bar.style.width = '100%';
+              setCardProgress(statusId, progressId, mergeTotal || mergeStep, mergeTotal || mergeStep, 'Сборка завершена', 'done');
               const merged = ev.results || [];
               const unmatched = ev.unmatched || [];
               const unknown = ev.unmatched_unknown || [];
@@ -1148,7 +1442,7 @@
                 ...(unmatched.length > 0 ? [{ label: `Без болванки: ${unmatched.length}`, color: 'amber' }] : []),
                 ...(unknown.length > 0 ? [{ label: `Не распознано: ${unknown.length}`, color: 'red' }] : []),
                 ...(errCount > 0 ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
-              ], details.length ? details : null, null);
+              ], details.length ? details : null, null, { expandDetails: true, detailLabel: 'По компаниям' });
 
               setTimeout(() => { bar.style.width = '0%'; }, 2000);
             }

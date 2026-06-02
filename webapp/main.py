@@ -157,8 +157,12 @@ async def check_descriptions_stream():
     from agent.inject_agent import inject_into_docx
 
     async def event_generator():
-        yield _sse({"type": "start", "msg": "Начинаю проверку отчётов..."})
-        report_files = list(UPLOAD_DIR.glob("*.docx"))
+        report_files = sorted(UPLOAD_DIR.glob("*.docx"))
+        yield _sse({
+            "type": "start",
+            "msg": "Проверяю загруженные отчёты…",
+            "total": len(report_files),
+        })
         if not report_files:
             yield _sse({"type": "error", "msg": "Отчёты не загружены"})
             return
@@ -174,7 +178,7 @@ async def check_descriptions_stream():
                 yield _sse({"type": "report", "filename": filename, "msg": f"{filename}: " + ("⚠️ найдены проблемы" if has_errors else "✓ ОК"), "hasErrors": has_errors, "result": result})
                 corrected_text = result.get("report", "")
                 if corrected_text:
-                    yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: вставляю исправления..."})
+                    yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: вставляю правки в текст документа…"})
                     inject_result = inject_into_docx(str(file_path), corrected_text, filename)
                     if inject_result.get("ok"):
                         dl_name = Path(inject_result["docx_path"]).name
@@ -251,7 +255,12 @@ async def merge_all_stream():
     async def _gen():
         results = []
         errors = []
-        yield _sse({"type": "start", "msg": "Начинаю формирование отчётов..."})
+        yield _sse({
+            "type": "start",
+            "msg": "Формирую сводные отчёты по компаниям…",
+            "total": len(COMPANIES),
+        })
+        done_count = 0
         for name, keywords in COMPANIES:
             kw_lower = [k.lower() for k in keywords]
             template = next(
@@ -263,11 +272,15 @@ async def merge_all_stream():
                 msg = f"Шаблон для «{name}» не найден — пропущено"
                 yield _sse({"type": "warning", "company": name, "msg": msg})
                 errors.append(msg)
+                done_count += 1
+                yield _sse({"type": "progress", "current": done_count, "total": len(COMPANIES), "msg": msg})
                 continue
             reports = find_reports_for_company(name, keywords)
             yield _sse({"type": "info", "company": name, "msg": f"Найдено {len(reports)} отчётов"})
             if not reports:
                 yield _sse({"type": "info", "company": name, "msg": "Отчёты не найдены, пропускаю"})
+                done_count += 1
+                yield _sse({"type": "progress", "current": done_count, "total": len(COMPANIES), "msg": f"{name}: нет отчётов"})
                 continue
             output_path = RESULT_DIR / f"{name}_merged.docx"
             try:
@@ -277,6 +290,14 @@ async def merge_all_stream():
             except Exception as e:
                 yield _sse({"type": "error", "company": name, "msg": f"'{name}': {str(e)}"})
                 errors.append(str(e))
+            finally:
+                done_count += 1
+                yield _sse({
+                    "type": "progress",
+                    "current": done_count,
+                    "total": len(COMPANIES),
+                    "msg": f"Готово: {name}",
+                })
 
         all_matched = set()
         for r in results:

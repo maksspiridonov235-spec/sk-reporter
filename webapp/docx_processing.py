@@ -622,8 +622,8 @@ def rename_results(folder: str, target_date: str) -> list[str]:
             doc.save(filepath)
             os.rename(filepath, os.path.join(folder, new_name))
             log.append(
-                f"[OK] файл переименован: {filename} → {new_name}; "
-                f"дата внутри {target_date}"
+                f"[OK] {new_name}: на диске {filename} → {new_name}; "
+                f"в документе — дата {target_date}"
             )
         except Exception as e:
             log.append(f"[ERR] {filename}: {e}")
