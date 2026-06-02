@@ -20,8 +20,30 @@ BOLVANKI_DIR = (
 # 6 колонок — эталон без изменений (не трогать при подготовке)
 DEFAULT_GRID_COLS = ["2041", "1757", "1787", "1898", "1701", "1646"]
 
-# 7-кол. отчёты (Громов): в файле лишняя колонка — приводим к 6-кол. сетке
-# (объединяем 7c1+7c2 → 6c1, остальные по карте), ширины — эталон 6 колонок.
+# 7-кол. Громов: сетка 2041…1701 + (1291+355|550+1096) = 7-я и 6-я = блок договора.
+# Приводим к 6-кол. эталону: первые 5 gridCol совпадают, 6-я+7-я → одна 6-я (1646),
+# плюс в строках «Отчет №» схлопываем gridCol 1+2 в одну ячейку.
+# В шапке заказчика span5→span4 (убирается лишняя 1701 dxa из блока «ДАННЫЕ»).
+# В «Название/ООО» span4→span3 (то же). Договор: «Номер»+значение → кол.4+5 эталона.
+
+# Типовые раскладки gridSpan (7 кол.) → эталон (6 кол.), как у Пряхина
+_SPAN_PATTERN_7_TO_6: dict[tuple[int, ...], tuple[int, ...]] = {
+    (4, 1, 1, 1): (3, 1, 1, 1),
+    (1, 2, 1, 3): (1, 1, 1, 3),
+    (5, 2): (4, 2),
+    (1, 4, 1, 1): (1, 3, 1, 1),
+    (7,): (6,),
+    (3, 2, 2): (2, 2, 2),
+    (1, 6): (1, 5),
+    (5, 1, 1): (4, 1, 1),
+    (3, 4): (2, 4),
+    (1, 2, 1, 1, 1, 1): (1, 1, 1, 1, 1, 1),
+    (1, 3, 2, 1): (1, 2, 2, 1),
+    (1, 4, 2): (1, 3, 2),
+    (2, 3, 1, 1): (1, 3, 1, 1),
+}
+
+# Карта индексов gridCol: 7c1+7c2 → 6c1; 7c4..7c6 → 6c3..6c5
 _MAP_7COL_INDEX_TO_6COL = [0, 1, 1, 2, 3, 4, 5]
 ROW_HEIGHT = "340"
 ROW_HEIGHT_RULE = "atLeast"
@@ -197,8 +219,20 @@ def _get_grid_span(tc) -> int:
     return max(1, int(gs.get(qn("w:val"), 1)))
 
 
+def _row_span_pattern_7(tr) -> tuple[int, ...] | None:
+    """Сумма span по строке (без vMerge-continuation)."""
+    spans: list[int] = []
+    for tc in tr.findall(qn("w:tc")):
+        if _tc_is_vmerge_continue(tc):
+            continue
+        spans.append(_get_grid_span(tc))
+    if not spans or sum(spans) != 7:
+        return None
+    return tuple(spans)
+
+
 def _normalize_7col_table_to_6col_grid(table) -> bool:
-    """Сжимает логическую 7-кол. разметку до 6-кол. эталона (gridSpan + tblGrid)."""
+    """7-кол. таблица → 6-кол. эталон: gridSpan по шаблону строк, затем tblGrid 6 кол."""
     tbl = table._tbl
     if _max_row_occupancy(tbl) < 7:
         return False
@@ -206,31 +240,43 @@ def _normalize_7col_table_to_6col_grid(table) -> bool:
     for row in table.rows:
         tr = row._tr
         _normalize_row_tr(tr)
+        pattern7 = _row_span_pattern_7(tr)
+        tcs: list = []
+        for tc in tr.findall(qn("w:tc")):
+            if not _tc_is_vmerge_continue(tc):
+                tcs.append(tc)
+
+        if not tcs:
+            continue
+
+        if pattern7 and pattern7 in _SPAN_PATTERN_7_TO_6:
+            target = _SPAN_PATTERN_7_TO_6[pattern7]
+            if len(target) == len(tcs):
+                for tc, span6 in zip(tcs, target):
+                    _set_grid_span(tc, span6)
+                continue
+
         col7 = 0
         new_spans: list[int] = []
-        tcs: list = []
-
+        remap_tcs: list = []
         for tc in tr.findall(qn("w:tc")):
             if _tc_is_vmerge_continue(tc):
                 col7 += _get_grid_span(tc)
                 continue
             span7 = _get_grid_span(tc)
-            span6 = _remap_span_7_to_6(col7, span7)
-            tcs.append(tc)
-            new_spans.append(span6)
+            new_spans.append(_remap_span_7_to_6(col7, span7))
+            remap_tcs.append(tc)
             col7 += span7
 
         if not new_spans:
             continue
-        if sum(new_spans) > 6:
-            # редкие пустые строки (2+3+1+1) — подгоняем без ломания структуры
-            while sum(new_spans) > 6:
-                i = max(range(len(new_spans)), key=lambda j: new_spans[j])
-                if new_spans[i] <= 1:
-                    break
-                new_spans[i] -= 1
+        while sum(new_spans) > 6:
+            i = max(range(len(new_spans)), key=lambda j: new_spans[j])
+            if new_spans[i] <= 1:
+                break
+            new_spans[i] -= 1
 
-        for tc, span6 in zip(tcs, new_spans):
+        for tc, span6 in zip(remap_tcs, new_spans):
             _set_grid_span(tc, span6)
 
     return True
