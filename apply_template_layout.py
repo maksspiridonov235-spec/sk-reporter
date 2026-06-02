@@ -25,6 +25,7 @@ ROW_HEIGHT = "340"
 ROW_HEIGHT_RULE = "atLeast"
 MIN_ROW_HEIGHT_CM = 0.6
 MIN_ROWS_FOR_MAIN_TABLE = 8
+TARGET_TABLE_WIDTH = sum(int(w) for w in DEFAULT_GRID_COLS)
 
 
 def hardcoded_layout() -> dict:
@@ -163,20 +164,14 @@ def _max_row_occupancy(tbl) -> int:
 
 
 def _grid_cols_for_table(tbl, standard_6: list[str]) -> list[str]:
-    """6 колонок → эталон; 7 колонок → сетка из файла (не ломаем Громова)."""
+    """6 колонок → эталон 6; 7 колонок → эталон 7 (обе суммы = TARGET_TABLE_WIDTH dxa)."""
     file_cols = _grid_cols_from_tbl(tbl)
     max_occ = _max_row_occupancy(tbl)
 
-    if len(file_cols) == 7 and max_occ == 7:
-        return list(file_cols)
-    if len(file_cols) == 6 and max_occ == 6:
+    if max_occ >= 7 or len(file_cols) == 7:
+        return list(DEFAULT_GRID_COLS_7)
+    if max_occ == 6 or len(file_cols) == 6:
         return list(standard_6)
-    if max_occ == 7:
-        return list(file_cols) if len(file_cols) == 7 else list(DEFAULT_GRID_COLS_7)
-    if max_occ == 6:
-        return list(standard_6)
-    if file_cols:
-        return file_cols
     return list(standard_6)
 
 
@@ -213,8 +208,6 @@ def diagnose_document(doc, layout: dict | None = None) -> list[str]:
         issues = diagnose_table(tbl, expected)
         if issues:
             out.append(f"табл.{i + 1} ({nrows} стр.): " + "; ".join(issues))
-        elif len(expected) == 7:
-            out.append(f"табл.{i + 1} ({nrows} стр.): 7 колонок — своя сетка (OK)")
     return out
 
 
