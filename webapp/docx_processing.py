@@ -621,7 +621,10 @@ def rename_results(folder: str, target_date: str) -> list[str]:
             replace_date_in_report_line(doc, target_date=target_date)
             doc.save(filepath)
             os.rename(filepath, os.path.join(folder, new_name))
-            log.append(f"[OK] {filename} → {new_name}")
+            log.append(
+                f"[OK] файл переименован: {filename} → {new_name}; "
+                f"дата внутри {target_date}"
+            )
         except Exception as e:
             log.append(f"[ERR] {filename}: {e}")
     return log
@@ -697,12 +700,17 @@ def rename_templates(folder: str, target_date: str) -> list[str]:
                 updated.append("таблица")
 
             if not updated:
-                log.append(f"[ERR] {filepath.name}: нет строки «Отчёт … за» для замены даты")
+                log.append(
+                    f"[ERR] {filepath.name}: в тексте нет строки «Отчёт … за» — дату не заменили"
+                )
                 continue
 
             doc.save(os.fspath(filepath))
             parts = ", ".join(updated)
-            log.append(f"[OK] {filepath.name}: {target_date}г ({parts})")
+            log.append(
+                f"[OK] {filepath.name}: в тексте дата {target_date}г ({parts}); "
+                f"имя файла на диске не менялось"
+            )
         except Exception as e:
             log.append(f"[ERR] {filepath.name}: {e}")
     return log
@@ -725,9 +733,9 @@ def prepare_report_file(filepath: str, layout: dict, target_date: str) -> tuple[
     n_img = resize_inline_images(doc)
     parts.append(f"картинки {n_img}")
     if replace_date_in_report_line(doc, target_date=target_date):
-        parts.append(f"дата {target_date}")
+        parts.append(f"дата в тексте {target_date}")
     else:
-        parts.append("дата не найдена")
+        parts.append("дата в тексте не найдена")
     apply_table_geometry(doc)
     parts.append("строки 0,6")
     layout_warns = apply_layout(doc, layout, only_main_table=True)

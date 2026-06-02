@@ -43,6 +43,7 @@
       display: none; position: absolute; left: 0; right: 0; top: 22px;
       z-index: 30; background: #fff; border: 1px solid #bfdbfe;
       border-radius: 8px; padding: 10px 12px; font-size: 12px;
+      max-height: min(70vh, 420px); overflow-y: auto;
       line-height: 1.45; color: #374151; box-shadow: 0 6px 16px rgba(0,0,0,.12);
       text-transform: none; letter-spacing: normal; font-weight: normal;
     }
@@ -52,9 +53,34 @@
     .help-popover li { margin-bottom: 4px; }
     .help-popover li:last-child { margin-bottom: 0; }
     .help-popover .help-note {
-      margin: 0; padding-top: 6px; border-top: 1px solid #e5e7eb;
-      font-size: 11px; color: #6b7280;
+      margin: 0; padding-top: 8px; border-top: 1px solid #e5e7eb;
+      font-size: 11px; color: #6b7280; line-height: 1.45;
     }
+    .help-popover .help-lead {
+      margin: 0 0 8px; line-height: 1.45; color: #374151;
+    }
+    .help-popover .help-steps {
+      margin: 0 0 10px; padding-left: 18px; color: #374151;
+    }
+    .help-popover .help-steps li { margin-bottom: 3px; }
+    .help-popover .help-item {
+      margin-bottom: 10px; padding-bottom: 10px;
+      border-bottom: 1px solid #eef2f7;
+    }
+    .help-popover .help-item:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .help-popover .help-item-title {
+      display: block; font-weight: 600; color: #1a56a0; margin-bottom: 4px; font-size: 12px;
+    }
+    .help-popover .help-item p {
+      margin: 0 0 4px; line-height: 1.45; color: #374151; font-size: 12px;
+    }
+    .help-popover .help-item p:last-child { margin-bottom: 0; }
+    .help-popover .help-tag {
+      display: inline-block; font-size: 10px; font-weight: 600;
+      padding: 1px 5px; border-radius: 4px; margin-right: 4px; vertical-align: baseline;
+    }
+    .help-popover .help-tag-ok { background: #dcfce7; color: #166534; }
+    .help-popover .help-tag-no { background: #fef3c7; color: #92400e; }
     .upload-zone {
       border: 2px dashed #aac4e8; border-radius: 8px; padding: 12px;
       text-align: center; cursor: pointer; background: #f5f9ff;
@@ -294,32 +320,44 @@
         <button type="button" class="help-trigger" id="helpPrepareBtn" aria-expanded="false" aria-controls="helpPreparePopover" aria-label="Справка по блоку">?</button>
       </div>
       <div class="help-popover" id="helpPreparePopover" role="dialog" aria-labelledby="helpPrepareBtn">
-        <strong>Что делает этот блок</strong>
-        <ul>
-          <li><strong>Дата в отчёте</strong> — одна дата (ДД.ММ.ГГГГ) для кнопки ниже и для «Переименовать готовые» (после сборки).</li>
-          <li><strong>Подготовить отчёты</strong> — две операции подряд (две карточки в ленте справа):
-            <ul>
-              <li><em>Загруженные</em> — файлы из «Отчёты от инженеров», папка на сервере. Правки внутри файла (заливка, шрифт, макеты, картинки, дата в таблице, сетка). <strong>Имена файлов не меняются.</strong></li>
-              <li><em>Болванки</em> — шаблоны в <code style="font-size:11px">contractor_report/болванки…</code>. Меняется только дата <strong>внутри</strong> файла («Отчёт … за …», таблица). <strong>Имя файла болванки на диске не меняется.</strong></li>
-            </ul>
-          </li>
-        </ul>
-        <p class="help-note"><strong>Переименовать готовые</strong> — отдельная кнопка ниже, после «Сформировать все отчёты»: переименовывает уже собранные <code style="font-size:11px">*_merged.docx</code> в папке результатов и ставит дату внутри — тоже по полю «Дата в отчёте».</p>
+        <strong>Справка: подготовка к сборке</strong>
+        <p class="help-lead">Здесь вы задаёте дату и приводите файлы в порядок <strong>до</strong> кнопки «Сформировать все отчёты». Ход работы смотрите в ленте справа — там появляются карточки с подробным логом по каждому файлу.</p>
+
+        <p class="help-lead" style="margin-bottom:4px"><strong>Если садитесь за отчёт впервые — порядок такой:</strong></p>
+        <ol class="help-steps">
+          <li>Загрузите файлы инженеров в блок «Отчёты от инженеров».</li>
+          <li>Выберите <strong>дату в отчёте</strong> (календарь в этом блоке).</li>
+          <li>Нажмите <strong>Подготовить отчёты</strong> — справа будет две карточки (см. ниже).</li>
+          <li>Нажмите <strong>Сформировать все отчёты</strong> — склейка, затем переименование готовых файлов (две карточки справа).</li>
+        </ol>
+
+        <div class="help-item">
+          <span class="help-item-title">Дата в отчёте (поле с календарём)</span>
+          <p>Это дата, которая должна быть в готовом отчёте: в шапке «Отчёт … за …» и в таблице (формат ДД.ММ.ГГГГ).</p>
+          <p><span class="help-tag help-tag-ok">Используется</span> при «Подготовить отчёты» и при «Сформировать все отчёты» (дата внутри и в имени готовых файлов).</p>
+          <p><span class="help-tag help-tag-no">Сама не меняет файлы</span> — только сохраняет выбранную дату для кнопок.</p>
+        </div>
+
+        <div class="help-item">
+          <span class="help-item-title">Подготовить отчёты (зелёная кнопка)</span>
+          <p>Одно нажатие запускает <strong>две операции подряд</strong>. В ленте справа появятся две отдельные карточки — не путайте их с переименованием файлов на диске.</p>
+          <p><strong>1) Карточка «Подготовка отчётов»</strong> — ваши загруженные файлы из «Отчёты от инженеров». Внутри каждого Word-файла программа:</p>
+          <p style="padding-left:10px;margin-top:2px">заливка второй строки таблицы; единый шрифт; сброс лишних отступов; размер картинок; <strong>дата в тексте таблицы</strong>; высота строк; выравнивание сетки по эталону.</p>
+          <p><span class="help-tag help-tag-ok">Имена загруженных файлов не меняются</span> — меняется только содержимое внутри.</p>
+          <p><strong>2) Карточка «Дата в тексте болванок»</strong> — шаблоны компаний в папке болванок на сервере. Внутри каждой болванки:</p>
+          <p style="padding-left:10px;margin-top:2px">строка «Отчёт … за …» в начале документа; дата в таблице отчёта — на выбранную в календаре.</p>
+          <p><span class="help-tag help-tag-ok">Имена файлов болванок на диске не меняются</span> — в логе будет фраза «имя файла на диске не менялось». Старую дату в названии файла можно не трогать: важна дата <em>внутри</em> Word.</p>
+          <p>Если в логе ошибка по файлу — в этом шаблоне не нашлась строка «Отчёт … за»; откройте болванку в Word и проверьте шапку.</p>
+        </div>
+
       </div>
-      <label style="font-size:12px;color:#555;display:block;margin-bottom:4px;margin-top:4px">Дата в отчёте</label>
-      <input type="date" id="macroReportDate" style="width:100%;padding:6px 8px;margin-bottom:8px;border:1px solid #ccc;border-radius:6px;font-size:13px"/>
+      <input type="date" id="macroReportDate" aria-label="Дата в отчёте" style="width:100%;padding:6px 8px;margin-top:4px;margin-bottom:8px;border:1px solid #ccc;border-radius:6px;font-size:13px"/>
       <button class="btn btn-green" style="margin-bottom:0" id="btnPrepare" onclick="prepareReports()">Подготовить отчёты</button>
     </div>
 
     <hr class="divider"/>
 
     <button class="btn btn-green" onclick="mergeAll()">Сформировать все отчёты</button>
-
-    <div>
-      <div class="section-title" style="margin-top:4px">Переименовать готовые</div>
-      <div style="font-size:11px;color:#888;margin-bottom:6px">После сборки: имя файла и дата внутри — по дате из «Подготовка к сборке» выше.</div>
-      <button class="btn btn-orange" onclick="renameResultsWithDate()">Переименовать готовые</button>
-    </div>
 
     <hr class="divider"/>
 
@@ -765,7 +803,7 @@
   function getMacroReportDate() {
     const dateVal = document.getElementById('macroReportDate')?.value;
     if (!dateVal) {
-      throw new Error('Выберите дату в поле «Дата в отчёте» (блок «Подготовка к сборке»)');
+      throw new Error('Выберите дату в календаре (блок «Подготовка к сборке»)');
     }
     return dateVal;
   }
@@ -829,8 +867,8 @@
   }
 
   async function runBolvankaDateUpdate(dateVal) {
-    const { card, statusId } = createOpCard('Дата в болванках (внутри)');
-    setCardStatus(statusId, `Ставлю дату в тексте болванок на ${dateVal}...`);
+    const { card, statusId } = createOpCard('Дата в тексте болванок');
+    setCardStatus(statusId, `Меняю дату внутри болванок на ${dateVal} (имена файлов не трогаем)...`);
     try {
       const data = await apiFetch('/rename/templates', {
         method: 'POST',
@@ -847,7 +885,8 @@
       }));
       const errCount = lines.filter(l => l.startsWith('[ERR]')).length;
       finalizeOpCard(card, statusId, [
-        { label: `Дата: ${data.date || dateVal}`, color: 'blue' },
+        { label: `Дата в тексте: ${data.date || dateVal}`, color: 'blue' },
+        { label: 'Имена файлов болванок не менялись', color: 'blue' },
         { label: `OK: ${lines.length - errCount}`, color: 'green' },
         ...(errCount ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
       ], details, null, { expandDetails: true });
@@ -894,18 +933,9 @@
     btn.disabled = false;
   }
 
-  // ── Переименование ────────────────────────────────────────────────────────
-
-  async function renameResultsWithDate() {
-    let dateVal;
-    try {
-      dateVal = getMacroReportDate();
-    } catch (e) {
-      alert(e.message);
-      return;
-    }
-    const { card, statusId } = createOpCard('Переименовать готовые');
-    setCardStatus(statusId, `Дата ${dateVal}: переименовываю готовые отчёты...`);
+  async function runRenameResults(dateVal) {
+    const { card, statusId } = createOpCard('Переименование готовых');
+    setCardStatus(statusId, `Дата ${dateVal}: имя файла и дата внутри...`);
     try {
       const data = await apiFetch('/rename/results', {
         method: 'POST',
@@ -926,17 +956,29 @@
         { label: `OK: ${lines.length - errCount}`, color: 'green' },
         ...(errCount ? [{ label: `Ошибок: ${errCount}`, color: 'red' }] : []),
       ], details.length ? details : null, null, { expandDetails: true });
-      refreshResults();
-    } catch (_) {}
+    } catch (e) {
+      finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], [
+        { icon: '✗', name: e.message, wrap: true, badge: 'Ошибка', badgeClass: 'db-err' },
+      ], null, { expandDetails: true });
+    }
   }
 
   // ── Сборка всех отчётов (SSE) ─────────────────────────────────────────────
 
   async function mergeAll() {
+    let dateVal;
+    try {
+      dateVal = getMacroReportDate();
+    } catch (e) {
+      alert(e.message);
+      return;
+    }
+
     const { card, statusId } = createOpCard('Сборка отчётов');
     setCardStatus(statusId, 'Формирую все отчёты...');
     const bar = document.getElementById('progressBar');
     bar.style.width = '10%';
+    let mergeFinished = false;
 
     try {
       const response = await fetch('/merge/all/stream');
@@ -973,6 +1015,7 @@
             } else if (ev.type === 'error') {
               setCardStatus(statusId, ev.msg, 'error');
             } else if (ev.type === 'done') {
+              mergeFinished = true;
               bar.style.width = '100%';
               const merged = ev.results || [];
               const unmatched = ev.unmatched || [];
@@ -1004,6 +1047,9 @@
       finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], null, null);
     }
 
+    if (mergeFinished) {
+      await runRenameResults(dateVal);
+    }
     refreshResults();
   }
 
