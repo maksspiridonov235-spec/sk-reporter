@@ -252,10 +252,13 @@ async def merge_all_stream():
             keywords = company.keywords
             stem = company.template_stem
             template = next(
-                (TEMPLATES_DIR / f"{stem}{ext}")
-                for ext in (".docx", ".doc")
-                if (TEMPLATES_DIR / f"{stem}{ext}").is_file()
-            ), None)
+                (
+                    TEMPLATES_DIR / f"{stem}{ext}"
+                    for ext in (".docx", ".doc")
+                    if (TEMPLATES_DIR / f"{stem}{ext}").is_file()
+                ),
+                None,
+            )
             if template is None:
                 kw_lower = [k.lower() for k in keywords]
                 candidates = sorted(
