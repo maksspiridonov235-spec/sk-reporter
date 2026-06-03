@@ -2,7 +2,7 @@
 
 Документ фиксирует цель, структуру и порядок работ. Возвращайтесь к нему при паузах между фазами.
 
-**Статус:** фаза 0 в работе  
+**Статус:** фаза 1 в работе  
 **Окружение Python:** `venv/` в **корне** репозитория (не `webapp/venv`)
 
 ---
@@ -84,10 +84,10 @@ sk-reporter/
 
 ## Фаза 1 — фронтенд
 
-- [ ] `webapp/static/css/app.css` — весь CSS из `index.html`
-- [ ] `webapp/static/js/` — модули по зонам (api, activity, reports, check, prepare, merge, downloads, help)
-- [ ] `StaticFiles` в `main.py`
-- [ ] `index.html` — только разметка + `<script src="/static/...">`
+- [x] `webapp/static/css/app.css` — весь CSS из `index.html`
+- [x] `webapp/static/js/` — модули по зонам (api, activity, reports, check, prepare, merge, downloads, help)
+- [x] `StaticFiles` в `main.py`
+- [x] `index.html` — только разметка + `<script src="/static/...">`
 - [ ] Прогон сценария на офисном ПC
 
 ---

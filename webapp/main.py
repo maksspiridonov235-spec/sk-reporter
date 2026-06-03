@@ -11,6 +11,7 @@ from pathlib import Path
 from docx import Document
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
@@ -37,6 +38,7 @@ except ImportError as e:
 
 app = FastAPI(title="Объединение отчётов СК")
 templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
 WORK_DIR = Path(tempfile.gettempdir()) / "sk_reports_work"
 UPLOAD_DIR = WORK_DIR / "uploads"
