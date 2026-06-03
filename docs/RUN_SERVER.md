@@ -98,6 +98,9 @@ cd C:\Users\ИМЯ\Desktop\sk-reporter\launcher
 | Нет `venv` | Из корня проекта: `.\scripts\setup.ps1` |
 | `python` не найден | Установить Python с [python.org](https://www.python.org/downloads/), галочка «Add python.exe to PATH» |
 | Порт 8000 занят | Закрыть старое окно SK-Reporter или перезагрузить ПК |
+| `SSL: CERTIFICATE_VERIFY_FAILED` / `self-signed certificate` при `setup.ps1` | Корпоративный прокси. В PowerShell **перед** setup: `$env:SK_REPORTER_PIP_TRUSTED = "1"`, затем снова `.\scripts\setup.ps1` |
+| `Read timed out` при `pip install` | Медленная сеть. Повторить setup; при необходимости `$env:SK_REPORTER_PIP_TRUSTED = "1"`. Или вручную: `.\venv\Scripts\Activate.ps1` → `pip install --default-timeout=180 -e .` |
+| Скрипт написал «Готово», но `pip install` падал | Зависимости не установились — проверьте: `pip show sk-reporter`. Если пусто — повторите setup с `SK_REPORTER_PIP_TRUSTED=1` |
 
 Сотрудникам без терминала: **[docs/ДЛЯ_СОТРУДНИКОВ.md](ДЛЯ_СОТРУДНИКОВ.md)**.
 
@@ -163,3 +166,6 @@ curl http://127.0.0.1:8000/diagnose/reports
 | `pyproject.toml` не найден | Терминал не в корне репозитория |
 | `Папка с болванками не найдена` | Нет `data/templates/` или пустая — скопируйте болванки или сделайте `git pull` |
 | `[WARNING] Agent not found` | Не выполнен `pip install -e .` в корневом venv |
+| `SSL: CERTIFICATE_VERIFY_FAILED` / timeout при `pip install` | Корпоративная сеть: `$env:SK_REPORTER_PIP_TRUSTED = "1"` и снова `.\scripts\setup.ps1` (см. раздел про ярлык выше) |
+| `getaddrinfo failed` / `No matching distribution found` | **Нет интернета до PyPI** (DNS). Проверьте `ping pypi.org`. Без VPN интернет может пропасть — включите VPN офиса + `SK_REPORTER_PIP_TRUSTED=1` |
+| `Permission denied` на `venv\Scripts\python.exe` | venv занят. Закройте SK-Reporter.bat и все `(venv)` терминалы, `deactivate`, удалите `venv`, setup снова |
