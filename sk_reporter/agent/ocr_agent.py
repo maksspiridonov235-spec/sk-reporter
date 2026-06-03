@@ -1,5 +1,5 @@
 """
-Агент на базе Ollama + qwen3.5:cloud для анализа и сборки отчётов СК.
+Агент на базе Ollama + gemma4:31b-cloud для анализа и сборки отчётов СК.
 Определяет компанию по содержимому документа, вставляет в болванку.
 """
 
@@ -16,16 +16,13 @@ from lxml import etree
 
 from docx import Document
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from companies import COMPANIES
+from sk_reporter.companies import COMPANIES
 
 # Преобразуем в формат для агента: название → список ключевых слов
-COMPANIES_MAP = {name: keywords for name, keywords in COMPANIES}
-KNOWN_COMPANIES = [name for name, _ in COMPANIES]
+COMPANIES_MAP = {c.name: c.keywords for c in COMPANIES}
+KNOWN_COMPANIES = [c.name for c in COMPANIES]
 
-MODEL = "qwen3.5:cloud"
+MODEL = "gemma4:31b-cloud"
 
 SYSTEM_PROMPT = f"""Ты определяешь компанию-подрядчика по тексту отчёта строительного контроля.
 

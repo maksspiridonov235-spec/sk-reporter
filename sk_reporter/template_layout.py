@@ -1,19 +1,17 @@
 """
-Применяет фиксированную сетку столбцов и высоту строк из шаблона ко всем таблицам документа.
-Не зависит от количества строк или ячеек в документе.
+Фиксированная сетка столбцов и высота строк для таблиц отчётов .docx.
 
-Использование: python3 apply_template_layout.py <document.docx>
+CLI: sk-reporter-fix-layout <document.docx>
 """
 
-import sys
 import os
-from pathlib import Path
+import sys
 from copy import deepcopy
+from pathlib import Path
+
 from docx import Document
 from docx.oxml.ns import qn
 from lxml import etree
-
-TEMPLATE_PATH = Path(__file__).parent / "data" / "templates" / "Ежедневный отчет Шаблон.docx"
 
 # ─── Геометрия сетки ──────────────────────────────────────────────────────────
 #
@@ -278,27 +276,9 @@ def apply_layout(
     return warnings
 
 
-def read_template_layout(template_path: Path) -> dict:
-    """Читает tblGrid из шаблона. Устарело — используется только для совместимости."""
-    doc = Document(os.fspath(template_path))
-    tbl = doc.tables[0]._tbl
-    tblGrid = tbl.find(qn("w:tblGrid"))
-    grid_cols = []
-    if tblGrid is not None:
-        for col in tblGrid.findall(qn("w:gridCol")):
-            w = col.get(qn("w:w"))
-            if w:
-                grid_cols.append(w)
-    return {
-        "template": str(template_path),
-        "tblGrid": deepcopy(tblGrid) if tblGrid is not None else None,
-        "grid_cols": grid_cols or list(DEFAULT_GRID_COLS),
-    }
-
-
 def main():
     if len(sys.argv) < 2:
-        print("Использование: python3 apply_template_layout.py <document.docx>")
+        print("Использование: sk-reporter-fix-layout <document.docx>")
         sys.exit(1)
 
     input_path = Path(sys.argv[1])

@@ -1,11 +1,11 @@
 # Запуск сервера SK-Reporter
 
-Терминал открывайте **в корне репозитория** — там, где `webapp/`, `agent/`, `CLEANUP_PLAN.md`.
+Терминал открывайте **в корне репозитория** — там, где `sk_reporter/`, `webapp/`, `pyproject.toml`.
 
 Проверка:
 
 ```bash
-ls webapp/main.py requirements.txt CLEANUP_PLAN.md
+ls webapp/main.py pyproject.toml data/templates
 ```
 
 ---
@@ -16,7 +16,7 @@ ls webapp/main.py requirements.txt CLEANUP_PLAN.md
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install -e .
 ```
 
 Или: `.\scripts\setup.ps1`
@@ -24,11 +24,8 @@ pip install -r requirements.txt
 Ollama: https://ollama.com — установить, запустить, затем:
 
 ```powershell
-ollama pull qwen3.5:cloud
 ollama pull gemma4:31b-cloud
 ```
-
-Если раньше был `webapp\venv` — после успешной проверки удалите его.
 
 ---
 
@@ -53,13 +50,12 @@ python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
 python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install -e .
 ```
 
 Или: `./scripts/setup.sh`
 
 ```bash
-ollama pull qwen3.5:cloud
 ollama pull gemma4:31b-cloud
 ```
 
@@ -79,11 +75,11 @@ python3 -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
 
 ```
 [INFO] Templates dir: ... (N шаблонов)
-[INFO] AI agent connected: qwen3.5:cloud via Ollama
+[INFO] AI agent connected: gemma4:31b-cloud via Ollama
 INFO:     Uvicorn running on http://127.0.0.1:8000
 ```
 
-Шаблоны: **`data/templates/`** — в UI не загружаются. См. [docs/DATA_TEMPLATES.md](DATA_TEMPLATES.md).
+Шаблоны: **`data/templates/`** — в UI не загружаются.
 
 Исправленные отчёты: `output/` в корне (`*_исправлен.docx`).
 
@@ -105,6 +101,6 @@ curl http://127.0.0.1:8000/diagnose/reports
 
 | Ошибка | Причина |
 |--------|---------|
-| `requirements.txt` не найден | Терминал не в корне репозитория |
-| `Папка с болванками не найдена` | Нет `data/templates/` или пустая — см. [DATA_TEMPLATES.md](DATA_TEMPLATES.md) |
-| `[WARNING] Agent not found` | Не выполнен `pip install -r requirements.txt` в корневом venv |
+| `pyproject.toml` не найден | Терминал не в корне репозитория |
+| `Папка с болванками не найдена` | Нет `data/templates/` или пустая — скопируйте болванки или сделайте `git pull` |
+| `[WARNING] Agent not found` | Не выполнен `pip install -e .` в корневом venv |

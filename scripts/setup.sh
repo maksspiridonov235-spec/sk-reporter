@@ -9,12 +9,17 @@ if [[ ! -f webapp/main.py ]]; then
   exit 1
 fi
 
+if [[ -d webapp/venv ]]; then
+  echo "Удаляю устаревший webapp/venv..."
+  rm -rf webapp/venv
+fi
+
 echo "Создаю venv в корне..."
 python3 -m venv venv
 # shellcheck source=/dev/null
 source venv/bin/activate
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install -e .
 
 echo ""
 echo "Готово. Запуск:"
@@ -22,4 +27,3 @@ echo "  source venv/bin/activate"
 echo "  cd webapp"
 echo "  python3 -m uvicorn main:app --reload --host 127.0.0.1 --port 8000"
 echo ""
-echo "Если был webapp/venv — удалите его после проверки: rm -rf webapp/venv"

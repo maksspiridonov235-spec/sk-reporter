@@ -1,2 +1,0 @@
-# Зависимости перенесены в корень — используйте ../requirements.txt
--r ../requirements.txt

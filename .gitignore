@@ -10,6 +10,7 @@ build/
 .venv/
 venv/
 env/
+tmp/
 
 # Temp Word files
 ~$*

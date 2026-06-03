@@ -9,10 +9,7 @@
       "args": ["main:app", "--reload", "--port", "8000"],
       "jinja": true,
       "justMyCode": true,
-      "cwd": "${workspaceFolder}/webapp",
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}"
-      }
+      "cwd": "${workspaceFolder}/webapp"
     }
   ]
 }

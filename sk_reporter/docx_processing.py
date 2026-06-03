@@ -5,6 +5,7 @@
 
 import os
 import re
+from pathlib import Path
 import shutil
 import zipfile
 import xml.etree.ElementTree as ET
@@ -19,10 +20,8 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
 from lxml import etree
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from companies import COMPANIES
+from sk_reporter.companies import COMPANIES
+from sk_reporter.template_layout import apply_layout
 
 # Regex для поиска дат в разных форматах
 _DATE_RE = re.compile(
@@ -632,6 +631,8 @@ def rename_results(folder: str, target_date: str) -> list[str]:
 
 # Дата в шапке болванки: DD.MM.YYYYг
 _BOLVANKA_DATE_RE = re.compile(r"\d{1,2}[./\-]\d{1,2}[./\-]\d{2,4}\s*г")
+
+
 def _write_paragraph_text(para, new_text: str) -> None:
     if para.runs:
         para.runs[0].text = new_text
@@ -673,9 +674,8 @@ def _set_title_line_date(para, target_date: str) -> bool:
 
 def rename_templates(folder: str, target_date: str) -> list[str]:
     """
-    Ставит дату внутри болванок (имена файлов не меняются):
-    - строка «Отчёт … за …» в документе;
-    - дата в таблице отчёта, если есть.
+    Ставит дату в болванках в тексте («Отчёт … за …» и таблица).
+    Имя файла не меняется (болванки: «Компания.docx»).
     """
     log = []
     folder_path = Path(folder)
@@ -706,10 +706,10 @@ def rename_templates(folder: str, target_date: str) -> list[str]:
                 continue
 
             doc.save(os.fspath(filepath))
+
             parts = ", ".join(updated)
             log.append(
-                f"[OK] {filepath.name}: в тексте дата {target_date}г ({parts}); "
-                f"имя файла на диске не менялось"
+                f"[OK] {filepath.name}: в тексте дата {target_date}г ({parts})"
             )
         except Exception as e:
             log.append(f"[ERR] {filepath.name}: {e}")
@@ -717,8 +717,6 @@ def rename_templates(folder: str, target_date: str) -> list[str]:
 
 
 def prepare_report_file(filepath: str, layout: dict, target_date: str) -> tuple[bool, str]:
-    from apply_template_layout import apply_layout
-
     try:
         doc = Document(filepath)
     except Exception as e:
