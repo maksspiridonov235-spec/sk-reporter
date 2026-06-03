@@ -21,7 +21,7 @@ from sk_reporter.docx_processing import (
     rename_results,
     rename_templates,
 )
-from sk_reporter.paths import templates_dir
+from sk_reporter.paths import output_dir, templates_dir
 from sk_reporter.template_layout import hardcoded_layout
 
 try:
@@ -356,10 +356,8 @@ async def download_all():
 
 @app.get("/download/fixed/all.zip")
 async def download_fixed_all():
-    output_dir = Path(__file__).parent.parent / "output"
-    if not output_dir.exists():
-        raise HTTPException(status_code=404, detail="Нет исправленных файлов")
-    files = [f for f in output_dir.iterdir() if f.suffix.lower() in (".docx", ".doc")]
+    out = output_dir()
+    files = [f for f in out.iterdir() if f.suffix.lower() in (".docx", ".doc")]
     if not files:
         raise HTTPException(status_code=404, detail="Нет исправленных файлов")
     return StreamingResponse(_zip_files(files), media_type="application/zip", headers={"Content-Disposition": "attachment; filename*=UTF-8''%D0%B8%D1%81%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%BD%D1%8B%D0%B5.zip"})
@@ -367,9 +365,9 @@ async def download_fixed_all():
 
 @app.get("/download/fixed/{filename}")
 async def download_fixed(filename: str):
-    output_dir = Path(__file__).parent.parent / "output"
-    path = (output_dir / filename).resolve()
-    if not str(path).startswith(str(output_dir.resolve())):
+    out = output_dir()
+    path = (out / filename).resolve()
+    if not str(path).startswith(str(out.resolve())):
         raise HTTPException(status_code=400, detail="Недопустимый путь")
     if not path.exists():
         raise HTTPException(status_code=404, detail="Файл не найден")
