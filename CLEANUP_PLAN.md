@@ -2,7 +2,7 @@
 
 Документ фиксирует цель, структуру и порядок работ. Возвращайтесь к нему при паузах между фазами.
 
-**Статус:** фаза 2 завершена (фаза 1 — прогон на офисном ПC вручную)  
+**Статус:** фаза 3 завершена  
 **Окружение Python:** `venv/` в **корне** репозитория (не `webapp/venv`)
 
 ---
@@ -30,6 +30,9 @@ sk-reporter/
 ├── output/                  ← исправленные docx (не в git)
 ├── webapp/
 │   ├── main.py
+│   ├── config.py
+│   ├── helpers.py
+│   ├── routes/
 │   ├── docx_processing.py
 │   ├── static/              ← фаза 1: css, js
 │   └── templates/
@@ -103,9 +106,9 @@ sk-reporter/
 
 ## Фаза 3 — бэкенд по папкам
 
-- [ ] `webapp/routes/` — reports, check, merge, downloads
-- [ ] Тонкий `main.py` (mount static, include routers)
-- [ ] (Опционально) `src/core/`, `src/docx/` — только если станет тесно в `webapp/`
+- [x] `webapp/routes/` — reports, check, merge, downloads (+ pages, prepare)
+- [x] Тонкий `main.py` (mount static, include routers)
+- [x] (Опционально) `src/core/`, `src/docx/` — не делали; достаточно `config.py` + `helpers.py`
 
 **Не делать в фазе 3:** полный пакет `pyproject.toml` / pip install -e — лишний риск для одного ПC.
 

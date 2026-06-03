@@ -27,7 +27,10 @@ sk-reporter/
 ├── launcher/                 # SK-Reporter.bat (Windows)
 ├── companies.py              # список компаний и ключевых слов
 ├── webapp/
-│   ├── main.py               # FastAPI, REST API
+│   ├── main.py               # FastAPI app, mount static, routers
+│   ├── config.py             # пути, AGENT_ENABLED, Jinja2
+│   ├── helpers.py            # общие хелперы (SSE, merge, даты)
+│   ├── routes/               # pages, reports, check, prepare, merge, downloads
 │   ├── docx_processing.py    # логика .docx
 │   ├── static/               # css, js
 │   └── templates/index.html
