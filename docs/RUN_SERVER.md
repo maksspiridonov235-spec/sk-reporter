@@ -83,7 +83,7 @@ python3 -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
 INFO:     Uvicorn running on http://127.0.0.1:8000
 ```
 
-Шаблоны: `contractor_report/болванки (шаблоны не вырезать только копировать)` — в UI не загружаются.
+Шаблоны: **`data/templates/`** — в UI не загружаются. См. [docs/DATA_TEMPLATES.md](DATA_TEMPLATES.md).
 
 Исправленные отчёты: `output/` в корне (`*_исправлен.docx`).
 
@@ -106,5 +106,5 @@ curl http://127.0.0.1:8000/diagnose/reports
 | Ошибка | Причина |
 |--------|---------|
 | `requirements.txt` не найден | Терминал не в корне репозитория |
-| `Папка с болванками не найдена` | Неполный клон или нет `contractor_report` |
+| `Папка с болванками не найдена` | Нет `data/templates/` или пустая — см. [DATA_TEMPLATES.md](DATA_TEMPLATES.md) |
 | `[WARNING] Agent not found` | Не выполнен `pip install -r requirements.txt` в корневом venv |

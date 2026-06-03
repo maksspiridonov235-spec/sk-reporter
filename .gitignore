@@ -20,7 +20,9 @@ Thumbs.db
 .continue/
 .claude/
 
-# Runtime output
+# Runtime output (not template bolvankas)
 output/
 *.docx
+!data/templates/
+!data/templates/*.docx
 *_debug.json

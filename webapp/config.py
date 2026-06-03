@@ -13,11 +13,21 @@ UPLOAD_DIR = WORK_DIR / "uploads"
 RESULT_DIR = WORK_DIR / "results"
 OUTPUT_DIR = REPO_ROOT / "output"
 
-TEMPLATES_DIR = REPO_ROOT / "contractor_report" / "болванки (шаблоны не вырезать только копировать)"
+TEMPLATES_DIR = REPO_ROOT / "data" / "templates"
+_LEGACY_TEMPLATES_DIR = (
+    REPO_ROOT
+    / "contractor_report"
+    / "болванки (шаблоны не вырезать только копировать)"
+)
 LAYOUT_TEMPLATE_FILE = "Ежедневный отчет Шаблон.docx"
 
 for d in (WORK_DIR, UPLOAD_DIR, RESULT_DIR):
     d.mkdir(exist_ok=True)
+
+if not TEMPLATES_DIR.exists() and _LEGACY_TEMPLATES_DIR.exists():
+    TEMPLATES_DIR = _LEGACY_TEMPLATES_DIR
+    print(f"[WARNING] Используется устаревший путь болванок: {TEMPLATES_DIR}")
+    print("[WARNING] Перенесите файлы в data/templates/ — см. docs/DATA_TEMPLATES.md")
 
 if not TEMPLATES_DIR.exists():
     raise RuntimeError(f"Папка с болванками не найдена: {TEMPLATES_DIR}")

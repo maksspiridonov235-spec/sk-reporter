@@ -13,12 +13,7 @@ from docx import Document
 from docx.oxml.ns import qn
 from lxml import etree
 
-TEMPLATE_PATH = (
-    Path(__file__).parent
-    / "contractor_report"
-    / "болванки (шаблоны не вырезать только копировать)"
-    / "Ежедневный отчет Шаблон.docx"
-)
+TEMPLATE_PATH = Path(__file__).parent / "data" / "templates" / "Ежедневный отчет Шаблон.docx"
 
 # ─── Геометрия сетки ──────────────────────────────────────────────────────────
 #

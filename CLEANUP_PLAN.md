@@ -2,7 +2,7 @@
 
 Документ фиксирует цель, структуру и порядок работ. Возвращайтесь к нему при паузах между фазами.
 
-**Статус:** фаза 3 завершена  
+**Статус:** фаза 4 завершена — план уборки выполнен  
 **Окружение Python:** `venv/` в **корне** репозитория (не `webapp/venv`)
 
 ---
@@ -26,7 +26,7 @@ sk-reporter/
 ├── launcher/                ← SK-Reporter.bat для Windows
 ├── archive/                 ← не используется в проде
 ├── scripts/                 ← diagnose и утилиты
-├── data/                    ← фаза 4 (опционально): шаблоны болванок
+├── data/templates/          ← болванки .docx (в git)
 ├── output/                  ← исправленные docx (не в git)
 ├── webapp/
 │   ├── main.py
@@ -40,7 +40,6 @@ sk-reporter/
 ├── agent/                   ← Ollama-агенты
 ├── companies.py
 ├── apply_template_layout.py
-├── contractor_report/       ← болванки (переименуем в data/ на фазе 4)
 └── test_data/
 ```
 
@@ -116,9 +115,9 @@ sk-reporter/
 
 ## Фаза 4 — данные (отдельное решение)
 
-- [ ] `contractor_report/болванки (...)/` → `data/templates/`
-- [ ] Политика git для `.docx` шаблонов (в репо или только на ПC)
-- [ ] `.gitkeep` + инструкция копирования болванок
+- [x] `contractor_report/болванки (...)/` → `data/templates/`
+- [x] Политика git для `.docx` шаблонов (в репо; остальные `.docx` игнорируются)
+- [x] `README.md` в `data/templates/` + `docs/DATA_TEMPLATES.md`
 
 ---
 
