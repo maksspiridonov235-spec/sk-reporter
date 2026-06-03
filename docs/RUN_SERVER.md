@@ -31,6 +31,10 @@ ollama pull gemma4:31b-cloud
 
 ## Каждый запуск (Windows)
 
+**Проще всего — ярлык** (см. раздел [«Ярлык SK-Reporter.bat»](#офисный-пк-ярлык-sk-reporterbat) ниже).
+
+Вручную из терминала:
+
 ```powershell
 .\venv\Scripts\Activate.ps1
 cd webapp
@@ -40,7 +44,62 @@ python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
 Браузер: http://localhost:8000  
 Остановка: Ctrl+C
 
-Для сотрудников: ярлык `launcher/SK-Reporter.bat` (см. `docs/ДЛЯ_СОТРУДНИКОВ.md`).
+---
+
+## Офисный ПК: ярлык SK-Reporter.bat
+
+Файл **`launcher/SK-Reporter.bat`** — запуск сервера одним двойным щелчком (без ручного терминала каждый день).
+
+### Первый раз на этом компьютере
+
+1. Клонировать или обновить репозиторий (`git pull`).
+2. В PowerShell из **корня** `sk-reporter`:
+
+```powershell
+.\scripts\setup.ps1
+```
+
+3. Установить [Ollama](https://ollama.com), запустить, затем:
+
+```powershell
+ollama pull gemma4:31b-cloud
+```
+
+### Ярлык на рабочем столе
+
+1. Проводник → папка `sk-reporter\launcher\`.
+2. Правой кнопкой по **`SK-Reporter.bat`** → **Отправить** → **Рабочий стол (создать ярлык)**.
+3. Переименовать ярлык в **SK-Reporter**.
+
+Или создать ярлык вручную: объект  
+`C:\Users\ИМЯ\Desktop\sk-reporter\launcher\SK-Reporter.bat`  
+(подставьте свой путь к проекту).
+
+**Важно:** ярлык должен указывать на `.bat` **внутри** `launcher\`, а не на копию батника elsewhere. Батник сам находит корень проекта (`launcher\..`).
+
+### Каждый рабочий день
+
+1. Дважды щёлкнуть ярлык **SK-Reporter**.
+2. Откроется браузер: http://localhost:8000
+3. **Чёрное окно консоли не закрывать** — там работает сервер.
+4. Закончили работу — закрыть это окно (или Ctrl+C).
+
+### Если окно сразу закрывается
+
+Запустить из PowerShell, чтобы увидеть ошибку:
+
+```powershell
+cd C:\Users\ИМЯ\Desktop\sk-reporter\launcher
+.\SK-Reporter.bat
+```
+
+| Ошибка | Что сделать |
+|--------|-------------|
+| Нет `venv` | Из корня проекта: `.\scripts\setup.ps1` |
+| `python` не найден | Установить Python с [python.org](https://www.python.org/downloads/), галочка «Add python.exe to PATH» |
+| Порт 8000 занят | Закрыть старое окно SK-Reporter или перезагрузить ПК |
+
+Сотрудникам без терминала: **[docs/ДЛЯ_СОТРУДНИКОВ.md](ДЛЯ_СОТРУДНИКОВ.md)**.
 
 ---
 

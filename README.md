@@ -2,7 +2,7 @@
 
 Объединение ежедневных отчётов строительного контроля.
 
-- Запуск: **[docs/RUN_SERVER.md](docs/RUN_SERVER.md)**
+- Запуск: **[docs/RUN_SERVER.md](docs/RUN_SERVER.md)** (Windows: [ярлык SK-Reporter.bat](docs/RUN_SERVER.md#офисный-пк-ярлык-sk-reporterbat))
 - Для сотрудников: **[docs/ДЛЯ_СОТРУДНИКОВ.md](docs/ДЛЯ_СОТРУДНИКОВ.md)**
 
 ## Быстрый старт
