@@ -90,7 +90,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Устанавливаю sk-reporter..."
-Invoke-Pip install -e .
+Invoke-Pip @("install", "-e", ".")
 
 Write-Host ""
 Write-Host "Готово. Запуск:"
