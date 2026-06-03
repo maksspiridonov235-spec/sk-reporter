@@ -9,6 +9,11 @@
 <body>
 <header>
   <span class="title">Ежедневные отчеты СК</span>
+  {% if agent_enabled %}
+  <span class="header-ai-status header-ai-on" title="Ollama подключена — AI-проверка и сборка активны">AI ✓</span>
+  {% else %}
+  <span class="header-ai-status header-ai-off" title="Агент недоступен — компании определяются по имени файла">AI выкл</span>
+  {% endif %}
 </header>
 
 <div class="layout">

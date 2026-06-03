@@ -99,10 +99,8 @@ def find_reports_for_company(company_name: str, keywords: list[str]):
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    companies = [name for name, _ in COMPANIES]
     return templates.TemplateResponse("index.html", {
         "request": request,
-        "companies": companies,
         "agent_enabled": AGENT_ENABLED,
     })
 
@@ -128,9 +126,9 @@ async def list_reports():
 
 
 
-@app.get("/diagnose/reports")
+@app.get("/diagnose/reports", tags=["dev"], include_in_schema=False)
 async def diagnose_reports():
-    """Диагностика сетки загруженных отчётов (для отладки Громова и др.)."""
+    """DEV ONLY: диагностика сетки загруженных отчётов. В UI нет кнопки; только для отладки."""
     from apply_template_layout import diagnose_document, hardcoded_layout
 
     layout = hardcoded_layout()
@@ -151,7 +149,7 @@ async def diagnose_reports():
             })
         except Exception as e:
             out.append({"file": f.name, "ok": False, "issues": [str(e)]})
-    return {"reports": out, "grid_cols": layout["grid_cols"]}
+    return {"dev_only": True, "reports": out, "grid_cols": layout["grid_cols"]}
 
 @app.post("/check/descriptions/stream")
 async def check_descriptions_stream():
