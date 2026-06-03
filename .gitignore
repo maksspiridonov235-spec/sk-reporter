@@ -14,16 +14,13 @@ env/
 # Temp Word files
 ~$*
 
-# OS
+# OS / IDE
 .DS_Store
 Thumbs.db
+.continue/
+.claude/
 
-# Debug / analysis scripts (не часть приложения)
-analyze_doc.py
-analyze_template.py
-debug_heights.py
-
-# Артефакты в корне
+# Runtime output
+output/
 *.docx
 *_debug.json
-extracted_reports.txt
