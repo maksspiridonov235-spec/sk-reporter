@@ -447,29 +447,68 @@ async function startCheck() {
 
 async function switchLeader(leader) {
   const names = {
-    'aniskov': 'Аниськов Владимир Иванович',
-    'mandzhiev': 'Манджиев Игорь Александрович (И.О.)'
+    aniskov: 'Аниськов Владимир Иванович',
+    mandzhiev: 'Манджиев Игорь Александрович (И.О.)',
   };
-  const { card, statusId } = createOpCard(`Руководитель: ${names[leader]}`);
-  setCardStatus(statusId, `Переключаю руководителя на: ${names[leader]}...`);
-  try {
-    const data = await apiFetch(`/switch-leader-ai/${leader}`, { method: 'POST' }, statusId);
-    if (data.ok) {
-      const lines = data.message.split('\n').filter(l => l.trim());
-      const details = lines.map(l => ({
-        icon: l.startsWith('→') ? '✓' : '',
-        name: l.replace(/^→\s*/, ''),
-        badge: l.includes('замен') ? 'изменено' : null,
-        badgeClass: 'db-ok',
-      }));
-      finalizeOpCard(card, statusId, [
-        { label: `Файлов: ${lines.filter(l => l.startsWith('→')).length}`, color: 'green' },
-      ], details, null);
-    } else {
-      setCardStatus(statusId, `Ошибка: ${data.message || 'Неизвестная ошибка'}`, 'error');
-      finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], null, null);
+  const { card, statusId, progressId } = createOpCard(`Руководитель: ${names[leader]}`);
+  let total = 0;
+  let processed = 0;
+  setCardProgress(statusId, progressId, 0, 0, `Переключаю на: ${names[leader]}…`);
+
+  const resp = await fetch(`/switch-leader/stream/${leader}`, { method: 'POST' });
+  if (!resp.ok) {
+    setCardProgress(statusId, progressId, 0, 0, 'Ошибка запуска', 'error');
+    finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], null, null, { errorState: true });
+    return;
+  }
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  const details = [];
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      let ev;
+      try { ev = JSON.parse(line.slice(6)); } catch { continue; }
+
+      if (ev.type === 'start') {
+        total = ev.total || 0;
+        setCardProgress(statusId, progressId, 0, total, ev.msg);
+      } else if (ev.type === 'info') {
+        setCardProgress(statusId, progressId, processed, total, ev.msg);
+      } else if (ev.type === 'file') {
+        processed++;
+        const badge = ev.changes > 0 ? 'изменено' : (ev.ok ? 'без изменений' : null);
+        const badgeClass = ev.ok ? 'db-ok' : 'db-err';
+        details.push({
+          icon: ev.ok ? '✓' : '✗',
+          name: ev.filename,
+          badge,
+          badgeClass,
+          sub: ev.msg,
+        });
+        setCardProgress(statusId, progressId, processed, total, `${ev.filename}: ${ev.msg}`);
+      } else if (ev.type === 'done') {
+        const s = ev.summary || {};
+        setCardProgress(statusId, progressId, s.total || processed, s.total || total, 'Готово', 'done');
+        finalizeOpCard(card, statusId, [
+          { label: `Файлов: ${s.total || 0}`, color: 'blue' },
+          { label: `Успешно: ${s.ok || 0}`, color: 'green' },
+          ...(s.failed > 0 ? [{ label: `Ошибок: ${s.failed}`, color: 'red' }] : []),
+          ...(s.changed > 0 ? [{ label: `С изменениями: ${s.changed}`, color: 'amber' }] : []),
+        ], details, null, { expandDetails: details.length > 0, detailLabel: 'По файлам' });
+      } else if (ev.type === 'error') {
+        setCardProgress(statusId, progressId, processed, total, ev.msg, 'error');
+      }
     }
-  } catch (_) {}
+  }
 }
 // ── Макросы ───────────────────────────────────────────────────────────────
 

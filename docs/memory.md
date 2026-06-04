@@ -7,9 +7,9 @@
 ## ▶ СЕЙЧАС В РАБОТЕ (читать первым)
 
 **Дата:** 2026-06-04  
-**Фокус сессии:** **оба блока в сайдбаре UI — блок 1 и блок 2.** Пользователь явно сказал: работаем с **двумя** блоками (скрины в чате от 2026-06-04).
+**Фокус сессии:** блоки 1–2 в сайдбаре. **Блок 2 (2026-06-04):** rule-based `leader_switch.py` + SSE `/switch-leader/stream/{leader}` — без Ollama.
 
-Новый чат — продолжение **без повторного объяснения**. Оба блока в scope, пока пользователь не сузит задачу.
+Новый чат — продолжение без повторного объяснения по загрузке / проверке / руководителю.
 
 ### Порядок в сайдбаре (сверху вниз)
 
@@ -52,13 +52,16 @@
 | **Аниськов В.И.** (синяя) | `switchLeader('aniskov')` |
 | **Манджиев И.А.** (оранжевая) | `switchLeader('mandzhiev')` |
 
-По клику: для **всех загруженных** `.docx` в `UPLOAD_DIR` — поиск и замена ФИО руководителя (Ollama).
+По клику: для **всех загруженных** `.docx` в `UPLOAD_DIR` — rule-based замена **4 ячеек** (шапка: должность + ФИО; подвал: должность + ФИО). Без Ollama, секунды на пакет.
+
+Координаты: поиск по тексту в правой зоне таблицы; сетки **GRID_COLS_6** и **GRID_COLS_7** (ghost-колонка) — калибровка на образцах в корне репо (`Ежедневный отчет (ЮНС)…`).
 
 | Слой | Файл |
 |------|------|
-| UI | `webapp/templates/index.html`, `webapp/static/app.js` → `switchLeader()` |
-| API | `webapp/main.py` → `POST /switch-leader-ai/{leader}` |
-| AI | `sk_reporter/agent/leader_ai_agent.py` |
+| UI | `webapp/templates/index.html`, `webapp/static/app.js` → `switchLeader()` (SSE) |
+| API | `webapp/main.py` → `POST /switch-leader/stream/{leader}` |
+| Логика | `sk_reporter/leader_switch.py` (+ `template_layout._main_table_indices`) |
+| Устарело | `sk_reporter/agent/leader_ai_agent.py` — не в hot path UI |
 
 ---
 

@@ -451,19 +451,79 @@ async def clear_all():
     return {"ok": True}
 
 
-@app.post("/switch-leader-ai/{leader}")
-async def switch_leader_ai_endpoint(leader: str):
-    from sk_reporter.agent.leader_ai_agent import switch_leader_ai
+@app.post("/switch-leader/stream/{leader}")
+async def switch_leader_stream(leader: str):
+    from sk_reporter.leader_switch import switch_leader_in_docx
 
     if leader not in ("aniskov", "mandzhiev"):
         raise HTTPException(status_code=400, detail="leader должен быть 'aniskov' или 'mandzhiev'")
-    report_files = list(UPLOAD_DIR.glob("*.docx"))
-    if not report_files:
-        raise HTTPException(status_code=404, detail="Отчёты не загружены")
-    ok, msg = switch_leader_ai([str(f) for f in report_files], leader)
-    if not ok:
-        raise HTTPException(status_code=500, detail=msg)
-    return {"ok": True, "message": msg}
+
+    async def event_generator():
+        report_files = sorted(UPLOAD_DIR.glob("*.docx"))
+        yield _sse({
+            "type": "start",
+            "msg": "Переключаю руководителя…",
+            "total": len(report_files),
+            "leader": leader,
+        })
+        if not report_files:
+            yield _sse({"type": "error", "msg": "Отчёты не загружены"})
+            return
+
+        ok_count = 0
+        fail_count = 0
+        changed_count = 0
+        for file_path in report_files:
+            filename = file_path.name
+            yield _sse({
+                "type": "info",
+                "filename": filename,
+                "msg": f"{filename}: ищу ячейки руководителя…",
+            })
+            try:
+                ok, msg, n = switch_leader_in_docx(str(file_path), leader)
+                if ok:
+                    ok_count += 1
+                    if n:
+                        changed_count += 1
+                    yield _sse({
+                        "type": "file",
+                        "filename": filename,
+                        "ok": True,
+                        "msg": msg,
+                        "changes": n,
+                    })
+                else:
+                    fail_count += 1
+                    yield _sse({
+                        "type": "file",
+                        "filename": filename,
+                        "ok": False,
+                        "msg": msg,
+                        "changes": 0,
+                    })
+            except Exception as e:
+                fail_count += 1
+                yield _sse({
+                    "type": "error",
+                    "msg": f"Ошибка {filename}: {e}",
+                })
+
+        yield _sse({
+            "type": "done",
+            "summary": {
+                "total": len(report_files),
+                "ok": ok_count,
+                "failed": fail_count,
+                "changed": changed_count,
+            },
+        })
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 if __name__ == "__main__":
