@@ -11,6 +11,6 @@ alwaysApply: true
 - `docs/PROJECT_CONTEXT.md` — продукт и процессы (может быть с пометками TODO)
 - `AGENTS.md` — карта репозитория
 
-Исправленные docx: корневой `output/`, не `sk_reporter/output/`.
+Исправленные docx: temp uploads (`UPLOAD_DIR`).
 
 После согласованных в чате решений, важных для будущих сессий — предложи обновить `docs/memory.md`.

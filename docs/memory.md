@@ -32,16 +32,16 @@
 |----|-----------|
 | **Проверить и исправить** | `#btnCheck` → `startCheck()` → `POST /check/descriptions/stream` |
 
-Цепочка: `check_agent` (Ollama) → `inject_agent` → копия в `output/{имя}_исправлен.docx` + **подстановка в загрузку** (то же имя в `UPLOAD_DIR`). Скачать по файлу — в правой панели «Исправленные».
+Цепочка: `check_agent` (Ollama) → `inject_agent` → **запись в загрузку** (`UPLOAD_DIR`, то же имя файла). Скачать с именем `{имя}_исправлен.docx` — `/download/fixed/...` (читает тот же файл из загрузки).
 
 | Слой | Файл |
 |------|------|
 | UI | `webapp/templates/index.html`, `webapp/static/app.js` (`startCheck`) |
 | API | `webapp/main.py` — stream check, `/download/fixed/...` |
 | AI + inject | `sk_reporter/agent/check_agent.py`, `sk_reporter/agent/inject_agent.py` |
-| Папка | `sk_reporter.paths.output_dir()` → **`output/` в корне репо** (коммит `4137eac`) |
+| Загрузка (сырые + после проверки) | temp `sk_reports_work/uploads/` — см. `UPLOAD_DIR` в `webapp/main.py` |
 
-Важно: inject пишет в ячейку-заголовок **«Описание действий»**; после проверки загрузка уже с правками — перезаливать не нужно. `*_исправлен.docx` в `output/` — для скачивания из панели справа.
+Важно: inject пишет в ячейку-заголовок **«Описание действий»**; после проверки перезаливать не нужно. Отдельных папок `output/` в репо нет.
 
 ---
 
@@ -73,15 +73,15 @@
 
 ## Архитектура и пути
 
-### 2026-06-04 — папка output после рефакторинга
-- Исправленные отчёты: **`output/` в корне репозитория** (не `sk_reporter/output/`)
-- Функция: `sk_reporter.paths.output_dir()`
-- Коммит: `4137eac` — inject + скачивание `/download/fixed/` из одной папки
+### 2026-06-04 — где лежат файлы
+- **Сырые и исправленные** (рабочие): temp `…/sk_reports_work/uploads/` (`UPLOAD_DIR`)
+- **Готовые сводные**: temp `…/sk_reports_work/results/`
+- Папки `output/` / `sk_reporter/output/` в репо удалены (2026-06-04)
 - После `git pull` на офисном ПК — **перезапустить** `launcher/SK-Reporter.bat`
 
 ### 2026-06-04 — inject «Описание действий»
 - Текст от check_agent вставляется в **ячейку-заголовок** «Описание действий»
-- Скачивать нужно `*_исправлен.docx` из блока «Исправленные» или из `output/`
+- Скачать «как _исправлен» — панель «Исправленные» справа (`/download/fixed/{имя}_исправлен.docx`)
 
 ---
 

@@ -21,8 +21,6 @@ Thumbs.db
 .continue/
 .claude/
 
-# Runtime output (not template bolvankas)
-output/
 *.docx
 !data/templates/
 !data/templates/*.docx

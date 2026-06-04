@@ -38,7 +38,7 @@ sk-reporter/
 ├── scripts/setup.sh          # первичная настройка (macOS/Linux)
 ├── scripts/setup.ps1         # первичная настройка (Windows)
 ├── launcher/SK-Reporter.bat  # ярлык для офисного ПC
-└── output/                   # исправленные отчёты (не в git)
+# рабочие файлы — temp sk_reports_work/ (uploads, results), не в репо
 ```
 
 ## Сценарий

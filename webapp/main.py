@@ -21,7 +21,7 @@ from sk_reporter.docx_processing import (
     rename_results,
     rename_templates,
 )
-from sk_reporter.paths import output_dir, templates_dir
+from sk_reporter.paths import templates_dir
 from sk_reporter.template_layout import hardcoded_layout
 
 try:
@@ -178,13 +178,12 @@ async def check_descriptions_stream():
                     yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: вставляю правки в текст документа…"})
                     inject_result = inject_into_docx(str(file_path), corrected_text, filename)
                     if inject_result.get("ok"):
-                        dl_name = Path(inject_result["docx_path"]).name
-                        shutil.copy2(inject_result["docx_path"], UPLOAD_DIR / filename)
+                        dl_name = inject_result.get("download_name") or _fixed_download_name(filename)
                         promoted_count += 1
                         yield _sse({
                             "type": "fixed",
                             "filename": filename,
-                            "msg": f"{filename}: исправлен, подставлен в загрузку (копия → {dl_name})",
+                            "msg": f"{filename}: исправлен и записан в загрузку",
                             "download": f"/download/fixed/{dl_name}",
                             "promoted": True,
                         })
@@ -250,6 +249,22 @@ async def rename_results_endpoint(body: PrepareBody):
 
 def _sse(data: dict) -> str:
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _fixed_download_name(upload_filename: str) -> str:
+    return f"{Path(upload_filename).stem}_исправлен.docx"
+
+
+def _upload_path_for_fixed_download(fixed_download_name: str) -> Path | None:
+    """Имя *_исправлен.docx в URL → файл в UPLOAD_DIR с тем же содержимым."""
+    marker = "_исправлен.docx"
+    if not fixed_download_name.endswith(marker):
+        return None
+    upload_name = f"{fixed_download_name[: -len(marker)]}.docx"
+    path = (UPLOAD_DIR / upload_name).resolve()
+    if not str(path).startswith(str(UPLOAD_DIR.resolve())):
+        return None
+    return path if path.is_file() else None
 
 
 @app.get("/merge/all/stream")
@@ -353,11 +368,12 @@ async def merge_all_stream():
     return StreamingResponse(_gen(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
-def _zip_files(files: list[Path]) -> io.BytesIO:
+def _zip_files(files: list[Path], arcnames: list[str] | None = None) -> io.BytesIO:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for f in files:
-            zf.write(f, f.name)
+        for i, f in enumerate(files):
+            name = arcnames[i] if arcnames else f.name
+            zf.write(f, name)
     buf.seek(0)
     return buf
 
@@ -372,22 +388,29 @@ async def download_all():
 
 @app.get("/download/fixed/all.zip")
 async def download_fixed_all():
-    out = output_dir()
-    files = [f for f in out.iterdir() if f.suffix.lower() in (".docx", ".doc")]
+    files = sorted(
+        f for f in UPLOAD_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")
+    )
     if not files:
-        raise HTTPException(status_code=404, detail="Нет исправленных файлов")
-    return StreamingResponse(_zip_files(files), media_type="application/zip", headers={"Content-Disposition": "attachment; filename*=UTF-8''%D0%B8%D1%81%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%BD%D1%8B%D0%B5.zip"})
+        raise HTTPException(status_code=404, detail="Нет загруженных отчётов")
+    arcnames = [_fixed_download_name(f.name) for f in files]
+    return StreamingResponse(
+        _zip_files(files, arcnames),
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename*=UTF-8''%D0%B8%D1%81%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%BD%D1%8B%D0%B5.zip"},
+    )
 
 
 @app.get("/download/fixed/{filename}")
 async def download_fixed(filename: str):
-    out = output_dir()
-    path = (out / filename).resolve()
-    if not str(path).startswith(str(out.resolve())):
-        raise HTTPException(status_code=400, detail="Недопустимый путь")
-    if not path.exists():
+    path = _upload_path_for_fixed_download(filename)
+    if path is None:
         raise HTTPException(status_code=404, detail="Файл не найден")
-    return FileResponse(path=str(path), filename=filename, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    return FileResponse(
+        path=str(path),
+        filename=filename,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
 
 
 @app.get("/download/{filename}")

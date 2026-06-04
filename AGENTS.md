@@ -19,7 +19,7 @@
 | `webapp/` | FastAPI + UI |
 | `sk_reporter/` | docx, компании, агенты (`check_agent`, `inject_agent`, `ocr_agent`, **`leader_ai_agent`**) |
 | `data/templates/` | Болванки `{Компания}.docx` |
-| `output/` | Исправленные отчёты `*_исправлен.docx` (корень репо, не `sk_reporter/output/`) |
+| temp `sk_reports_work/uploads/` | Загруженные и исправленные отчёты (рабочие; не в репо) |
 | `launcher/SK-Reporter.bat` | Запуск сервера на офисном ПК |
 
 ## Правила работы агента

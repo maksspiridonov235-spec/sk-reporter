@@ -11,9 +11,9 @@ from pathlib import Path
 from docx import Document
 from docx.oxml.ns import qn
 
-from sk_reporter.paths import output_dir
-
 MODEL = "gemma4:31b-cloud"
+
+FIXED_DOWNLOAD_SUFFIX = "_исправлен.docx"
 
 
 def _parse_parts(corrected_text: str):
@@ -125,12 +125,15 @@ def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -
             _write_parts_to_cell(target_cell, part1_lines, part2_lines)
             print("[INJECT_AGENT] Wrote corrected parts to 'Описание действий' cell")
 
-            out_dir = output_dir()
-            final_path = out_dir / f"{stem}_исправлен.docx"
-            doc.save(str(final_path))
+            dest = Path(filepath).resolve()
+            doc.save(str(dest))
 
-        print(f"[INJECT_AGENT] Saved: {final_path}")
-        return {"ok": True, "docx_path": str(final_path)}
+        print(f"[INJECT_AGENT] Saved to upload: {dest}")
+        return {
+            "ok": True,
+            "docx_path": str(dest),
+            "download_name": f"{stem}{FIXED_DOWNLOAD_SUFFIX}",
+        }
 
     except Exception as e:
         import traceback
