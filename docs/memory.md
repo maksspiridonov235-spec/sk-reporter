@@ -17,7 +17,6 @@
 дата отчёта
 ┌─ БЛОК 1 (div[1]) ─────────────────────────┐
 │  Проверить и исправить                    │
-│  Скачать (ZIP) — исправленные             │
 └───────────────────────────────────────────┘
 ┌─ БЛОК 2 (div[2]) ─────────────────────────┐
 │  Аниськов В.И.  /  Манджиев И.А.         │
@@ -27,23 +26,22 @@
 
 ---
 
-### Блок 1 — «Проверить и исправить» + ZIP исправленных
+### Блок 1 — «Проверить и исправить»
 
 | UI | Код / API |
 |----|-----------|
 | **Проверить и исправить** | `#btnCheck` → `startCheck()` → `POST /check/descriptions/stream` |
-| **Скачать (ZIP)** | `downloadAllFixed()` → `GET /download/fixed/all.zip` |
 
-Цепочка: `check_agent` (Ollama) → `inject_agent` → файлы `output/{имя}_исправлен.docx` + ссылки в панели «Исправленные».
+Цепочка: `check_agent` (Ollama) → `inject_agent` → копия в `output/{имя}_исправлен.docx` + **подстановка в загрузку** (то же имя в `UPLOAD_DIR`). Скачать по файлу — в правой панели «Исправленные».
 
 | Слой | Файл |
 |------|------|
-| UI | `webapp/templates/index.html`, `webapp/static/app.js` (`startCheck`, `downloadAllFixed`) |
+| UI | `webapp/templates/index.html`, `webapp/static/app.js` (`startCheck`) |
 | API | `webapp/main.py` — stream check, `/download/fixed/...` |
 | AI + inject | `sk_reporter/agent/check_agent.py`, `sk_reporter/agent/inject_agent.py` |
 | Папка | `sk_reporter.paths.output_dir()` → **`output/` в корне репо** (коммит `4137eac`) |
 
-Важно: inject пишет в ячейку-заголовок **«Описание действий»**; скачивать `*_исправлен.docx`, не исходный upload.
+Важно: inject пишет в ячейку-заголовок **«Описание действий»**; после проверки загрузка уже с правками — перезаливать не нужно. `*_исправлен.docx` в `output/` — для скачивания из панели справа.
 
 ---
 

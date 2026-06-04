@@ -163,6 +163,7 @@ async def check_descriptions_stream():
             yield _sse({"type": "error", "msg": "Отчёты не загружены"})
             return
         errors_count = 0
+        promoted_count = 0
         for file_path in report_files:
             try:
                 filename = Path(file_path).name
@@ -178,12 +179,27 @@ async def check_descriptions_stream():
                     inject_result = inject_into_docx(str(file_path), corrected_text, filename)
                     if inject_result.get("ok"):
                         dl_name = Path(inject_result["docx_path"]).name
-                        yield _sse({"type": "fixed", "filename": filename, "msg": f"{filename}: исправлен → {dl_name}", "download": f"/download/fixed/{dl_name}"})
+                        shutil.copy2(inject_result["docx_path"], UPLOAD_DIR / filename)
+                        promoted_count += 1
+                        yield _sse({
+                            "type": "fixed",
+                            "filename": filename,
+                            "msg": f"{filename}: исправлен, подставлен в загрузку (копия → {dl_name})",
+                            "download": f"/download/fixed/{dl_name}",
+                            "promoted": True,
+                        })
                     else:
                         yield _sse({"type": "error", "msg": f'Ошибка inject для {filename}: {inject_result.get("error")}'})
             except Exception as e:
                 yield _sse({"type": "error", "msg": f"Ошибка проверки {Path(file_path).name}: {str(e)}"})
-        yield _sse({"type": "done", "summary": {"total": len(report_files), "errors": errors_count}})
+        yield _sse({
+            "type": "done",
+            "summary": {
+                "total": len(report_files),
+                "errors": errors_count,
+                "promoted": promoted_count,
+            },
+        })
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

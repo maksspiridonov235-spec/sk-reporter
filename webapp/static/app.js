@@ -32,7 +32,7 @@ const OP_SUBTITLES = {
   'Подготовка отчётов': 'Меняется содержимое загруженных .docx; имена файлов на диске те же.',
   'Дата в тексте болванок': 'Меняется текст внутри шаблонов; файлы на диске не переименовываются.',
   'Переименование готовых': 'Готовые сводные: новое имя на диске и дата в документе.',
-  'Проверка отчётов': 'AI-проверка описаний; при необходимости правки вставляются в документ.',
+  'Проверка отчётов': 'AI-проверка; исправленные файлы подставляются в загрузку — можно сразу «Подготовить» и дальше. Копии — в панели «Исправленные».',
   'Сборка отчётов': 'Склейка по компаниям в папку результатов.',
 };
 
@@ -417,6 +417,7 @@ async function startCheck() {
         const s = ev.summary || {};
         const total = s.total || 0;
         const errors = s.errors || 0;
+        const promoted = s.promoted || 0;
         const fileCardEls = collectedFileCards.map(fc =>
           buildFileCardEl(fc.filename, fc.hasErrors, fc.reportText, downloadMap[fc.filename] || null)
         );
@@ -425,10 +426,12 @@ async function startCheck() {
           { label: `Файлов: ${total}`, color: 'blue' },
           { label: `Без замечаний: ${total - errors}`, color: 'green' },
           ...(errors > 0 ? [{ label: `С замечаниями: ${errors}`, color: 'amber' }] : []),
+          ...(promoted > 0 ? [{ label: `В загрузке обновлено: ${promoted}`, color: 'green' }] : []),
         ], null, fileCardEls, {
           expandDetails: true,
           detailLabel: 'Отчёты по файлам',
         });
+        if (promoted > 0) refreshReportsList();
         setTimeout(() => { bar.style.width = '0%'; }, 2000);
         btn.disabled = false;
         btn.textContent = 'Проверить и исправить';
@@ -838,12 +841,6 @@ async function downloadAll() {
   finalizeOpCard(card, statusId, [{ label: 'Загрузка началась', color: 'green' }], null, null);
 }
 
-async function downloadAllFixed() {
-  const { card, statusId } = createOpCard('Скачать исправленные ZIP');
-  setCardStatus(statusId, 'Подготавливаю архив...');
-  _triggerDownload('/download/fixed/all.zip', 'исправленные.zip');
-  finalizeOpCard(card, statusId, [{ label: 'Загрузка началась', color: 'green' }], null, null);
-}
 // ── Сброс ─────────────────────────────────────────────────────────────────
 
 async function resetAll() {
@@ -880,7 +877,6 @@ refreshResults();
 // Global handlers for inline onclick attributes
 window.uploadReports = uploadReports;
 window.startCheck = startCheck;
-window.downloadAllFixed = downloadAllFixed;
 window.switchLeader = switchLeader;
 window.prepareReports = prepareReports;
 window.mergeAll = mergeAll;
