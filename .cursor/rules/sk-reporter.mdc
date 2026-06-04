@@ -1,0 +1,16 @@
+---
+description: Контекст SK-Reporter — читать memory.md и PROJECT_CONTEXT
+alwaysApply: true
+---
+
+# SK-Reporter
+
+В начале нетривиальной задачи прочитай:
+
+- `docs/memory.md` — **сначала раздел «СЕЙЧАС В РАБОТЕ»**, затем остальное
+- `docs/PROJECT_CONTEXT.md` — продукт и процессы (может быть с пометками TODO)
+- `AGENTS.md` — карта репозитория
+
+Исправленные docx: корневой `output/`, не `sk_reporter/output/`.
+
+После согласованных в чате решений, важных для будущих сессий — предложи обновить `docs/memory.md`.
