@@ -67,7 +67,7 @@ _FOOTER_ROLE_RE = re.compile(
 )
 
 HEADER_ZONE_ROWS = 14
-FOOTER_ZONE_ROWS = 18
+FOOTER_ZONE_ROWS = 25
 
 
 @dataclass(frozen=True)
@@ -85,7 +85,8 @@ class LeaderSlots:
 
 
 def _norm(text: str) -> str:
-    return " ".join(text.split()).strip()
+    cleaned = text.replace("\xa0", " ").replace("\u200b", "").replace("\ufeff", "")
+    return " ".join(cleaned.split()).strip()
 
 
 def _cell_text(cell: _Cell) -> str:
@@ -127,7 +128,10 @@ def _is_footer_role(text: str) -> bool:
         return False
     if _FOOTER_ROLE_RE.search(t):
         return True
-    return "руководител" in t and "проект" in t
+    if "руководител" in t and "проект" in t:
+        return True
+    # «Руководитель проекта СК» иногда без слова «проект» в отдельной ячейке/run
+    return "руководител" in t and re.search(r"(?:^|\s)с\.?\s*к\.?(?:\s|$)", t, re.I) is not None
 
 
 def _is_footer_role_paragraph(text: str) -> bool:
@@ -375,46 +379,123 @@ def _apply_header_zone(table, leader: LeaderId) -> int:
     return changes
 
 
-def _row_footer_role_cells(row) -> list[_Cell]:
-    """Ячейки строки, в сумме дающие должность в подвале (в т.ч. разбитую по col)."""
-    candidates: list[tuple[int, _Cell, str]] = []
-    for ci, cell in _zone_cells(row):
-        text = _cell_text(cell)
-        if not text or "лицеванов" in text.lower():
-            continue
-        tl = text.lower()
-        if _is_leader_fio(text) and not _FOOTER_ROLE_RE.search(text):
-            continue
-        if "руководител" in tl or ("проект" in tl and "ск" in tl.replace(".", "")):
-            candidates.append((ci, cell, text))
-    if not candidates:
-        return []
-    combined = _norm(" ".join(t for _, _, t in candidates))
-    if not (_is_footer_role(combined) or _FOOTER_ROLE_RE.search(combined)):
-        return []
-    return [cell for _, cell, _ in candidates]
+def _footer_scan_from(nrows: int, header_row: int, footer_role_row: int | None = None) -> int:
+    """Нижняя часть таблицы: не раньше шапки и не уже 25 последних строк."""
+    scan_from = max(header_row + 10, nrows - FOOTER_ZONE_ROWS, HEADER_ZONE_ROWS)
+    if footer_role_row is not None:
+        scan_from = min(scan_from, max(HEADER_ZONE_ROWS, footer_role_row - 3))
+    return scan_from
 
 
-def _apply_footer_role_row(row, target: str) -> bool:
-    cells = _row_footer_role_cells(row)
-    if not cells:
+def _cell_looks_like_footer_role_fragment(text: str) -> bool:
+    if _skip_cell(text):
         return False
-    if len(cells) == 1:
-        return _replace_footer_role_in_cell(cells[0], target)
-    changed = False
-    if _write_cell_text(cells[0], target):
-        changed = True
-    for cell in cells[1:]:
-        if _cell_text(cell) and not _is_leader_fio(_cell_text(cell)):
-            if _write_cell_text(cell, ""):
-                changed = True
+    if _is_leader_fio(text) and not _FOOTER_ROLE_RE.search(text):
+        return False
+    tl = text.lower()
+    if "руководител" in tl or "проект" in tl or _FOOTER_ROLE_RE.search(text):
+        return True
+    return bool(re.search(r"и\.?\s*о\.?", tl, re.I) and ("проект" in tl or "руководител" in tl))
+
+
+def _row_footer_role_combined_text(row) -> str:
+    parts: list[str] = []
+    for _ci, cell in _zone_cells(row):
+        text = _cell_text(cell)
+        if _cell_looks_like_footer_role_fragment(text):
+            parts.append(text)
+    return _norm(" ".join(parts))
+
+
+def _apply_footer_role_row_combined(row, target: str) -> bool:
+    """Должность в подвале, разбитая по нескольким ячейкам одной строки."""
+    combined = _row_footer_role_combined_text(row)
+    if not combined or not (_is_footer_role(combined) or _FOOTER_ROLE_RE.search(combined)):
+        return False
+    if _norm(combined) == _norm(target):
+        return False
+
+    frag: list[tuple[_Cell, str]] = []
+    for _ci, cell in _zone_cells(row):
+        text = _cell_text(cell)
+        if _cell_looks_like_footer_role_fragment(text):
+            frag.append((cell, text))
+    if not frag:
+        return False
+
+    primary = max(frag, key=lambda x: len(x[1]))[0]
+    primary_tc = id(primary._tc)
+    changed = _write_cell_text(primary, target)
+    for cell, text in frag:
+        if cell is primary or id(cell._tc) == primary_tc:
+            continue
+        if text and _write_cell_text(cell, ""):
+            changed = True
     return changed
 
 
-def _apply_footer_zone(table, leader: LeaderId) -> int:
+def _cell_has_footer_role_text(text: str) -> bool:
+    if _skip_cell(text):
+        return False
+    if _is_leader_fio(text) and not _FOOTER_ROLE_RE.search(text):
+        return False
+    return bool(_is_footer_role(text) or _FOOTER_ROLE_RE.search(text))
+
+
+def _force_replace_footer_role_in_cell(cell: _Cell, target: str) -> bool:
+    """Жёсткая замена должности в подвале (para.text сбрасывает разбитые run'ы)."""
+    changed = False
+    for para in cell.paragraphs:
+        raw = para.text
+        pnorm = _norm(raw)
+        if not pnorm or "лицеванов" in pnorm.lower():
+            continue
+        if _is_fio_paragraph(raw):
+            continue
+        if not (_is_footer_role_paragraph(raw) or _FOOTER_ROLE_RE.search(raw)):
+            continue
+        if pnorm == _norm(target):
+            continue
+
+        new_raw = raw
+        for old in _FOOTER_ROLE_VARIANTS:
+            if old.lower() in raw.lower():
+                new_raw = re.sub(re.escape(old), target, raw, flags=re.IGNORECASE)
+                break
+        if new_raw == raw:
+            new_raw = _FOOTER_ROLE_RE.sub(target, raw, count=1)
+        if new_raw != raw:
+            para.text = new_raw
+            changed = True
+
+    if changed:
+        return True
+
+    full = _cell_text(cell)
+    if not _cell_has_footer_role_text(full) or _norm(full) == _norm(target):
+        return False
+    if len(cell.paragraphs) == 1:
+        cell.paragraphs[0].text = target
+        return True
+    parts = [_norm(p.text) for p in cell.paragraphs if _norm(p.text)]
+    combined_para = _norm(" ".join(parts))
+    if _cell_has_footer_role_text(combined_para):
+        cell.paragraphs[0].text = target
+        for para in cell.paragraphs[1:]:
+            para.text = ""
+        return True
+    return _replace_footer_role_in_cell(cell, target)
+
+
+def _apply_footer_zone(
+    table,
+    leader: LeaderId,
+    header_row: int = 0,
+    footer_role_row: int | None = None,
+) -> int:
     targets = LEADER_TARGETS[leader]
     nrows = len(table.rows)
-    scan_from = max(0, nrows - FOOTER_ZONE_ROWS)
+    scan_from = _footer_scan_from(nrows, header_row, footer_role_row)
     changes = 0
 
     for ri in range(scan_from, nrows):
@@ -430,27 +511,16 @@ def _apply_footer_zone(table, leader: LeaderId) -> int:
                     if _replace_fio_in_paragraph(para, targets["footer_fio"]):
                         row_changed = True
 
-        if _apply_footer_role_row(row, targets["footer_role"]):
+            text = _cell_text(cell)
+            if _cell_has_footer_role_text(text):
+                if _force_replace_footer_role_in_cell(cell, targets["footer_role"]):
+                    row_changed = True
+            elif _is_leader_fio(text):
+                if _replace_fio_in_cell(cell, targets["footer_fio"]):
+                    row_changed = True
+
+        if _apply_footer_role_row_combined(row, targets["footer_role"]):
             row_changed = True
-        else:
-            for _ci, cell in _zone_cells(row):
-                text = _cell_text(cell)
-                if _skip_cell(text):
-                    continue
-                if _is_footer_role(text):
-                    if _replace_footer_role_in_cell(cell, targets["footer_role"]):
-                        row_changed = True
-                elif _is_leader_fio(text):
-                    if _replace_fio_in_cell(cell, targets["footer_fio"]):
-                        row_changed = True
-                else:
-                    for para in cell.paragraphs:
-                        ptext = _norm(para.text)
-                        if _is_footer_role_paragraph(ptext):
-                            if _replace_footer_role_in_paragraph(
-                                para, targets["footer_role"]
-                            ):
-                                row_changed = True
 
         if row_changed:
             changes += 1
@@ -468,7 +538,11 @@ def switch_leader_in_docx(filepath: str, leader: LeaderId) -> tuple[bool, str, i
         table = doc.tables[indices[0]]
 
         slots = find_leader_slots(doc)
-        changes = _apply_header_zone(table, leader) + _apply_footer_zone(table, leader)
+        header_row = slots.header_title.row if slots else 0
+        footer_role_row = slots.footer_role.row if slots else None
+        changes = _apply_header_zone(table, leader) + _apply_footer_zone(
+            table, leader, header_row, footer_role_row
+        )
 
         if changes == 0:
             if slots is None:
