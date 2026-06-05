@@ -189,10 +189,8 @@ async def check_descriptions_stream():
         print(f"[CHECK_STREAM] === фаза 1: check ({len(report_files)} файлов) ===")
         yield _sse({
             "type": "start",
-            "phase": "check",
-            "msg": "Проверяю все загруженные отчёты…",
+            "msg": "Проверяю загруженные отчёты…",
             "total": len(report_files),
-            "build": _git_head,
         })
         for file_path in report_files:
             try:
@@ -209,7 +207,7 @@ async def check_descriptions_stream():
                     "filename": filename,
                     "msg": f"{filename}: " + ("⚠️ найдены проблемы" if has_errors else "✓ ОК"),
                     "hasErrors": has_errors,
-                    "report": (result.get("report") or "").strip(),
+                    "result": result,
                 })
                 await asyncio.sleep(0)
             except Exception as e:
@@ -226,7 +224,7 @@ async def check_descriptions_stream():
         # Фаза 2: перепроверить все файлы (тот же поток событий, что у check)
         yield _sse({
             "type": "verify_phase",
-            "msg": "Перепроверяю все отчёты…",
+            "msg": "Перепроверяю загруженные отчёты…",
             "total": len(report_files),
         })
         for file_path in report_files:
@@ -256,7 +254,7 @@ async def check_descriptions_stream():
                     "filename": filename,
                     "msg": f"{filename}: " + ("⚠️ замечания" if not verify_ok else "✓ ОК") + (" (fallback check)" if verify_result.get("fallback") else ""),
                     "hasErrors": not verify_ok,
-                    "report": (verify_result.get("report") or "").strip(),
+                    "result": verify_result,
                 })
                 await asyncio.sleep(0)
             except Exception as e:

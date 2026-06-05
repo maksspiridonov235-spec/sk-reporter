@@ -420,7 +420,7 @@ async function startCheck() {
         }
       } else if (ev.type === 'report') {
         checkProcessed++;
-        const pctBar = total ? Math.min(12 + (checkProcessed / total) * 38, 50) : Math.min(20 + checkProcessed * 20, 50);
+        const pctBar = total ? Math.min(12 + (checkProcessed / total) * 78, 90) : Math.min(20 + checkProcessed * 30, 85);
         bar.style.width = pctBar + '%';
         const shortMsg = ev.hasErrors
           ? `${ev.filename}: замечания по описаниям`
@@ -429,63 +429,81 @@ async function startCheck() {
         checkCards.push({
           filename: ev.filename,
           hasErrors: ev.hasErrors,
-          reportText: ev.report || (ev.result && ev.result.report) || '',
+          reportText: ev.result?.report || '',
+          downloadUrl: null,
         });
       } else if (ev.type === 'check_done') {
         const cs = ev.summary || {};
         const checkTotal = cs.total || total;
         const checkErrors = cs.errors || 0;
-        const checkFileCards = checkCards.map(fc =>
+        const fileCardEls = checkCards.map(fc =>
           buildFileCardEl(fc.filename, fc.hasErrors, fc.reportText, null)
+        );
+        setCardProgress(
+          checkOp.statusId,
+          checkOp.progressId,
+          checkTotal || checkProcessed,
+          checkTotal || checkProcessed,
+          'Проверка завершена',
+          'done'
         );
         finalizeOpCard(checkOp.card, checkOp.statusId, [
           { label: `Файлов: ${checkTotal}`, color: 'blue' },
           { label: `Без замечаний: ${checkTotal - checkErrors}`, color: 'green' },
           ...(checkErrors > 0 ? [{ label: `С замечаниями: ${checkErrors}`, color: 'amber' }] : []),
-        ], null, checkFileCards, {
+        ], null, fileCardEls, {
           expandDetails: true,
-          detailLabel: 'Результаты проверки',
+          detailLabel: 'Отчёты по файлам',
         });
-        bar.style.width = '55%';
+        bar.style.width = '90%';
       } else if (ev.type === 'verify_phase') {
         total = ev.total || total;
-        verifyOp = createOpCard('Перепроверка (verify_agent)');
+        verifyOp = createOpCard('Перепроверка отчётов');
         if (checkOp.card && verifyOp.card) checkOp.card.after(verifyOp.card);
         setCardProgress(verifyOp.statusId, verifyOp.progressId, 0, total, ev.msg);
-        bar.style.width = '60%';
+        bar.style.width = total ? '12%' : '20%';
       } else if (ev.type === 'verify') {
         if (!verifyOp) {
-          verifyOp = createOpCard('Перепроверка (verify_agent)');
+          verifyOp = createOpCard('Перепроверка отчётов');
           if (checkOp.card && verifyOp.card) checkOp.card.after(verifyOp.card);
         }
         verifyProcessed++;
-        const pctBar = total ? Math.min(60 + (verifyProcessed / total) * 35, 95) : Math.min(60 + verifyProcessed * 30, 95);
+        const pctBar = total ? Math.min(12 + (verifyProcessed / total) * 78, 90) : Math.min(20 + verifyProcessed * 30, 85);
         bar.style.width = pctBar + '%';
-        setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyProcessed, total, ev.msg);
-        let fc = verifyCards.find(x => x.filename === ev.filename);
-        if (!fc) {
-          fc = { filename: ev.filename, hasErrors: ev.hasErrors, reportText: '' };
-          verifyCards.push(fc);
-        }
-        const text = ev.report || (ev.result && ev.result.report) || '';
-        if (text) fc.reportText = text;
-        if (ev.hasErrors) fc.hasErrors = true;
+        const shortMsg = ev.hasErrors
+          ? `${ev.filename}: замечания по описаниям`
+          : `${ev.filename}: без замечаний`;
+        setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyProcessed, total, shortMsg);
+        verifyCards.push({
+          filename: ev.filename,
+          hasErrors: ev.hasErrors,
+          reportText: ev.result?.report || '',
+          downloadUrl: downloadMap[ev.filename] || null,
+        });
       } else if (ev.type === 'verify_done' && verifyOp) {
         const cs = ev.summary || {};
         const verifyTotal = cs.total || total;
         const verifyErrors = cs.errors || 0;
-        const verifyFileCards = verifyCards.map(fc =>
-          buildFileCardEl(fc.filename, fc.hasErrors, fc.reportText, downloadMap[fc.filename] || null)
+        const fileCardEls = verifyCards.map(fc =>
+          buildFileCardEl(fc.filename, fc.hasErrors, fc.reportText, fc.downloadUrl || null)
+        );
+        setCardProgress(
+          verifyOp.statusId,
+          verifyOp.progressId,
+          verifyTotal || verifyProcessed,
+          verifyTotal || verifyProcessed,
+          'Перепроверка завершена',
+          'done'
         );
         finalizeOpCard(verifyOp.card, verifyOp.statusId, [
           { label: `Файлов: ${verifyTotal}`, color: 'blue' },
           { label: `Без замечаний: ${verifyTotal - verifyErrors}`, color: 'green' },
           ...(verifyErrors > 0 ? [{ label: `С замечаниями: ${verifyErrors}`, color: 'amber' }] : []),
-        ], null, verifyFileCards, {
+        ], null, fileCardEls, {
           expandDetails: true,
-          detailLabel: 'Результаты перепроверки',
+          detailLabel: 'Отчёты по файлам',
         });
-        bar.style.width = '88%';
+        bar.style.width = '90%';
       } else if (ev.type === 'fixed') {
         addFixed(ev.filename, ev.download);
         downloadMap[ev.filename] = ev.download;
