@@ -208,6 +208,7 @@ async def check_descriptions_stream():
                     "filename": filename,
                     "msg": f"{filename}: " + ("⚠️ найдены проблемы" if has_errors else "✓ ОК"),
                     "hasErrors": has_errors,
+                    "report": (result.get("report") or "").strip(),
                 })
                 await asyncio.sleep(0)
             except Exception as e:
