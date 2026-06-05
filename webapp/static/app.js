@@ -947,11 +947,40 @@ function _triggerDownload(url, filename) {
   document.body.removeChild(a);
 }
 
+function _delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function downloadAll() {
   const { card, statusId } = createOpCard('Скачать (ZIP)');
-  setCardStatus(statusId, 'Подготавливаю архив (отчеты + исправленные)...');
-  _triggerDownload('/download/all.zip', 'отчёты.zip');
-  finalizeOpCard(card, statusId, [{ label: 'Папки: отчеты, исправленные', color: 'green' }], null, null);
+  setCardStatus(statusId, 'Подготавливаю архивы...');
+  try {
+    const [resultsData, reportsData] = await Promise.all([
+      fetch('/results').then(r => r.json()),
+      fetch('/files/reports').then(r => r.json()),
+    ]);
+    const hasResults = (resultsData.files || []).length > 0;
+    const hasReports = (reportsData.files || []).length > 0;
+    const badges = [];
+    if (hasResults) {
+      _triggerDownload('/download/all.zip', 'отчёты.zip');
+      badges.push({ label: 'отчёты.zip', color: 'green' });
+      if (hasReports) await _delay(500);
+    }
+    if (hasReports) {
+      _triggerDownload('/download/fixed/all.zip', 'исправленные.zip');
+      badges.push({ label: 'исправленные.zip', color: 'green' });
+    }
+    if (!badges.length) {
+      setCardStatus(statusId, 'Ошибка: нет файлов для скачивания', 'error');
+      finalizeOpCard(card, statusId, [{ label: 'Нет файлов', color: 'red' }], null, null);
+      return;
+    }
+    finalizeOpCard(card, statusId, badges, null, null);
+  } catch (e) {
+    setCardStatus(statusId, 'Ошибка: ' + e.message, 'error');
+    finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], null, null);
+  }
 }
 
 // ── Сброс ─────────────────────────────────────────────────────────────────
