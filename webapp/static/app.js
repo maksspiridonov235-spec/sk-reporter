@@ -375,17 +375,25 @@ async function startCheck() {
 
   const checkOp = createOpCard('Проверка отчётов');
   let verifyOp = null;
+  let serverBuild = '';
   let total = 0;
   let checkProcessed = 0;
   let verifyProcessed = 0;
+  let sawVerifySignal = false;
   const collectedFileCards = [];
   const downloadMap = {};
 
   function ensureVerifyCard(msg) {
     if (verifyOp) return verifyOp;
+    sawVerifySignal = true;
     verifyOp = createOpCard('Перепроверка (verify_agent)');
+    if (checkOp.card && verifyOp.card) checkOp.card.after(verifyOp.card);
     setCardProgress(verifyOp.statusId, verifyOp.progressId, 0, total, msg || 'Перепроверяю…');
     return verifyOp;
+  }
+
+  function isVerifyInfoMsg(msg) {
+    return typeof msg === 'string' && /перепровер/i.test(msg);
   }
 
   setCardProgress(checkOp.statusId, checkOp.progressId, 0, 0, 'Запускаю проверку…');
@@ -416,10 +424,12 @@ async function startCheck() {
 
       if (ev.type === 'start') {
         total = ev.total || 0;
-        const buildHint = ev.build ? ` (сервер ${ev.build})` : '';
+        if (ev.build) serverBuild = ev.build;
+        const buildHint = serverBuild ? ` (сервер ${serverBuild})` : '';
         setCardProgress(checkOp.statusId, checkOp.progressId, 0, total, ev.msg + buildHint);
         bar.style.width = total ? '12%' : '20%';
       } else if (ev.type === 'info') {
+        if (isVerifyInfoMsg(ev.msg)) ensureVerifyCard(ev.msg);
         if (verifyOp) {
           setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyProcessed, total, ev.msg);
         } else {
@@ -439,16 +449,22 @@ async function startCheck() {
           reportText: '',
           downloadUrl: null,
         });
-      } else if (ev.type === 'check_done') {
+        if (total > 0 && checkProcessed >= total) {
+          ensureVerifyCard('Начинаю перепроверку…');
+        }
+      } else if (ev.type === 'verify_start' || ev.type === 'check_done') {
+        if (ev.build) serverBuild = ev.build;
         const cs = ev.summary || {};
-        const checkTotal = cs.total || total;
-        const checkErrors = cs.errors || 0;
-        setCardProgress(checkOp.statusId, checkOp.progressId, checkTotal, checkTotal, 'Проверка завершена', 'done');
-        finalizeOpCard(checkOp.card, checkOp.statusId, [
-          { label: `Файлов: ${checkTotal}`, color: 'blue' },
-          { label: `Без замечаний: ${checkTotal - checkErrors}`, color: 'green' },
-          ...(checkErrors > 0 ? [{ label: `С замечаниями: ${checkErrors}`, color: 'amber' }] : []),
-        ], null, null);
+        if (ev.type === 'check_done') {
+          const checkTotal = cs.total || total;
+          const checkErrors = cs.errors || 0;
+          setCardProgress(checkOp.statusId, checkOp.progressId, checkTotal, checkTotal, 'Проверка завершена', 'done');
+          finalizeOpCard(checkOp.card, checkOp.statusId, [
+            { label: `Файлов: ${checkTotal}`, color: 'blue' },
+            { label: `Без замечаний: ${checkTotal - checkErrors}`, color: 'green' },
+            ...(checkErrors > 0 ? [{ label: `С замечаниями: ${checkErrors}`, color: 'amber' }] : []),
+          ], null, null);
+        }
         ensureVerifyCard(ev.msg || 'Начинаю перепроверку…');
         bar.style.width = '55%';
       } else if (ev.type === 'verify_phase') {
@@ -466,7 +482,8 @@ async function startCheck() {
           fc = { filename: ev.filename, hasErrors: ev.hasErrors, reportText: '', downloadUrl: null };
           collectedFileCards.push(fc);
         }
-        if (ev.result?.report) fc.reportText = ev.result.report;
+        const reportBody = ev.report || (ev.result && ev.result.report);
+        if (reportBody) fc.reportText = reportBody;
         if (ev.hasErrors) fc.hasErrors = true;
         fc.verifyRan = ev.verify_ran !== false;
         fc.verifyFallback = ev.fallback;
@@ -479,6 +496,7 @@ async function startCheck() {
         setCardProgress(v.statusId, v.progressId, verifyProcessed || total, total, ev.msg);
         bar.style.width = '90%';
       } else if (ev.type === 'fixed') {
+        ensureVerifyCard('Вставляю правки…');
         addFixed(ev.filename, ev.download);
         downloadMap[ev.filename] = ev.download;
         const fc = collectedFileCards.find(x => x.filename === ev.filename);
@@ -505,7 +523,11 @@ async function startCheck() {
             detailLabel: 'Отчёты по файлам',
           });
         } else {
-          setCardProgress(checkOp.statusId, checkOp.progressId, checkProcessed, total, 'Перепроверка не запустилась — Ctrl+F5 и перезапуск bat', 'error');
+          const buildHint = serverBuild ? ` Сервер: ${serverBuild}.` : '';
+          const hint = sawVerifySignal
+            ? 'Перепроверка оборвалась до завершения.'
+            : 'Перепроверка не запустилась — git pull, перезапуск bat, Ctrl+F5.';
+          setCardProgress(checkOp.statusId, checkOp.progressId, checkProcessed, total, hint + buildHint, 'error');
         }
         setTimeout(() => { bar.style.width = '0%'; }, 2000);
         btn.disabled = false;

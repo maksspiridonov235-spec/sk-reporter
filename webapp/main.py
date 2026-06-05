@@ -127,6 +127,11 @@ async def upload_reports(files: list[UploadFile] = File(...)):
     return {"uploaded": saved, "count": len(saved)}
 
 
+@app.get("/api/build")
+async def api_build():
+    return {"git": _git_head, "verify_phases": True}
+
+
 @app.get("/files/reports")
 async def list_reports():
     files = [f.name for f in UPLOAD_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
@@ -203,7 +208,6 @@ async def check_descriptions_stream():
                     "filename": filename,
                     "msg": f"{filename}: " + ("⚠️ найдены проблемы" if has_errors else "✓ ОК"),
                     "hasErrors": has_errors,
-                    "result": result,
                 })
                 await asyncio.sleep(0)
             except Exception as e:
@@ -214,14 +218,22 @@ async def check_descriptions_stream():
             "type": "check_done",
             "msg": f"Проверка завершена ({len(report_files)} файлов). Начинаю перепроверку…",
             "summary": {"total": len(report_files), "errors": errors_count},
+            "build": _git_head,
         })
         await asyncio.sleep(0)
 
         # Фаза 2: перепроверить все файлы (без inject)
         yield _sse({
+            "type": "verify_start",
+            "msg": "Перепроверяю все отчёты…",
+            "total": len(report_files),
+            "build": _git_head,
+        })
+        yield _sse({
             "type": "verify_phase",
             "msg": "Перепроверяю все отчёты…",
             "total": len(report_files),
+            "build": _git_head,
         })
         for file_path in report_files:
             try:
@@ -245,6 +257,7 @@ async def check_descriptions_stream():
                     verify_ok_count += 1
                 if not verify_ok:
                     verify_issues_count += 1
+                report_text = (verify_result.get("report") or "").strip()
                 yield _sse({
                     "type": "verify",
                     "filename": filename,
@@ -252,7 +265,7 @@ async def check_descriptions_stream():
                     "hasErrors": not verify_ok,
                     "fallback": verify_result.get("fallback", False),
                     "verify_ran": verify_result.get("verify_ran", False),
-                    "result": verify_result,
+                    "report": report_text,
                 })
                 await asyncio.sleep(0)
             except Exception as e:
@@ -282,13 +295,16 @@ async def check_descriptions_stream():
                 verify_result = verify_results.get(filename)
                 if not verify_result:
                     continue
-                if not verify_result.get("verify_ran"):
-                    yield _sse({
-                        "type": "error",
-                        "msg": f"{filename}: перепроверка не выполнялась — inject пропущен",
-                    })
-                    continue
                 corrected_text = (verify_result.get("report") or "").strip()
+                if not verify_result.get("verify_ran"):
+                    check_fallback = check_results.get(filename) or {}
+                    corrected_text = (check_fallback.get("report") or "").strip()
+                    if not corrected_text:
+                        yield _sse({
+                            "type": "error",
+                            "msg": f"{filename}: перепроверка не выполнялась — inject пропущен",
+                        })
+                        continue
                 if not corrected_text:
                     yield _sse({
                         "type": "error",
