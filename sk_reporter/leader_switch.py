@@ -93,6 +93,22 @@ def _cell_text(cell: _Cell) -> str:
     return _norm(cell.text)
 
 
+def _ensure_runs_bold(para) -> bool:
+    """Жирный во всех run абзаца. True, если форматирование изменилось."""
+    changed = False
+    for run in para.runs:
+        if run.bold is not True:
+            run.bold = True
+            changed = True
+    return changed
+
+
+def _set_paragraph_text(para, text: str, *, bold: bool = False) -> None:
+    para.text = text
+    if bold:
+        _ensure_runs_bold(para)
+
+
 def _is_leader_fio(text: str) -> bool:
     t = text.lower()
     if "аниськов" in t or "манджиев" in t:
@@ -239,11 +255,17 @@ def find_leader_slots(doc: Document) -> LeaderSlots | None:
     )
 
 
-def _write_cell_text(cell: _Cell, new_text: str) -> bool:
+def _write_cell_text(cell: _Cell, new_text: str, *, bold: bool = False) -> bool:
     if _cell_text(cell) == new_text:
+        if bold and cell.paragraphs:
+            fmt_changed = False
+            for para in cell.paragraphs:
+                if _norm(para.text) and _ensure_runs_bold(para):
+                    fmt_changed = True
+            return fmt_changed
         return False
     if cell.paragraphs:
-        cell.paragraphs[0].text = new_text
+        _set_paragraph_text(cell.paragraphs[0], new_text, bold=bold)
         for para in cell.paragraphs[1:]:
             para.text = ""
     else:
@@ -251,7 +273,9 @@ def _write_cell_text(cell: _Cell, new_text: str) -> bool:
     return True
 
 
-def _replace_in_runs_paragraph(para, old_variants: list[str], new_text: str) -> bool:
+def _replace_in_runs_paragraph(
+    para, old_variants: list[str], new_text: str, *, bold: bool = False
+) -> bool:
     changed = False
     for run in para.runs:
         original = run.text
@@ -266,48 +290,62 @@ def _replace_in_runs_paragraph(para, old_variants: list[str], new_text: str) -> 
         if updated != original:
             run.text = updated
             changed = True
+    if changed and bold:
+        _ensure_runs_bold(para)
     return changed
 
 
-def _replace_in_runs(cell: _Cell, old_variants: list[str], new_text: str) -> bool:
+def _replace_in_runs(
+    cell: _Cell, old_variants: list[str], new_text: str, *, bold: bool = False
+) -> bool:
     changed = False
     for para in cell.paragraphs:
-        if _replace_in_runs_paragraph(para, old_variants, new_text):
+        if _replace_in_runs_paragraph(para, old_variants, new_text, bold=bold):
             changed = True
     return changed
 
 
 def _replace_footer_role_in_paragraph(para, target: str) -> bool:
     ptext = _norm(para.text)
-    if not ptext or ptext == target or "лицеванов" in ptext.lower():
+    if not ptext or "лицеванов" in ptext.lower():
         return False
     if not _is_footer_role_paragraph(ptext):
         return False
-    if _replace_in_runs_paragraph(para, _FOOTER_ROLE_VARIANTS, target):
+    if ptext == target:
+        return _ensure_runs_bold(para)
+    if _replace_in_runs_paragraph(para, _FOOTER_ROLE_VARIANTS, target, bold=True):
         return True
     new_pt = _FOOTER_ROLE_RE.sub(target, para.text, count=1)
     if new_pt != para.text:
-        para.text = new_pt
+        _set_paragraph_text(para, new_pt, bold=True)
         return True
     if ptext != target:
-        para.text = target
+        _set_paragraph_text(para, target, bold=True)
         return True
-    return False
+    return _ensure_runs_bold(para)
 
 
 def _replace_title_in_cell(cell: _Cell, target: str) -> bool:
     if _cell_text(cell) == target:
-        return False
-    if _replace_in_runs(cell, _HEADER_TITLE_VARIANTS, target):
+        changed = False
+        for para in cell.paragraphs:
+            if _is_header_title_row_cell(para.text) and _ensure_runs_bold(para):
+                changed = True
+        return changed
+    if _replace_in_runs(cell, _HEADER_TITLE_VARIANTS, target, bold=True):
         return True
     if _is_header_title_row_cell(_cell_text(cell)):
-        return _write_cell_text(cell, target)
+        return _write_cell_text(cell, target, bold=True)
     return False
 
 
 def _replace_footer_role_in_cell(cell: _Cell, target: str) -> bool:
     if _cell_text(cell) == target:
-        return False
+        changed = False
+        for para in cell.paragraphs:
+            if _is_footer_role_paragraph(para.text) and _ensure_runs_bold(para):
+                changed = True
+        return changed
     changed = False
     for para in cell.paragraphs:
         if _replace_footer_role_in_paragraph(para, target):
@@ -315,7 +353,7 @@ def _replace_footer_role_in_cell(cell: _Cell, target: str) -> bool:
     if changed:
         return True
     if _is_footer_role(_cell_text(cell)):
-        return _write_cell_text(cell, target)
+        return _write_cell_text(cell, target, bold=True)
     return False
 
 
@@ -425,7 +463,7 @@ def _apply_footer_role_row_combined(row, target: str) -> bool:
 
     primary = max(frag, key=lambda x: len(x[1]))[0]
     primary_tc = id(primary._tc)
-    changed = _write_cell_text(primary, target)
+    changed = _write_cell_text(primary, target, bold=True)
     for cell, text in frag:
         if cell is primary or id(cell._tc) == primary_tc:
             continue
@@ -455,6 +493,8 @@ def _force_replace_footer_role_in_cell(cell: _Cell, target: str) -> bool:
         if not (_is_footer_role_paragraph(raw) or _FOOTER_ROLE_RE.search(raw)):
             continue
         if pnorm == _norm(target):
+            if _ensure_runs_bold(para):
+                changed = True
             continue
 
         new_raw = raw
@@ -465,7 +505,7 @@ def _force_replace_footer_role_in_cell(cell: _Cell, target: str) -> bool:
         if new_raw == raw:
             new_raw = _FOOTER_ROLE_RE.sub(target, raw, count=1)
         if new_raw != raw:
-            para.text = new_raw
+            _set_paragraph_text(para, new_raw, bold=True)
             changed = True
 
     if changed:
@@ -475,12 +515,12 @@ def _force_replace_footer_role_in_cell(cell: _Cell, target: str) -> bool:
     if not _cell_has_footer_role_text(full) or _norm(full) == _norm(target):
         return False
     if len(cell.paragraphs) == 1:
-        cell.paragraphs[0].text = target
+        _set_paragraph_text(cell.paragraphs[0], target, bold=True)
         return True
     parts = [_norm(p.text) for p in cell.paragraphs if _norm(p.text)]
     combined_para = _norm(" ".join(parts))
     if _cell_has_footer_role_text(combined_para):
-        cell.paragraphs[0].text = target
+        _set_paragraph_text(cell.paragraphs[0], target, bold=True)
         for para in cell.paragraphs[1:]:
             para.text = ""
         return True
