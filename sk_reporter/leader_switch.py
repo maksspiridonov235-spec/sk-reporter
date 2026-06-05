@@ -23,6 +23,7 @@ from sk_reporter.docx_processing import FONT_NAME, FONT_SIZE_HALF_POINTS
 from sk_reporter.template_layout import _main_table_indices
 
 _FONT_RPR_TAGS = ("rFonts", "sz", "szCs")
+_THEME_ATTR_MARKERS = ("theme", "Theme")
 
 LeaderId = Literal["aniskov", "mandzhiev"]
 
@@ -116,6 +117,17 @@ def _rPr_ensure_bold_flags(rPr) -> bool:
     return changed
 
 
+def _rPr_strip_theme_fonts(rFonts) -> bool:
+    """Убрать asciiTheme/minorHAnsi — иначе Word показывает Calibri поверх ascii."""
+    changed = False
+    for attr in list(rFonts.attrib):
+        local = attr.split("}")[-1] if "}" in attr else attr
+        if any(m in local for m in _THEME_ATTR_MARKERS):
+            del rFonts.attrib[attr]
+            changed = True
+    return changed
+
+
 def _rPr_ensure_times_font(rPr) -> bool:
     """Times New Roman 10 pt, если в rPr нет шрифта (как в prepare/format_fonts)."""
     changed = False
@@ -123,7 +135,9 @@ def _rPr_ensure_times_font(rPr) -> bool:
     if rFonts is None:
         rFonts = etree.SubElement(rPr, qn("w:rFonts"))
         changed = True
-    for attr in ("ascii", "hAnsi", "cs"):
+    if _rPr_strip_theme_fonts(rFonts):
+        changed = True
+    for attr in ("ascii", "hAnsi", "cs", "eastAsia"):
         key = qn(f"w:{attr}")
         if rFonts.get(key) != FONT_NAME:
             rFonts.set(key, FONT_NAME)
@@ -176,6 +190,75 @@ def _paragraph_default_rPr(para):
     return pPr.find(qn("w:rPr"))
 
 
+def _capture_format_rPr(para):
+    """Образец форматирования: pPr/rPr или первый run с rFonts."""
+    template = _paragraph_default_rPr(para)
+    if template is not None and template.find(qn("w:rFonts")) is not None:
+        return template
+    for run in para.runs:
+        rPr = run._r.find(qn("w:rPr"))
+        if rPr is not None and rPr.find(qn("w:rFonts")) is not None:
+            return rPr
+    return template
+
+
+def _rewrite_paragraph_single_run(para, text: str, *, bold: bool) -> bool:
+    """
+    Один run с явным Times New Roman (без para.text — он ломает шрифт/жирный).
+    """
+    new_text = text
+    if _norm(para.text) == _norm(new_text):
+        changed = False
+        if bold:
+            changed = _ensure_paragraph_role_bold(para)
+        return changed
+
+    template = _capture_format_rPr(para)
+    p = para._p
+    for child in list(p):
+        if child.tag == qn("w:r"):
+            p.remove(child)
+
+    r = etree.SubElement(p, qn("w:r"))
+    rPr = etree.SubElement(r, qn("w:rPr"))
+    if template is not None:
+        for child in template:
+            if child.tag in (qn("w:b"), qn("w:bCs")):
+                continue
+            rPr.append(deepcopy(child))
+    _rPr_ensure_times_font(rPr)
+    if bold:
+        _rPr_ensure_bold_flags(rPr)
+
+    t = etree.SubElement(r, qn("w:t"))
+    if new_text.startswith(" ") or new_text.endswith(" "):
+        t.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+    t.text = new_text
+
+    pPr = p.find(qn("w:pPr"))
+    if pPr is None:
+        pPr = para._p.get_or_add_pPr()
+    rPr_p = pPr.find(qn("w:rPr"))
+    if rPr_p is None:
+        rPr_p = etree.SubElement(pPr, qn("w:rPr"))
+    _rPr_ensure_times_font(rPr_p)
+    if bold:
+        _rPr_ensure_bold_flags(rPr_p)
+    return True
+
+
+def _text_is_target_role(text: str, leader: LeaderId) -> bool:
+    t = _norm(text)
+    if not t:
+        return False
+    targets = LEADER_TARGETS[leader]
+    if t == _norm(targets["header_title"]) or t == _norm(targets["footer_role"]):
+        return True
+    if _is_header_title_row_cell(t) or _is_footer_role(t) or _FOOTER_ROLE_RE.search(t):
+        return True
+    return any(_norm(v) == t for v in _HEADER_TITLE_VARIANTS + _FOOTER_ROLE_VARIANTS)
+
+
 def _ensure_paragraph_role_bold(para) -> bool:
     """Жирный + Times New Roman: pPr/rPr и каждый run (без run.bold — ломает шрифт)."""
     changed = False
@@ -208,32 +291,38 @@ def _ensure_runs_bold(para) -> bool:
     return _ensure_paragraph_role_bold(para)
 
 
-def _set_paragraph_text(para, text: str, *, bold: bool = False) -> None:
-    para.text = text
+def _set_paragraph_text(para, text: str, *, bold: bool = False) -> bool:
     if bold:
-        _ensure_paragraph_role_bold(para)
+        return _rewrite_paragraph_single_run(para, text, bold=True)
+    para.text = text
+    return True
 
 
-def _ensure_cell_role_bold(cell: _Cell, *, is_header: bool) -> bool:
+def _finalize_role_cell_format(cell: _Cell, leader: LeaderId, *, is_header: bool) -> bool:
+    targets = LEADER_TARGETS[leader]
+    target = targets["header_title"] if is_header else targets["footer_role"]
     changed = False
     for para in cell.paragraphs:
         ptext = _norm(para.text)
-        if not ptext:
+        if not ptext or "лицеванов" in ptext.lower():
             continue
         if is_header:
-            if not _is_header_title_row_cell(ptext):
+            if not (_is_header_title_row_cell(ptext) or ptext == _norm(target)):
                 continue
-        elif not (_is_footer_role_paragraph(ptext) or _FOOTER_ROLE_RE.search(ptext)):
+        elif not (_cell_has_footer_role_text(ptext) or ptext == _norm(target)):
             continue
-        if _ensure_paragraph_role_bold(para):
+        if _rewrite_paragraph_single_run(para, target, bold=True):
             changed = True
     return changed
 
 
 def _apply_signature_role_bold(
-    table, header_row: int = 0, footer_role_row: int | None = None
+    table,
+    leader: LeaderId,
+    header_row: int = 0,
+    footer_role_row: int | None = None,
 ) -> int:
-    """Финальный проход: жирный во всех ячейках должности (шапка + подвал)."""
+    """Финальный проход: TNR + жирный во всех ячейках должности (шапка + подвал)."""
     nrows = len(table.rows)
     changes = 0
     seen_tc: set[int] = set()
@@ -243,10 +332,11 @@ def _apply_signature_role_bold(
             tc_id = id(cell._tc)
             if tc_id in seen_tc:
                 continue
-            if not _is_header_title_row_cell(_cell_text(cell)):
+            text = _cell_text(cell)
+            if not (_is_header_title_row_cell(text) or _text_is_target_role(text, leader)):
                 continue
             seen_tc.add(tc_id)
-            if _ensure_cell_role_bold(cell, is_header=True):
+            if _finalize_role_cell_format(cell, leader, is_header=True):
                 changes += 1
 
     seen_tc.clear()
@@ -256,10 +346,11 @@ def _apply_signature_role_bold(
             tc_id = id(cell._tc)
             if tc_id in seen_tc:
                 continue
-            if not _cell_has_footer_role_text(_cell_text(cell)):
+            text = _cell_text(cell)
+            if not (_cell_has_footer_role_text(text) or _text_is_target_role(text, leader)):
                 continue
             seen_tc.add(tc_id)
-            if _ensure_cell_role_bold(cell, is_header=False):
+            if _finalize_role_cell_format(cell, leader, is_header=False):
                 changes += 1
 
     return changes
@@ -482,17 +573,11 @@ def _replace_footer_role_in_paragraph(para, target: str) -> bool:
 
 
 def _replace_title_in_cell(cell: _Cell, target: str) -> bool:
-    if _cell_text(cell) == target:
-        changed = False
-        for para in cell.paragraphs:
-            if _is_header_title_row_cell(para.text) and _ensure_runs_bold(para):
-                changed = True
-        return changed
-    if _replace_in_runs(cell, _HEADER_TITLE_VARIANTS, target, bold=True):
-        return True
-    if _is_header_title_row_cell(_cell_text(cell)):
-        return _write_cell_text(cell, target, bold=True)
-    return False
+    if not _is_header_title_row_cell(_cell_text(cell)) and _cell_text(cell) != target:
+        return False
+    if not cell.paragraphs:
+        return False
+    return _rewrite_paragraph_single_run(cell.paragraphs[0], target, bold=True)
 
 
 def _replace_footer_role_in_cell(cell: _Cell, target: str) -> bool:
@@ -637,7 +722,7 @@ def _cell_has_footer_role_text(text: str) -> bool:
 
 
 def _force_replace_footer_role_in_cell(cell: _Cell, target: str) -> bool:
-    """Жёсткая замена должности в подвале (para.text сбрасывает разбитые run'ы)."""
+    """Замена должности в подвале одним run (TNR + жирный)."""
     changed = False
     for para in cell.paragraphs:
         raw = para.text
@@ -648,39 +733,22 @@ def _force_replace_footer_role_in_cell(cell: _Cell, target: str) -> bool:
             continue
         if not (_is_footer_role_paragraph(raw) or _FOOTER_ROLE_RE.search(raw)):
             continue
-        if pnorm == _norm(target):
-            if _ensure_runs_bold(para):
-                changed = True
-            continue
-
-        new_raw = raw
-        for old in _FOOTER_ROLE_VARIANTS:
-            if old.lower() in raw.lower():
-                new_raw = re.sub(re.escape(old), target, raw, flags=re.IGNORECASE)
-                break
-        if new_raw == raw:
-            new_raw = _FOOTER_ROLE_RE.sub(target, raw, count=1)
-        if new_raw != raw:
-            _set_paragraph_text(para, new_raw, bold=True)
+        if _rewrite_paragraph_single_run(para, target, bold=True):
             changed = True
 
     if changed:
         return True
 
     full = _cell_text(cell)
-    if not _cell_has_footer_role_text(full) or _norm(full) == _norm(target):
+    if not _cell_has_footer_role_text(full):
         return False
-    if len(cell.paragraphs) == 1:
-        _set_paragraph_text(cell.paragraphs[0], target, bold=True)
-        return True
-    parts = [_norm(p.text) for p in cell.paragraphs if _norm(p.text)]
-    combined_para = _norm(" ".join(parts))
-    if _cell_has_footer_role_text(combined_para):
-        _set_paragraph_text(cell.paragraphs[0], target, bold=True)
+    if cell.paragraphs and _rewrite_paragraph_single_run(
+        cell.paragraphs[0], target, bold=True
+    ):
         for para in cell.paragraphs[1:]:
             para.text = ""
         return True
-    return _replace_footer_role_in_cell(cell, target)
+    return False
 
 
 def _apply_footer_zone(
@@ -739,7 +807,9 @@ def switch_leader_in_docx(filepath: str, leader: LeaderId) -> tuple[bool, str, i
         changes = _apply_header_zone(table, leader) + _apply_footer_zone(
             table, leader, header_row, footer_role_row
         )
-        changes += _apply_signature_role_bold(table, header_row, footer_role_row)
+        changes += _apply_signature_role_bold(
+            table, leader, header_row, footer_role_row
+        )
 
         if changes == 0:
             if slots is None:
