@@ -373,21 +373,21 @@ async function startCheck() {
   const bar = document.getElementById('progressBar');
   bar.style.width = '10%';
 
-  const checkOp = createOpCard('Проверка отчётов');
+  const { card: checkCard, statusId: checkStatusId, progressId: checkProgressId } = createOpCard('Проверка отчётов');
   let verifyOp = null;
   let total = 0;
-  let checkProcessed = 0;
+  let processed = 0;
   let verifyProcessed = 0;
-  const checkCards = [];
+  const collectedFileCards = [];
   const verifyCards = [];
   const downloadMap = {};
 
-  setCardProgress(checkOp.statusId, checkOp.progressId, 0, 0, 'Запускаю проверку…');
+  setCardProgress(checkStatusId, checkProgressId, 0, 0, 'Запускаю проверку…');
 
   const resp = await fetch('/check/descriptions/stream', { method: 'POST' });
   if (!resp.ok) {
-    setCardProgress(checkOp.statusId, checkOp.progressId, 0, 0, 'Ошибка запуска проверки', 'error');
-    finalizeOpCard(checkOp.card, checkOp.statusId, [{ label: 'Ошибка', color: 'red' }], null, null, { errorState: true });
+    setCardProgress(checkStatusId, checkProgressId, 0, 0, 'Ошибка запуска проверки', 'error');
+    finalizeOpCard(checkCard, checkStatusId, [{ label: 'Ошибка', color: 'red' }], null, null, { errorState: true });
     btn.disabled = false;
     btn.textContent = 'Проверить и исправить';
     return;
@@ -410,23 +410,23 @@ async function startCheck() {
 
       if (ev.type === 'start') {
         total = ev.total || 0;
-        setCardProgress(checkOp.statusId, checkOp.progressId, 0, total, ev.msg);
+        setCardProgress(checkStatusId, checkProgressId, 0, total, ev.msg);
         bar.style.width = total ? '12%' : '20%';
       } else if (ev.type === 'info') {
         if (verifyOp) {
           setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyProcessed, total, ev.msg);
         } else {
-          setCardProgress(checkOp.statusId, checkOp.progressId, checkProcessed, total, ev.msg);
+          setCardProgress(checkStatusId, checkProgressId, processed, total, ev.msg);
         }
       } else if (ev.type === 'report') {
-        checkProcessed++;
-        const pctBar = total ? Math.min(12 + (checkProcessed / total) * 78, 90) : Math.min(20 + checkProcessed * 30, 85);
+        processed++;
+        const pctBar = total ? Math.min(12 + (processed / total) * 78, 90) : Math.min(20 + processed * 30, 85);
         bar.style.width = pctBar + '%';
         const shortMsg = ev.hasErrors
           ? `${ev.filename}: замечания по описаниям`
           : `${ev.filename}: без замечаний`;
-        setCardProgress(checkOp.statusId, checkOp.progressId, checkProcessed, total, shortMsg);
-        checkCards.push({
+        setCardProgress(checkStatusId, checkProgressId, processed, total, shortMsg);
+        collectedFileCards.push({
           filename: ev.filename,
           hasErrors: ev.hasErrors,
           reportText: ev.result?.report || '',
@@ -435,37 +435,18 @@ async function startCheck() {
       } else if (ev.type === 'check_done') {
         const cs = ev.summary || {};
         const checkTotal = cs.total || total;
-        const checkErrors = cs.errors || 0;
-        const fileCardEls = checkCards.map(fc =>
-          buildFileCardEl(fc.filename, fc.hasErrors, fc.reportText, null)
-        );
-        setCardProgress(
-          checkOp.statusId,
-          checkOp.progressId,
-          checkTotal || checkProcessed,
-          checkTotal || checkProcessed,
-          'Проверка завершена',
-          'done'
-        );
-        finalizeOpCard(checkOp.card, checkOp.statusId, [
-          { label: `Файлов: ${checkTotal}`, color: 'blue' },
-          { label: `Без замечаний: ${checkTotal - checkErrors}`, color: 'green' },
-          ...(checkErrors > 0 ? [{ label: `С замечаниями: ${checkErrors}`, color: 'amber' }] : []),
-        ], null, fileCardEls, {
-          expandDetails: true,
-          detailLabel: 'Отчёты по файлам',
-        });
+        setCardProgress(checkStatusId, checkProgressId, checkTotal || processed, checkTotal || total, ev.msg || 'Проверка завершена. Перепроверка…');
         bar.style.width = '90%';
       } else if (ev.type === 'verify_phase') {
         total = ev.total || total;
         verifyOp = createOpCard('Перепроверка отчётов');
-        if (checkOp.card && verifyOp.card) checkOp.card.after(verifyOp.card);
+        if (checkCard && verifyOp.card) checkCard.after(verifyOp.card);
         setCardProgress(verifyOp.statusId, verifyOp.progressId, 0, total, ev.msg);
         bar.style.width = total ? '12%' : '20%';
       } else if (ev.type === 'verify') {
         if (!verifyOp) {
           verifyOp = createOpCard('Перепроверка отчётов');
-          if (checkOp.card && verifyOp.card) checkOp.card.after(verifyOp.card);
+          if (checkCard && verifyOp.card) checkCard.after(verifyOp.card);
         }
         verifyProcessed++;
         const pctBar = total ? Math.min(12 + (verifyProcessed / total) * 78, 90) : Math.min(20 + verifyProcessed * 30, 85);
@@ -510,6 +491,23 @@ async function startCheck() {
         bar.style.width = '95%';
       } else if (ev.type === 'done') {
         bar.style.width = '100%';
+        const s = ev.summary || {};
+        const totalN = s.total || total;
+        const errors = s.errors || 0;
+        const promoted = s.promoted || 0;
+        const fileCardEls = collectedFileCards.map(fc =>
+          buildFileCardEl(fc.filename, fc.hasErrors, fc.reportText, downloadMap[fc.filename] || null)
+        );
+        setCardProgress(checkStatusId, checkProgressId, totalN || processed, totalN || processed, 'Проверка завершена', 'done');
+        finalizeOpCard(checkCard, checkStatusId, [
+          { label: `Файлов: ${totalN}`, color: 'blue' },
+          { label: `Без замечаний: ${totalN - errors}`, color: 'green' },
+          ...(errors > 0 ? [{ label: `С замечаниями: ${errors}`, color: 'amber' }] : []),
+          ...(promoted > 0 ? [{ label: `В загрузке обновлено: ${promoted}`, color: 'green' }] : []),
+        ], null, fileCardEls, {
+          expandDetails: true,
+          detailLabel: 'Отчёты по файлам',
+        });
         setTimeout(() => { bar.style.width = '0%'; }, 2000);
         btn.disabled = false;
         btn.textContent = 'Проверить и исправить';
@@ -517,7 +515,7 @@ async function startCheck() {
         if (verifyOp) {
           setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyProcessed, total, ev.msg, 'error');
         } else {
-          setCardProgress(checkOp.statusId, checkOp.progressId, checkProcessed, total, ev.msg, 'error');
+          setCardProgress(checkStatusId, checkProgressId, processed, total, ev.msg, 'error');
         }
       }
     }
