@@ -8,8 +8,9 @@
 """
 
 from pathlib import Path
+from docx import Document
 
-from sk_reporter.agent.sk_extract import extract_full_text, extract_sk_section
+from sk_reporter.agent.sk_extract import extract_sk_section
 
 MODEL = "gemma4:31b-cloud"
 
@@ -42,6 +43,33 @@ SYSTEM_PROMPT = """Ты — ведущий инженер строительно
 ЧАСТЬ 2 — «Наряд-допуск проверен...» + исправленные описания по каждому пункту
 ЧАСТЬ 3 — «Участок, ПК» по каждой работе из ЧАСТИ 1 (в том же порядке, по одной строке на пункт)
 ЧАСТЬ 4 — «Ссылка» по каждой работе из ЧАСТИ 1 (в том же порядке, по одной строке на пункт)"""
+
+
+def extract_full_text(filepath: str) -> str:
+    """
+    Извлекает весь текст из DOCX файла.
+    """
+    try:
+        doc = Document(filepath)
+        parts = []
+
+        # Вытаскиваем все параграфы
+        for para in doc.paragraphs:
+            text = para.text.strip()
+            if text:
+                parts.append(text)
+
+        # Вытаскиваем все таблицы
+        for table in doc.tables:
+            for row in table.rows:
+                row_text = " | ".join(cell.text.strip() for cell in row.cells)
+                if row_text.strip():
+                    parts.append(row_text)
+
+        return "\n".join(parts)
+    except Exception as e:
+        print(f"[CHECK_AGENT] extract_full_text error: {e}")
+        return ""
 
 
 def check_report(filepath: str) -> dict:

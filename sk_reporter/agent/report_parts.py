@@ -4,14 +4,6 @@ import re
 
 _VOLUME_LABELS = ("Проектный объем", "Объем за сутки", "Накопительный объем")
 
-
-def _norm_label(s: str) -> str:
-    return s.lower().replace("ё", "е")
-
-
-def _line_has_volume_label(line: str, label: str) -> bool:
-    return _norm_label(label) in _norm_label(line)
-
 _GENERIC_DESC_RE = re.compile(
     r"проверен.*замечаний нет|работы ведутся в соответствии",
     re.IGNORECASE,
@@ -58,7 +50,7 @@ def parse_parts(corrected_text: str):
 
 
 def extract_volume_from_line(line: str, label: str) -> str:
-    pattern = rf"{re.escape(label)}\s*[–\-:]?\s*([^\n;]+)"
+    pattern = rf"{re.escape(label)}\s*[–\-]?\s*([^\n;]+)"
     m = re.search(pattern, line, re.IGNORECASE)
     return m.group(1).strip() if m else ""
 
@@ -69,7 +61,6 @@ def normalize_volume_value(value: str) -> str:
     v = value.lower().strip()
     v = re.sub(r"\s+", " ", v)
     v = v.replace("–", "-").replace("—", "-")
-    v = re.sub(r"[.;]+$", "", v).strip()
     return v
 
 
@@ -116,7 +107,7 @@ def parse_works_from_part1_lines(lines: list[str]) -> list[dict]:
         if not current:
             continue
         for label in _VOLUME_LABELS:
-            if _line_has_volume_label(stripped, label):
+            if label.lower() in stripped.lower():
                 current["volumes"][label] = extract_volume_from_line(stripped, label)
     if current:
         works.append(current)
