@@ -48,6 +48,8 @@ _HEADER_TITLE_VARIANTS = [
     "И.О. Руководителя",
     "И.о. Руководителя",
     "И.о. руководителя",
+    "Руководитель проекта СК",
+    "Руководитель проекта",
     "Руководитель",
 ]
 
@@ -98,10 +100,23 @@ def _is_leader_fio(text: str) -> bool:
 
 
 def _is_header_title(text: str) -> bool:
+    """Короткая должность в шапке (без «проекта»)."""
     t = text.lower()
     if "руководител" not in t:
         return False
     if "лицеванов" in t or "проекта" in t:
+        return False
+    return True
+
+
+def _is_header_title_row_cell(text: str) -> bool:
+    """Ячейка должности в строке шапки (в т.ч. ошибочно «…проекта СК» в GRID_COLS_7)."""
+    t = text.lower()
+    if "руководител" not in t:
+        return False
+    if "лицеванов" in t:
+        return False
+    if _is_leader_fio(text) and not _FOOTER_ROLE_RE.search(text):
         return False
     return True
 
@@ -188,7 +203,7 @@ def find_leader_slots(doc: Document) -> LeaderSlots | None:
             text = _cell_text(cell)
             if _is_leader_fio(text):
                 fios.append(ci)
-            elif _is_header_title(text):
+            elif _is_header_title_row_cell(text):
                 titles.append(ci)
         if titles and fios:
             header_title = CellSlot(ri, titles[-1])
@@ -281,7 +296,7 @@ def _replace_title_in_cell(cell: _Cell, target: str) -> bool:
         return False
     if _replace_in_runs(cell, _HEADER_TITLE_VARIANTS, target):
         return True
-    if _is_header_title(_cell_text(cell)):
+    if _is_header_title_row_cell(_cell_text(cell)):
         return _write_cell_text(cell, target)
     return False
 
@@ -352,7 +367,7 @@ def _apply_header_zone(table, leader: LeaderId) -> int:
                 seen_tc.add(tc_id)
                 if _replace_fio_in_cell(cell, targets["header_fio"]):
                     changes += 1
-            elif _is_header_title(text):
+            elif _is_header_title_row_cell(text):
                 seen_tc.add(tc_id)
                 if _replace_title_in_cell(cell, targets["header_title"]):
                     changes += 1
@@ -452,12 +467,12 @@ def switch_leader_in_docx(filepath: str, leader: LeaderId) -> tuple[bool, str, i
             return False, "нет таблиц", 0
         table = doc.tables[indices[0]]
 
-        if find_leader_slots(doc) is None:
-            return False, "не найдены ячейки руководителя", 0
-
+        slots = find_leader_slots(doc)
         changes = _apply_header_zone(table, leader) + _apply_footer_zone(table, leader)
 
         if changes == 0:
+            if slots is None:
+                return False, "не найдены ячейки руководителя", 0
             return True, "уже нужный руководитель", 0
 
         doc.save(str(path))
