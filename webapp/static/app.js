@@ -378,8 +378,24 @@ async function startCheck() {
   let total = 0;
   let checkProcessed = 0;
   let verifyProcessed = 0;
+  let injectAllowed = false;
+  const pendingFixed = [];
   const collectedFileCards = [];
   const downloadMap = {};
+
+  function startVerifyCard(msg) {
+    if (verifyOp) return verifyOp;
+    verifyOp = createOpCard('Перепроверка (verify_agent)');
+    if (checkOp.card && verifyOp.card) checkOp.card.after(verifyOp.card);
+    setCardProgress(verifyOp.statusId, verifyOp.progressId, 0, total, msg || 'Перепроверяю…');
+    return verifyOp;
+  }
+
+  function allowInjectAndFlush() {
+    injectAllowed = true;
+    pendingFixed.forEach(p => addFixed(p.filename, p.download));
+    pendingFixed.length = 0;
+  }
 
   function fileEntry(filename, hasErrors) {
     let fc = collectedFileCards.find(x => x.filename === filename);
@@ -460,20 +476,14 @@ async function startCheck() {
           expandDetails: true,
           detailLabel: 'Результаты проверки',
         });
+        startVerifyCard(ev.msg || 'Начинаю перепроверку…');
         bar.style.width = '55%';
       } else if (ev.type === 'verify_phase' || ev.type === 'verify_start') {
         total = ev.total || total;
-        if (!verifyOp) {
-          verifyOp = createOpCard('Перепроверка (verify_agent)');
-          if (checkOp.card && verifyOp.card) checkOp.card.after(verifyOp.card);
-        }
-        setCardProgress(verifyOp.statusId, verifyOp.progressId, 0, total, ev.msg || 'Перепроверяю…');
+        startVerifyCard(ev.msg || 'Перепроверяю…');
         bar.style.width = '60%';
       } else if (ev.type === 'verify') {
-        if (!verifyOp) {
-          verifyOp = createOpCard('Перепроверка (verify_agent)');
-          if (checkOp.card && verifyOp.card) checkOp.card.after(verifyOp.card);
-        }
+        startVerifyCard();
         verifyProcessed++;
         const pctBar = total ? Math.min(60 + (verifyProcessed / total) * 35, 95) : Math.min(60 + verifyProcessed * 30, 95);
         bar.style.width = pctBar + '%';
@@ -483,21 +493,28 @@ async function startCheck() {
         if (text) fc.reportText = text;
         if (ev.hasErrors) fc.hasErrors = true;
       } else if (ev.type === 'verify_done') {
+        allowInjectAndFlush();
         if (verifyOp) {
           setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyProcessed || total, total, ev.msg);
         }
         bar.style.width = '88%';
       } else if (ev.type === 'inject_phase') {
+        allowInjectAndFlush();
         if (verifyOp) {
           setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyProcessed || total, total, ev.msg);
         }
         bar.style.width = '90%';
       } else if (ev.type === 'fixed') {
-        addFixed(ev.filename, ev.download);
+        if (injectAllowed) {
+          addFixed(ev.filename, ev.download);
+        } else {
+          pendingFixed.push({ filename: ev.filename, download: ev.download });
+        }
         downloadMap[ev.filename] = ev.download;
         const fc = fileEntry(ev.filename, false);
         fc.downloadUrl = ev.download;
       } else if (ev.type === 'done') {
+        allowInjectAndFlush();
         bar.style.width = '100%';
         const s = ev.summary || {};
         const totalN = s.total || 0;

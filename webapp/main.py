@@ -296,16 +296,13 @@ async def check_descriptions_stream():
                 verify_result = verify_results.get(filename)
                 if not verify_result:
                     continue
-                corrected_text = (verify_result.get("report") or "").strip()
                 if not verify_result.get("verify_ran"):
-                    check_fallback = check_results.get(filename) or {}
-                    corrected_text = (check_fallback.get("report") or "").strip()
-                    if not corrected_text:
-                        yield _sse({
-                            "type": "error",
-                            "msg": f"{filename}: перепроверка не выполнялась — inject пропущен",
-                        })
-                        continue
+                    yield _sse({
+                        "type": "error",
+                        "msg": f"{filename}: перепроверка не выполнялась — inject пропущен",
+                    })
+                    continue
+                corrected_text = (verify_result.get("report") or "").strip()
                 if not corrected_text:
                     yield _sse({
                         "type": "error",
@@ -322,6 +319,7 @@ async def check_descriptions_stream():
                     promoted_count += 1
                     yield _sse({
                         "type": "fixed",
+                        "phase": "inject",
                         "filename": filename,
                         "msg": f"{filename}: исправлен и записан в загрузку",
                         "download": f"/download/fixed/{dl_name}",
