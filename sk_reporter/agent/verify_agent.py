@@ -158,6 +158,8 @@ def verify_report(filepath: str, check_result: dict) -> dict:
         }
 
     original = extract_sk_original(filepath)
+    active_n = len(original.get("active_works") or [])
+    print(f"[VERIFY_AGENT] {filename}: оригинал — {active_n} работ (источник: {original.get('source', '?')})")
     if not original.get("ok"):
         return {
             "ok": False,

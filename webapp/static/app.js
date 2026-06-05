@@ -314,6 +314,17 @@ function addFixed(filename, downloadUrl) {
   container.appendChild(item);
 }
 
+function addVerifyBlocked(filename, violations) {
+  const container = document.getElementById('fixedFiles');
+  const noRes = container.querySelector('.no-results');
+  if (noRes) noRes.remove();
+  const item = document.createElement('div');
+  item.className = 'result-item';
+  const hint = (violations && violations[0]) ? escHtml(violations[0]) : 'не прошло перепроверку';
+  item.innerHTML = `<span title="${escHtml(filename)}">${escHtml(filename)}</span><span style="color:#b45309;font-size:12px">⛔ ${hint}</span>`;
+  container.appendChild(item);
+}
+
 function buildUploadDetails(filenames) {
   return (filenames || []).map(name => ({
     icon: '📄',
@@ -434,6 +445,7 @@ async function startCheck() {
         });
       } else if (ev.type === 'verify_failed') {
         setCardProgress(statusId, progressId, processed, total, ev.msg, 'error');
+        addVerifyBlocked(ev.filename, ev.violations);
         const existing = collectedFileCards.find(fc => fc.filename === ev.filename);
         const cardData = {
           filename: ev.filename,
