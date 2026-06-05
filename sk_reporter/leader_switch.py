@@ -9,6 +9,7 @@ Rule-based переключение руководителя в ежедневн
 from __future__ import annotations
 
 import re
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -18,7 +19,10 @@ from docx.oxml.ns import qn
 from docx.table import _Cell
 from lxml import etree
 
+from sk_reporter.docx_processing import FONT_NAME, FONT_SIZE_HALF_POINTS
 from sk_reporter.template_layout import _main_table_indices
+
+_FONT_RPR_TAGS = ("rFonts", "sz", "szCs")
 
 LeaderId = Literal["aniskov", "mandzhiev"]
 
@@ -112,8 +116,68 @@ def _rPr_ensure_bold_flags(rPr) -> bool:
     return changed
 
 
+def _rPr_ensure_times_font(rPr) -> bool:
+    """Times New Roman 10 pt, если в rPr нет шрифта (как в prepare/format_fonts)."""
+    changed = False
+    rFonts = rPr.find(qn("w:rFonts"))
+    if rFonts is None:
+        rFonts = etree.SubElement(rPr, qn("w:rFonts"))
+        changed = True
+    for attr in ("ascii", "hAnsi", "cs"):
+        key = qn(f"w:{attr}")
+        if rFonts.get(key) != FONT_NAME:
+            rFonts.set(key, FONT_NAME)
+            changed = True
+    for local in ("sz", "szCs"):
+        tag = qn(f"w:{local}")
+        el = rPr.find(tag)
+        if el is None:
+            el = etree.SubElement(rPr, tag)
+            changed = True
+        if el.get(qn("w:val")) != FONT_SIZE_HALF_POINTS:
+            el.set(qn("w:val"), FONT_SIZE_HALF_POINTS)
+            changed = True
+    return changed
+
+
+def _rPr_copy_font_from_template(template, rPr) -> bool:
+    """Копирует rFonts/sz/szCs из pPr/rPr в run, чтобы не сбить Times New Roman."""
+    if template is None:
+        return False
+    changed = False
+    for tag_local in _FONT_RPR_TAGS:
+        tag = qn(f"w:{tag_local}")
+        src = template.find(tag)
+        if src is None:
+            continue
+        dest = rPr.find(tag)
+        if dest is None:
+            rPr.append(deepcopy(src))
+            changed = True
+        elif tag_local == "rFonts":
+            for attr in ("ascii", "hAnsi", "cs", "eastAsia"):
+                key = qn(f"w:{attr}")
+                val = src.get(key)
+                if val and dest.get(key) != val:
+                    dest.set(key, val)
+                    changed = True
+        else:
+            val = src.get(qn("w:val"))
+            if val and dest.get(qn("w:val")) != val:
+                dest.set(qn("w:val"), val)
+                changed = True
+    return changed
+
+
+def _paragraph_default_rPr(para):
+    pPr = para._p.find(qn("w:pPr"))
+    if pPr is None:
+        return None
+    return pPr.find(qn("w:rPr"))
+
+
 def _ensure_paragraph_role_bold(para) -> bool:
-    """Жирный в pPr/rPr (стиль абзаца) и в каждом run — иначе Word может не показать."""
+    """Жирный + Times New Roman: pPr/rPr и каждый run (без run.bold — ломает шрифт)."""
     changed = False
     pPr = para._p.find(qn("w:pPr"))
     if pPr is None:
@@ -121,6 +185,8 @@ def _ensure_paragraph_role_bold(para) -> bool:
     rPr_p = pPr.find(qn("w:rPr"))
     if rPr_p is None:
         rPr_p = etree.SubElement(pPr, qn("w:rPr"))
+    if _rPr_ensure_times_font(rPr_p):
+        changed = True
     if _rPr_ensure_bold_flags(rPr_p):
         changed = True
 
@@ -129,10 +195,11 @@ def _ensure_paragraph_role_bold(para) -> bool:
         rPr = r.find(qn("w:rPr"))
         if rPr is None:
             rPr = etree.SubElement(r, qn("w:rPr"))
-        if _rPr_ensure_bold_flags(rPr):
+        if _rPr_copy_font_from_template(rPr_p, rPr):
             changed = True
-        if run.bold is not True:
-            run.bold = True
+        if _rPr_ensure_times_font(rPr):
+            changed = True
+        if _rPr_ensure_bold_flags(rPr):
             changed = True
     return changed
 
