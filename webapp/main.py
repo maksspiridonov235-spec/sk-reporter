@@ -443,32 +443,25 @@ def _zip_files(files: list[Path], arcnames: list[str] | None = None) -> io.Bytes
 
 @app.get("/download/all.zip")
 async def download_all():
-    files = [f for f in RESULT_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
-    if not files:
-        raise HTTPException(status_code=404, detail="Нет готовых файлов")
-    return StreamingResponse(_zip_files(files), media_type="application/zip", headers={"Content-Disposition": "attachment; filename*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82%D1%8B.zip"})
-
-
-@app.get("/download/bundle.zip")
-async def download_bundle():
-    """Исправленные (загрузка) + сформированные (results) в одном архиве."""
+    """Архив: отчеты/ — сформированные; исправленные/ — загрузка с _исправлен."""
+    merged_files = sorted(
+        f for f in RESULT_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")
+    )
     fixed_files = sorted(
         f for f in UPLOAD_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")
     )
-    result_files = sorted(
-        f for f in RESULT_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")
-    )
-    if not fixed_files and not result_files:
+    if not merged_files and not fixed_files:
         raise HTTPException(status_code=404, detail="Нет файлов для скачивания")
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for f in fixed_files:
-            zf.write(f, f"исправленные/{_fixed_download_name(f.name)}")
-        for f in result_files:
-            zf.write(f, f"сформированные/{f.name}")
-    buf.seek(0)
+    paths: list[Path] = []
+    arcnames: list[str] = []
+    for f in merged_files:
+        paths.append(f)
+        arcnames.append(f"отчеты/{f.name}")
+    for f in fixed_files:
+        paths.append(f)
+        arcnames.append(f"исправленные/{_fixed_download_name(f.name)}")
     return StreamingResponse(
-        buf,
+        _zip_files(paths, arcnames),
         media_type="application/zip",
         headers={"Content-Disposition": "attachment; filename*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82%D1%8B.zip"},
     )
