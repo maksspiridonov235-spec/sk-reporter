@@ -443,13 +443,25 @@ def _zip_files(files: list[Path], arcnames: list[str] | None = None) -> io.Bytes
 
 @app.get("/download/all.zip")
 async def download_all():
-    files = sorted(
+    """Один архив: отчеты/ (сборка) + исправленные/ (загрузка с _исправлен)."""
+    merged_files = sorted(
         f for f in RESULT_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")
     )
-    if not files:
-        raise HTTPException(status_code=404, detail="Нет готовых файлов")
+    fixed_files = sorted(
+        f for f in UPLOAD_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")
+    )
+    if not merged_files and not fixed_files:
+        raise HTTPException(status_code=404, detail="Нет файлов для скачивания")
+    paths: list[Path] = []
+    arcnames: list[str] = []
+    for f in merged_files:
+        paths.append(f)
+        arcnames.append(f"отчеты/{f.name}")
+    for f in fixed_files:
+        paths.append(f)
+        arcnames.append(f"исправленные/{_fixed_download_name(f.name)}")
     return StreamingResponse(
-        _zip_files(files),
+        _zip_files(paths, arcnames),
         media_type="application/zip",
         headers={"Content-Disposition": "attachment; filename*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82%D1%8B.zip"},
     )
