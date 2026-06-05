@@ -948,10 +948,27 @@ function _triggerDownload(url, filename) {
 }
 
 async function downloadAll() {
-  const { card, statusId } = createOpCard('Скачать всё ZIP');
+  const { card, statusId } = createOpCard('Скачать (ZIP)');
   setCardStatus(statusId, 'Подготавливаю архив...');
-  _triggerDownload('/download/all.zip', 'отчёты.zip');
-  finalizeOpCard(card, statusId, [{ label: 'Загрузка началась', color: 'green' }], null, null);
+  try {
+    const res = await fetch('/download/bundle.zip');
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        const data = await res.json();
+        if (data.detail) detail = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
+      } catch (_) {}
+      throw new Error(detail);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    _triggerDownload(url, 'отчёты.zip');
+    URL.revokeObjectURL(url);
+    finalizeOpCard(card, statusId, [{ label: 'Загрузка началась', color: 'green' }], null, null);
+  } catch (e) {
+    setCardStatus(statusId, 'Ошибка: ' + e.message, 'error');
+    finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], null, null);
+  }
 }
 
 // ── Сброс ─────────────────────────────────────────────────────────────────
