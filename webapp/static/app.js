@@ -951,7 +951,7 @@ async function downloadAll() {
   const { card, statusId } = createOpCard('Скачать всё ZIP');
   setCardStatus(statusId, 'Подготавливаю архив...');
   _triggerDownload('/download/all.zip', 'отчёты.zip');
-  finalizeOpCard(card, statusId, [{ label: 'Папки: отчеты, исправленные', color: 'green' }], null, null);
+  finalizeOpCard(card, statusId, [{ label: 'Загрузка началась', color: 'green' }], null, null);
 }
 
 // ── Сброс ─────────────────────────────────────────────────────────────────
