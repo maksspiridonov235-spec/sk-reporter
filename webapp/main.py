@@ -151,7 +151,6 @@ async def diagnose_reports():
 async def check_descriptions_stream():
     from sk_reporter.agent.check_agent import check_report
     from sk_reporter.agent.inject_agent import inject_into_docx
-    from sk_reporter.agent.verify_agent import verify_report
 
     async def event_generator():
         report_files = sorted(UPLOAD_DIR.glob("*.docx"))
@@ -165,7 +164,6 @@ async def check_descriptions_stream():
             return
         errors_count = 0
         promoted_count = 0
-        verify_failed_count = 0
         for file_path in report_files:
             try:
                 filename = Path(file_path).name
@@ -175,27 +173,7 @@ async def check_descriptions_stream():
                 if has_errors:
                     errors_count += 1
                 yield _sse({"type": "report", "filename": filename, "msg": f"{filename}: " + ("⚠️ найдены проблемы" if has_errors else "✓ ОК"), "hasErrors": has_errors, "result": result})
-                yield _sse({"type": "verify", "filename": filename, "msg": f"{filename}: перепроверяю…"})
-                verify_result = verify_report(str(file_path), result)
-                if not verify_result.get("ok"):
-                    verify_failed_count += 1
-                    violations = verify_result.get("violations") or []
-                    yield _sse({
-                        "type": "verify_failed",
-                        "filename": filename,
-                        "msg": f"{filename}: не прошло перепроверку",
-                        "violations": violations,
-                        "repaired": verify_result.get("repaired", False),
-                        "result": verify_result,
-                    })
-                    continue
-                if verify_result.get("repaired"):
-                    yield _sse({
-                        "type": "verify",
-                        "filename": filename,
-                        "msg": f"{filename}: перепроверка OK после доработки",
-                    })
-                corrected_text = verify_result.get("report", "")
+                corrected_text = result.get("report", "")
                 if corrected_text:
                     yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: вставляю правки в текст документа…"})
                     inject_result = inject_into_docx(str(file_path), corrected_text, filename)
@@ -219,7 +197,6 @@ async def check_descriptions_stream():
                 "total": len(report_files),
                 "errors": errors_count,
                 "promoted": promoted_count,
-                "verify_failed": verify_failed_count,
             },
         })
 

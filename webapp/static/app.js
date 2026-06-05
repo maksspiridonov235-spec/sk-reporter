@@ -226,17 +226,11 @@ function finalizeOpCard(card, statusId, stats, details, fileCards, options) {
   }
 }
 
-function buildFileCardEl(filename, hasErrors, reportText, downloadUrl, verifyFailed, violations) {
+function buildFileCardEl(filename, hasErrors, reportText, downloadUrl) {
   const bodyId = 'rb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-  let badgeHtml = hasErrors
+  const badgeHtml = hasErrors
     ? '<span class="badge badge-err">⚠ Проблемы</span>'
     : '<span class="badge badge-ok">✓ ОК</span>';
-  if (verifyFailed) {
-    badgeHtml = '<span class="badge badge-err">⛔ Перепроверка</span>';
-  }
-  const violationsHtml = verifyFailed && violations && violations.length
-    ? `<div class="report-body" style="margin-top:6px;color:#b45309;font-size:12px"><strong>Не вставлено:</strong><ul style="margin:4px 0 0 16px;padding:0">${violations.map(v => `<li>${escHtml(v)}</li>`).join('')}</ul></div>`
-    : '';
   const bodyHtml = reportText
     ? `<div class="report-body" id="${bodyId}">${escHtml(reportText)}</div>`
     : '';
@@ -247,7 +241,7 @@ function buildFileCardEl(filename, hasErrors, reportText, downloadUrl, verifyFai
     ? `<a href="${downloadUrl}" download>Скачать исправленный</a>`
     : '';
   const el = document.createElement('div');
-  el.className = 'file-card ' + (hasErrors || verifyFailed ? 'file-card-warn' : 'file-card-ok');
+  el.className = 'file-card ' + (hasErrors ? 'file-card-warn' : 'file-card-ok');
   el.style.marginTop = '8px';
   el.dataset.filename = filename;
   el.innerHTML = `
@@ -255,7 +249,6 @@ function buildFileCardEl(filename, hasErrors, reportText, downloadUrl, verifyFai
       <span class="file-card-name" title="${escHtml(filename)}">${escHtml(filename)}</span>
       ${badgeHtml}
     </div>
-    ${violationsHtml}
     ${toggleHtml}
     ${bodyHtml}
     ${dlHtml ? `<div class="file-card-actions">${dlHtml}</div>` : ''}
@@ -414,7 +407,7 @@ async function startCheck() {
         total = ev.total || 0;
         setCardProgress(statusId, progressId, 0, total, ev.msg);
         bar.style.width = total ? '12%' : '20%';
-      } else if (ev.type === 'info' || ev.type === 'verify') {
+      } else if (ev.type === 'info') {
         setCardProgress(statusId, progressId, processed, total, ev.msg);
       } else if (ev.type === 'report') {
         processed++;
@@ -424,30 +417,7 @@ async function startCheck() {
           ? `${ev.filename}: замечания по описаниям`
           : `${ev.filename}: без замечаний`;
         setCardProgress(statusId, progressId, processed, total, shortMsg);
-        collectedFileCards.push({
-          filename: ev.filename,
-          hasErrors: ev.hasErrors,
-          reportText: ev.result?.report || '',
-          downloadUrl: null,
-          verifyFailed: false,
-          violations: [],
-        });
-      } else if (ev.type === 'verify_failed') {
-        setCardProgress(statusId, progressId, processed, total, ev.msg, 'error');
-        const existing = collectedFileCards.find(fc => fc.filename === ev.filename);
-        const cardData = {
-          filename: ev.filename,
-          hasErrors: true,
-          reportText: ev.result?.report || '',
-          downloadUrl: null,
-          verifyFailed: true,
-          violations: ev.violations || [],
-        };
-        if (existing) {
-          Object.assign(existing, cardData);
-        } else {
-          collectedFileCards.push(cardData);
-        }
+        collectedFileCards.push({ filename: ev.filename, hasErrors: ev.hasErrors, reportText: ev.result?.report || '', downloadUrl: null });
       } else if (ev.type === 'fixed') {
         addFixed(ev.filename, ev.download);
         downloadMap[ev.filename] = ev.download;
@@ -457,23 +427,14 @@ async function startCheck() {
         const total = s.total || 0;
         const errors = s.errors || 0;
         const promoted = s.promoted || 0;
-        const verifyFailed = s.verify_failed || 0;
         const fileCardEls = collectedFileCards.map(fc =>
-          buildFileCardEl(
-            fc.filename,
-            fc.hasErrors,
-            fc.reportText,
-            downloadMap[fc.filename] || null,
-            fc.verifyFailed,
-            fc.violations
-          )
+          buildFileCardEl(fc.filename, fc.hasErrors, fc.reportText, downloadMap[fc.filename] || null)
         );
         setCardProgress(statusId, progressId, total || processed, total || processed, 'Проверка завершена', 'done');
         finalizeOpCard(card, statusId, [
           { label: `Файлов: ${total}`, color: 'blue' },
           { label: `Без замечаний: ${total - errors}`, color: 'green' },
           ...(errors > 0 ? [{ label: `С замечаниями: ${errors}`, color: 'amber' }] : []),
-          ...(verifyFailed > 0 ? [{ label: `Не прошло перепроверку: ${verifyFailed}`, color: 'red' }] : []),
           ...(promoted > 0 ? [{ label: `В загрузке обновлено: ${promoted}`, color: 'green' }] : []),
         ], null, fileCardEls, {
           expandDetails: true,
