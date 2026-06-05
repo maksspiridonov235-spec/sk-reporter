@@ -32,7 +32,7 @@ const OP_SUBTITLES = {
   'Подготовка отчётов': 'Меняется содержимое загруженных .docx; имена файлов на диске те же.',
   'Дата в тексте болванок': 'Меняется текст внутри шаблонов; файлы на диске не переименовываются.',
   'Переименование готовых': 'Готовые сводные: новое имя на диске и дата в документе.',
-  'Проверка отчётов': 'AI-проверка; правки в загрузку (temp) — сразу «Подготовить» и дальше. Скачать с именем _исправлен — панель «Исправленные».',
+  'Проверка отчётов': 'AI-проверка; правки в загрузку (temp) — сразу «Подготовить и сформировать». Скачать с именем _исправлен — панель «Исправленные».',
   'Сборка отчётов': 'Склейка по компаниям в папку результатов.',
 };
 
@@ -789,6 +789,7 @@ async function prepareReports() {
     ], null, { expandDetails: true });
   }
   await runBolvankaDateUpdate(dateVal);
+  await mergeAll(dateVal);
   btn.disabled = false;
 }
 
@@ -824,13 +825,15 @@ async function runRenameResults(dateVal) {
 }
 // ── Сборка всех отчётов (SSE) ─────────────────────────────────────────────
 
-async function mergeAll() {
-  let dateVal;
-  try {
-    dateVal = getMacroReportDate();
-  } catch (e) {
-    alert(e.message);
-    return;
+async function mergeAll(presetDateVal) {
+  let dateVal = presetDateVal;
+  if (dateVal === undefined) {
+    try {
+      dateVal = getMacroReportDate();
+    } catch (e) {
+      alert(e.message);
+      return;
+    }
   }
 
   const { card, statusId, progressId } = createOpCard('Сборка отчётов');
