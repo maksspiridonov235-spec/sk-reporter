@@ -130,7 +130,7 @@ async def upload_reports(files: list[UploadFile] = File(...)):
 
 @app.get("/api/build")
 async def api_build():
-    return {"git": _git_head, "verify_phases": True}
+    return {"git": _git_head}
 
 
 @app.get("/files/reports")
@@ -168,9 +168,8 @@ async def diagnose_reports():
 
 @app.post("/check/descriptions/stream")
 async def check_descriptions_stream():
-    from sk_reporter.agent.check_agent import check_report, extract_full_text, extract_sk_section
+    from sk_reporter.agent.check_agent import check_report
     from sk_reporter.agent.inject_agent import inject_into_docx
-    from sk_reporter.agent.verify_agent import verify_report
 
     async def event_generator():
         report_files = sorted(UPLOAD_DIR.glob("*.docx"))
@@ -179,13 +178,7 @@ async def check_descriptions_stream():
             return
         errors_count = 0
         promoted_count = 0
-        verify_ok_count = 0
-        verify_fallback_count = 0
-        verify_issues_count = 0
         check_results: dict[str, dict] = {}
-        original_snapshots: dict[str, dict] = {}
-        injected_files: set[str] = set()
-        verify_results: dict[str, dict] = {}
 
         # Фаза 1: проверить все файлы
         print(f"[CHECK_STREAM] === фаза 1: check ({len(report_files)} файлов) ===")
@@ -204,10 +197,6 @@ async def check_descriptions_stream():
                 if has_errors:
                     errors_count += 1
                 check_results[filename] = result
-                original_snapshots[filename] = {
-                    "full_text": await asyncio.to_thread(extract_full_text, str(file_path)),
-                    "sk_section": await asyncio.to_thread(extract_sk_section, str(file_path)),
-                }
                 yield _sse({
                     "type": "report",
                     "filename": filename,
@@ -247,7 +236,6 @@ async def check_descriptions_stream():
                 if inject_result.get("ok"):
                     dl_name = inject_result.get("download_name") or _fixed_download_name(filename)
                     promoted_count += 1
-                    injected_files.add(filename)
                     yield _sse({
                         "type": "fixed",
                         "filename": filename,
@@ -261,67 +249,13 @@ async def check_descriptions_stream():
             except Exception as e:
                 yield _sse({"type": "error", "msg": f"Ошибка inject {Path(file_path).name}: {str(e)}"})
 
-        print(f"[CHECK_STREAM] === фаза 2 завершена ({promoted_count} inject), старт фазы 3: verify ===")
-        yield _sse({
-            "type": "verify_phase",
-            "msg": f"Перепроверяю: инженер vs модель ({len(injected_files)} файлов)…",
-            "total": len(injected_files) or len(report_files),
-        })
-        await asyncio.sleep(0)
-
-        # Фаза 3: перепроверка после появления _исправлен в загрузке
-        for file_path in report_files:
-            try:
-                filename = Path(file_path).name
-                if filename not in injected_files:
-                    continue
-                snap = original_snapshots.get(filename)
-                if not snap:
-                    yield _sse({"type": "error", "msg": f"{filename}: нет снимка оригинала — перепроверка пропущена"})
-                    continue
-                yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: сверяю инженера и модель…"})
-                print(f"[CHECK_STREAM] перепроверяю: {filename}")
-                await asyncio.sleep(0)
-                verify_result = await asyncio.to_thread(verify_report, str(file_path), snap)
-                verify_results[filename] = verify_result
-                verify_ok = verify_result.get("ok", False)
-                if verify_result.get("fallback"):
-                    verify_fallback_count += 1
-                else:
-                    verify_ok_count += 1
-                if not verify_ok:
-                    verify_issues_count += 1
-                yield _sse({
-                    "type": "verify",
-                    "filename": filename,
-                    "msg": f"{filename}: " + ("⚠️ расхождения" if not verify_ok else "✓ сверка ОК"),
-                    "hasErrors": not verify_ok,
-                    "result": verify_result,
-                })
-                await asyncio.sleep(0)
-            except Exception as e:
-                yield _sse({"type": "error", "msg": f"Ошибка перепроверки {Path(file_path).name}: {str(e)}"})
-
-        yield _sse({
-            "type": "verify_done",
-            "msg": f"Перепроверка завершена ({len(verify_results)} файлов).",
-            "summary": {
-                "total": len(injected_files) or len(report_files),
-                "errors": verify_issues_count,
-                "verified": verify_ok_count,
-                "verify_fallback": verify_fallback_count,
-            },
-        })
-        await asyncio.sleep(0)
+        print(f"[CHECK_STREAM] === фаза 2 завершена ({promoted_count} inject) ===")
         yield _sse({
             "type": "done",
             "summary": {
                 "total": len(report_files),
                 "errors": errors_count,
                 "promoted": promoted_count,
-                "verified": verify_ok_count,
-                "verify_fallback": verify_fallback_count,
-                "verify_issues": verify_issues_count,
             },
         })
 

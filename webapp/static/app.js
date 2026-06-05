@@ -33,7 +33,6 @@ const OP_SUBTITLES = {
   'Дата в тексте болванок': 'Меняется текст внутри шаблонов; файлы на диске не переименовываются.',
   'Переименование готовых': 'Готовые сводные: новое имя на диске и дата в документе.',
   'Проверка отчётов': 'AI-проверка; правки в загрузку (temp) — сразу «Подготовить и сформировать». Скачать с именем _исправлен — панель «Исправленные».',
-  'Перепроверка (verify_agent)': 'Второй LLM-проход после проверки всех файлов.',
   'Сборка отчётов': 'Склейка по компаниям в папку результатов.',
 };
 
@@ -374,12 +373,9 @@ async function startCheck() {
   bar.style.width = '10%';
 
   const { card: checkCard, statusId: checkStatusId, progressId: checkProgressId } = createOpCard('Проверка отчётов');
-  let verifyOp = null;
   let total = 0;
   let processed = 0;
-  let verifyProcessed = 0;
   const collectedFileCards = [];
-  const verifyCards = [];
   const downloadMap = {};
 
   setCardProgress(checkStatusId, checkProgressId, 0, 0, 'Запускаю проверку…');
@@ -413,11 +409,7 @@ async function startCheck() {
         setCardProgress(checkStatusId, checkProgressId, 0, total, ev.msg);
         bar.style.width = total ? '12%' : '20%';
       } else if (ev.type === 'info') {
-        if (verifyOp) {
-          setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyProcessed, total, ev.msg);
-        } else {
-          setCardProgress(checkStatusId, checkProgressId, processed, total, ev.msg);
-        }
+        setCardProgress(checkStatusId, checkProgressId, processed, total, ev.msg);
       } else if (ev.type === 'report') {
         processed++;
         const pctBar = total ? Math.min(12 + (processed / total) * 78, 90) : Math.min(20 + processed * 30, 85);
@@ -435,55 +427,7 @@ async function startCheck() {
       } else if (ev.type === 'check_done') {
         const cs = ev.summary || {};
         const checkTotal = cs.total || total;
-        setCardProgress(checkStatusId, checkProgressId, checkTotal || processed, checkTotal || total, ev.msg || 'Проверка завершена. Перепроверка…');
-        bar.style.width = '90%';
-      } else if (ev.type === 'verify_phase') {
-        total = ev.total || total;
-        verifyOp = createOpCard('Перепроверка отчётов');
-        if (checkCard && verifyOp.card) checkCard.after(verifyOp.card);
-        setCardProgress(verifyOp.statusId, verifyOp.progressId, 0, total, ev.msg);
-        bar.style.width = total ? '12%' : '20%';
-      } else if (ev.type === 'verify') {
-        if (!verifyOp) {
-          verifyOp = createOpCard('Перепроверка отчётов');
-          if (checkCard && verifyOp.card) checkCard.after(verifyOp.card);
-        }
-        verifyProcessed++;
-        const pctBar = total ? Math.min(12 + (verifyProcessed / total) * 78, 90) : Math.min(20 + verifyProcessed * 30, 85);
-        bar.style.width = pctBar + '%';
-        const shortMsg = ev.hasErrors
-          ? `${ev.filename}: замечания по описаниям`
-          : `${ev.filename}: без замечаний`;
-        setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyProcessed, total, shortMsg);
-        verifyCards.push({
-          filename: ev.filename,
-          hasErrors: ev.hasErrors,
-          reportText: ev.result?.report || '',
-          downloadUrl: downloadMap[ev.filename] || null,
-        });
-      } else if (ev.type === 'verify_done' && verifyOp) {
-        const cs = ev.summary || {};
-        const verifyTotal = cs.total || total;
-        const verifyErrors = cs.errors || 0;
-        const fileCardEls = verifyCards.map(fc =>
-          buildFileCardEl(fc.filename, fc.hasErrors, fc.reportText, fc.downloadUrl || null)
-        );
-        setCardProgress(
-          verifyOp.statusId,
-          verifyOp.progressId,
-          verifyTotal || verifyProcessed,
-          verifyTotal || verifyProcessed,
-          'Перепроверка завершена',
-          'done'
-        );
-        finalizeOpCard(verifyOp.card, verifyOp.statusId, [
-          { label: `Файлов: ${verifyTotal}`, color: 'blue' },
-          { label: `Без замечаний: ${verifyTotal - verifyErrors}`, color: 'green' },
-          ...(verifyErrors > 0 ? [{ label: `С замечаниями: ${verifyErrors}`, color: 'amber' }] : []),
-        ], null, fileCardEls, {
-          expandDetails: true,
-          detailLabel: 'Отчёты по файлам',
-        });
+        setCardProgress(checkStatusId, checkProgressId, checkTotal || processed, checkTotal || total, ev.msg || 'Проверка завершена. Вставляю правки…');
         bar.style.width = '90%';
       } else if (ev.type === 'fixed') {
         addFixed(ev.filename, ev.download);
@@ -512,11 +456,7 @@ async function startCheck() {
         btn.disabled = false;
         btn.textContent = 'Проверить и исправить';
       } else if (ev.type === 'error') {
-        if (verifyOp) {
-          setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyProcessed, total, ev.msg, 'error');
-        } else {
-          setCardProgress(checkStatusId, checkProgressId, processed, total, ev.msg, 'error');
-        }
+        setCardProgress(checkStatusId, checkProgressId, processed, total, ev.msg, 'error');
       }
     }
   }

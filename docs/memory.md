@@ -36,15 +36,15 @@
 |----|-----------|
 | **Проверить и исправить** | `#btnCheck` → `startCheck()` → `POST /check/descriptions/stream` |
 
-Цепочка: `check_agent` → `verify_agent` (второй LLM-проход, тот же формат ответа) → `inject_agent` → **запись в загрузку**. При сбое verify — в inject идёт текст check. Скачать `{имя}_исправлен.docx` — `/download/fixed/...`.
+Цепочка: `check_agent` → `inject_agent` → **запись в загрузку**. Скачать `{имя}_исправлен.docx` — `/download/fixed/...`. **verify_agent удалён** (2026-06-05).
 
-В логах сервера: **фаза 1** `[CHECK_AGENT]` по всем → **фаза 2** `[VERIFY_AGENT]` по всем → **фаза 3** `[INJECT_AGENT]`. Скачивание `_исправлен` только после фазы 3 (`after_verify` в SSE). При старте — `[INFO] git: <hash>`. UI: карточка check, затем verify; `app.js?v=5`. После `git pull` — **перезапуск** bat и **жёсткое обновление** страницы (Ctrl+F5).
+В логах сервера: **фаза 1** `[CHECK_AGENT]` по всем → **фаза 2** `[INJECT_AGENT]` по всем. UI: одна карточка «Проверка отчётов», логи на `done`. После `git pull` — **перезапуск** bat и **жёсткое обновление** страницы (Ctrl+F5).
 
 | Слой | Файл |
 |------|------|
 | UI | `webapp/templates/index.html`, `webapp/static/app.js` (`startCheck`) |
 | API | `webapp/main.py` — stream check, `/download/fixed/...` |
-| AI + inject | `check_agent.py`, `verify_agent.py`, `inject_agent.py` |
+| AI + inject | `check_agent.py`, `inject_agent.py` |
 | Загрузка (сырые + после проверки) | temp `sk_reports_work/uploads/` — см. `UPLOAD_DIR` в `webapp/main.py` |
 
 Важно: inject пишет в ячейку-заголовок **«Описание действий»**; после проверки перезаливать не нужно. Отдельных папок `output/` в репо нет.
