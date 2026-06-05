@@ -14,7 +14,9 @@ from pathlib import Path
 from typing import Literal
 
 from docx import Document
+from docx.oxml.ns import qn
 from docx.table import _Cell
+from lxml import etree
 
 from sk_reporter.template_layout import _main_table_indices
 
@@ -93,20 +95,107 @@ def _cell_text(cell: _Cell) -> str:
     return _norm(cell.text)
 
 
-def _ensure_runs_bold(para) -> bool:
-    """Жирный во всех run абзаца. True, если форматирование изменилось."""
+def _rPr_ensure_bold_flags(rPr) -> bool:
+    """w:b и w:bCs на уровне rPr (как в шаблоне Word для кириллицы)."""
     changed = False
+    for local in ("b", "bCs"):
+        tag = qn(f"w:{local}")
+        el = rPr.find(tag)
+        if el is not None:
+            val = el.get(qn("w:val"))
+            if val in ("0", "false", "off"):
+                el.attrib.pop(qn("w:val"), None)
+                changed = True
+        else:
+            etree.SubElement(rPr, tag)
+            changed = True
+    return changed
+
+
+def _ensure_paragraph_role_bold(para) -> bool:
+    """Жирный в pPr/rPr (стиль абзаца) и в каждом run — иначе Word может не показать."""
+    changed = False
+    pPr = para._p.find(qn("w:pPr"))
+    if pPr is None:
+        pPr = para._p.get_or_add_pPr()
+    rPr_p = pPr.find(qn("w:rPr"))
+    if rPr_p is None:
+        rPr_p = etree.SubElement(pPr, qn("w:rPr"))
+    if _rPr_ensure_bold_flags(rPr_p):
+        changed = True
+
     for run in para.runs:
+        r = run._r
+        rPr = r.find(qn("w:rPr"))
+        if rPr is None:
+            rPr = etree.SubElement(r, qn("w:rPr"))
+        if _rPr_ensure_bold_flags(rPr):
+            changed = True
         if run.bold is not True:
             run.bold = True
             changed = True
     return changed
 
 
+def _ensure_runs_bold(para) -> bool:
+    return _ensure_paragraph_role_bold(para)
+
+
 def _set_paragraph_text(para, text: str, *, bold: bool = False) -> None:
     para.text = text
     if bold:
-        _ensure_runs_bold(para)
+        _ensure_paragraph_role_bold(para)
+
+
+def _ensure_cell_role_bold(cell: _Cell, *, is_header: bool) -> bool:
+    changed = False
+    for para in cell.paragraphs:
+        ptext = _norm(para.text)
+        if not ptext:
+            continue
+        if is_header:
+            if not _is_header_title_row_cell(ptext):
+                continue
+        elif not (_is_footer_role_paragraph(ptext) or _FOOTER_ROLE_RE.search(ptext)):
+            continue
+        if _ensure_paragraph_role_bold(para):
+            changed = True
+    return changed
+
+
+def _apply_signature_role_bold(
+    table, header_row: int = 0, footer_role_row: int | None = None
+) -> int:
+    """Финальный проход: жирный во всех ячейках должности (шапка + подвал)."""
+    nrows = len(table.rows)
+    changes = 0
+    seen_tc: set[int] = set()
+
+    for ri in range(min(HEADER_ZONE_ROWS, nrows)):
+        for _ci, cell in _zone_cells(table.rows[ri]):
+            tc_id = id(cell._tc)
+            if tc_id in seen_tc:
+                continue
+            if not _is_header_title_row_cell(_cell_text(cell)):
+                continue
+            seen_tc.add(tc_id)
+            if _ensure_cell_role_bold(cell, is_header=True):
+                changes += 1
+
+    seen_tc.clear()
+    scan_from = _footer_scan_from(nrows, header_row, footer_role_row)
+    for ri in range(scan_from, nrows):
+        for _ci, cell in _zone_cells(table.rows[ri]):
+            tc_id = id(cell._tc)
+            if tc_id in seen_tc:
+                continue
+            if not _cell_has_footer_role_text(_cell_text(cell)):
+                continue
+            seen_tc.add(tc_id)
+            if _ensure_cell_role_bold(cell, is_header=False):
+                changes += 1
+
+    return changes
 
 
 def _is_leader_fio(text: str) -> bool:
@@ -583,6 +672,7 @@ def switch_leader_in_docx(filepath: str, leader: LeaderId) -> tuple[bool, str, i
         changes = _apply_header_zone(table, leader) + _apply_footer_zone(
             table, leader, header_row, footer_role_row
         )
+        changes += _apply_signature_role_bold(table, header_row, footer_role_row)
 
         if changes == 0:
             if slots is None:
