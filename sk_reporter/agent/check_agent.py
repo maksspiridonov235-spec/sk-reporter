@@ -7,9 +7,10 @@
 Выводит вариант правильного заполнения.
 """
 
-import re
 from pathlib import Path
 from docx import Document
+
+from sk_reporter.agent.sk_extract import extract_sk_section
 
 MODEL = "gemma4:31b-cloud"
 
@@ -42,40 +43,6 @@ SYSTEM_PROMPT = """Ты — ведущий инженер строительно
 ЧАСТЬ 2 — «Наряд-допуск проверен...» + исправленные описания по каждому пункту
 ЧАСТЬ 3 — «Участок, ПК» по каждой работе из ЧАСТИ 1 (в том же порядке, по одной строке на пункт)
 ЧАСТЬ 4 — «Ссылка» по каждой работе из ЧАСТИ 1 (в том же порядке, по одной строке на пункт)"""
-
-
-def extract_sk_section(filepath: str) -> str:
-    """Строки секции СК с колонками Описание / Участок, ПК / Ссылка."""
-    try:
-        doc = Document(filepath)
-        lines = []
-        for table in doc.tables:
-            in_section = False
-            for ri, row in enumerate(table.rows):
-                c0 = row.cells[0].text.strip()
-                if c0 == "Описание действий" and ri > 0:
-                    prev = table.rows[ri - 1].cells[0].text.strip().upper()
-                    if "СТРОИТЕЛЬНОГО КОНТРОЛЯ" in prev:
-                        in_section = True
-                        lines.append("--- Секция строительного контроля (таблица) ---")
-                if not in_section:
-                    continue
-                if ri > 0 and c0.upper().startswith("РЕЗУЛЬТАТ ДУБЛИРУЮЩЕГО"):
-                    break
-                seen = set()
-                cols = []
-                for cell in row.cells:
-                    tc_id = id(cell._tc)
-                    if tc_id in seen:
-                        continue
-                    seen.add(tc_id)
-                    cols.append(cell.text.strip().replace("\n", " | "))
-                if any(c.strip() for c in cols):
-                    lines.append(" | ".join(cols))
-        return "\n".join(lines)
-    except Exception as e:
-        print(f"[CHECK_AGENT] extract_sk_section error: {e}")
-        return ""
 
 
 def extract_full_text(filepath: str) -> str:
