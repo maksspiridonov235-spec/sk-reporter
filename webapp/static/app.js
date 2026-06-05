@@ -453,21 +453,29 @@ async function startCheck() {
 }
 // ── Руководитель ──────────────────────────────────────────────────────────
 
+const LEADER_LABELS = {
+  aniskov: 'Аниськов Владимир Иванович',
+  mandzhiev: 'Манджиев Игорь Александрович (И.О.)',
+};
+function getSelectedLeader() {
+  const el = document.getElementById('leaderSelect');
+  const v = el && el.value;
+  return v === 'mandzhiev' ? 'mandzhiev' : 'aniskov';
+}
+
 async function switchLeader(leader) {
-  const names = {
-    aniskov: 'Аниськов Владимир Иванович',
-    mandzhiev: 'Манджиев Игорь Александрович (И.О.)',
-  };
-  const { card, statusId, progressId } = createOpCard(`Руководитель: ${names[leader]}`);
+  const name = LEADER_LABELS[leader] || leader;
+  const result = { ok: false, total: 0, failed: 0, okCount: 0 };
+  const { card, statusId, progressId } = createOpCard(`Руководитель: ${name}`);
   let total = 0;
   let processed = 0;
-  setCardProgress(statusId, progressId, 0, 0, `Переключаю на: ${names[leader]}…`);
+  setCardProgress(statusId, progressId, 0, 0, `Переключаю на: ${name}…`);
 
   const resp = await fetch(`/switch-leader/stream/${leader}`, { method: 'POST' });
   if (!resp.ok) {
     setCardProgress(statusId, progressId, 0, 0, 'Ошибка запуска', 'error');
     finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], null, null, { errorState: true });
-    return;
+    return result;
   }
 
   const reader = resp.body.getReader();
@@ -488,6 +496,7 @@ async function switchLeader(leader) {
 
       if (ev.type === 'start') {
         total = ev.total || 0;
+        result.total = total;
         setCardProgress(statusId, progressId, 0, total, ev.msg);
       } else if (ev.type === 'info') {
         setCardProgress(statusId, progressId, processed, total, ev.msg);
@@ -505,6 +514,10 @@ async function switchLeader(leader) {
         setCardProgress(statusId, progressId, processed, total, `${ev.filename}: ${ev.msg}`);
       } else if (ev.type === 'done') {
         const s = ev.summary || {};
+        result.total = s.total || result.total;
+        result.failed = s.failed || 0;
+        result.okCount = s.ok || 0;
+        result.ok = result.total > 0 && result.failed === 0;
         setCardProgress(statusId, progressId, s.total || processed, s.total || total, 'Готово', 'done');
         finalizeOpCard(card, statusId, [
           { label: `Файлов: ${s.total || 0}`, color: 'blue' },
@@ -517,12 +530,34 @@ async function switchLeader(leader) {
       }
     }
   }
+  return result;
 }
 // ── Макросы ───────────────────────────────────────────────────────────────
 
 (function initMacroDate() {
   const el = document.getElementById('macroReportDate');
   if (el) el.value = new Date().toISOString().slice(0, 10);
+})();
+
+(function initLeaderSelect() {
+  const el = document.getElementById('leaderSelect');
+  const display = document.getElementById('leaderDisplay');
+  if (!el) return;
+
+  function syncDisplay() {
+    if (display) display.value = el.options[el.selectedIndex]?.text || el.value;
+  }
+
+  try {
+    const saved = localStorage.getItem('leaderSelect');
+    if (saved === 'aniskov' || saved === 'mandzhiev') el.value = saved;
+  } catch (_) {}
+  syncDisplay();
+
+  el.addEventListener('change', () => {
+    syncDisplay();
+    try { localStorage.setItem('leaderSelect', el.value); } catch (_) {}
+  });
 })();
 
 (function initResultsPanelResize() {
@@ -716,7 +751,19 @@ async function prepareReports() {
     alert(e.message);
     return;
   }
+  const leader = getSelectedLeader();
   btn.disabled = true;
+  const leaderResult = await switchLeader(leader);
+  if (leaderResult.total === 0) {
+    alert('Нет загруженных отчётов (.docx). Сначала загрузите файлы.');
+    btn.disabled = false;
+    return;
+  }
+  if (leaderResult.okCount === 0) {
+    alert('Не удалось сменить руководителя ни в одном файле. Подготовка отменена.');
+    btn.disabled = false;
+    return;
+  }
   const { card, statusId, progressId } = createOpCard('Подготовка отчётов');
   setCardProgress(statusId, progressId, 0, 0, 'Правки внутри загруженных файлов…');
   try {
@@ -944,7 +991,6 @@ refreshResults();
 // Global handlers for inline onclick attributes
 window.uploadReports = uploadReports;
 window.startCheck = startCheck;
-window.switchLeader = switchLeader;
 window.prepareReports = prepareReports;
 window.mergeAll = mergeAll;
 window.downloadAll = downloadAll;

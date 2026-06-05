@@ -56,14 +56,76 @@ header .title { font-size: 18px; font-weight: bold; }
 #dateBlock {
   display: flex;
   flex-direction: column;
+  gap: 6px;
 }
-#macroReportDate {
+.field-label {
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #888;
+  letter-spacing: .5px;
+}
+.field-box {
+  position: relative;
   width: 100%;
+}
+.field-control {
+  display: block;
+  width: 100%;
+  height: 32px;
   padding: 6px 8px;
   border: 1px solid #ccc;
   border-radius: 6px;
   font-size: 13px;
   box-sizing: border-box;
+  background: #fff;
+  color: #222;
+  font-family: inherit;
+  line-height: normal;
+  cursor: pointer;
+}
+input[type="date"].field-control::-webkit-calendar-picker-indicator {
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.field-box:focus-within .field-control,
+.field-control:focus {
+  outline: none;
+  border-color: #1a56a0;
+  box-shadow: 0 0 0 2px rgba(26, 86, 160, .15);
+}
+.field-box--leader {
+  height: 32px;
+}
+.field-box--leader .field-control {
+  pointer-events: none;
+  padding: 0 32px 0 8px;
+  line-height: 32px;
+}
+.field-box--leader select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+.field-box--leader::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+  z-index: 1;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%235f6368' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 .help-trigger {
   flex-shrink: 0;
