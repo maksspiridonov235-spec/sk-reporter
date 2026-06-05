@@ -459,26 +459,14 @@ def _zip_download_response(
 
 @app.get("/download/all.zip")
 async def download_all():
-    """Один архив: отчеты/ (сборка) + исправленные/ (загрузка с _исправлен)."""
-    merged_files = sorted(
+    files = sorted(
         f for f in RESULT_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")
     )
-    fixed_files = sorted(
-        f for f in UPLOAD_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")
-    )
-    if not merged_files and not fixed_files:
-        raise HTTPException(status_code=404, detail="Нет файлов для скачивания")
-    paths: list[Path] = []
-    arcnames: list[str] = []
-    for f in merged_files:
-        paths.append(f)
-        arcnames.append(f"отчеты/{f.name}")
-    for f in fixed_files:
-        paths.append(f)
-        arcnames.append(f"исправленные/{_fixed_download_name(f.name)}")
+    if not files:
+        raise HTTPException(status_code=404, detail="Нет готовых файлов")
     return _zip_download_response(
-        paths,
-        arcnames,
+        files,
+        None,
         "attachment; filename*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82%D1%8B.zip",
     )
 
