@@ -4,11 +4,12 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Ежедневные отчеты СК</title>
-  <link rel="stylesheet" href="/static/app.css?v=5"/>
+  <link rel="stylesheet" href="/static/app.css?v={{ git_head }}"/>
 </head>
 <body>
 <header>
   <span class="title">Ежедневные отчеты СК</span>
+  <span class="title-build" title="Версия сервера">build {{ git_head }}</span>
 </header>
 
 <div class="layout">
@@ -153,6 +154,6 @@
 
 </div>
 
-  <script src="/static/app.js?v=9"></script>
+  <script src="/static/app.js?v={{ git_head }}"></script>
 </body>
 </html>

@@ -433,7 +433,8 @@ async function startCheck() {
     buf += decoder.decode(value, { stream: true });
     const lines = buf.split('\n');
     buf = lines.pop();
-    for (const line of lines) {
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
       if (!line.startsWith('data: ')) continue;
       let ev;
       try { ev = JSON.parse(line.slice(6)); } catch { continue; }
@@ -461,7 +462,16 @@ async function startCheck() {
         fc.checkReportText = text;
         fc.reportText = text;
         if (ev.hasErrors) fc.hasErrors = true;
+        if (total > 0 && checkProcessed >= total) {
+          startVerifyCard('Начинаю перепроверку…');
+        }
+      } else if (ev.type === 'phase' && ev.phase === 'verify') {
+        total = ev.total || total;
+        startVerifyCard(ev.msg || 'Перепроверяю…');
+        bar.style.width = '55%';
       } else if (ev.type === 'check_done') {
+        total = ev.total || total;
+        startVerifyCard(ev.msg || 'Начинаю перепроверку…');
         const cs = ev.summary || {};
         const checkTotal = cs.total || total;
         const checkErrors = cs.errors || 0;
@@ -476,7 +486,6 @@ async function startCheck() {
           expandDetails: true,
           detailLabel: 'Результаты проверки',
         });
-        startVerifyCard(ev.msg || 'Начинаю перепроверку…');
         bar.style.width = '55%';
       } else if (ev.type === 'verify_phase' || ev.type === 'verify_start') {
         total = ev.total || total;
@@ -552,6 +561,17 @@ async function startCheck() {
         }
       }
     }
+  }
+  if (checkProcessed > 0 && total > 0 && !verifyOp) {
+    startVerifyCard('Ошибка: перепроверка не стартовала');
+    setCardProgress(
+      verifyOp.statusId,
+      verifyOp.progressId,
+      0,
+      total,
+      'Сервер не прислал фазу verify — git pull, перезапуск bat, Ctrl+F5',
+      'error'
+    );
   }
   btn.disabled = false;
   btn.textContent = 'Проверить и исправить';

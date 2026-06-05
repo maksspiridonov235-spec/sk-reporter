@@ -111,6 +111,7 @@ async def index(request: Request):
     return templates.TemplateResponse("index.html", {
         "request": request,
         "agent_enabled": AGENT_ENABLED,
+        "git_head": _git_head,
     })
 
 
@@ -217,13 +218,23 @@ async def check_descriptions_stream():
         print("[CHECK_STREAM] === фаза 1 завершена, старт фазы 2: verify ===")
         yield _sse({
             "type": "check_done",
+            "phase": "verify",
+            "start_verify": True,
             "msg": f"Проверка завершена ({len(report_files)} файлов). Начинаю перепроверку…",
             "summary": {"total": len(report_files), "errors": errors_count},
+            "total": len(report_files),
             "build": _git_head,
         })
         await asyncio.sleep(0)
 
         # Фаза 2: перепроверить все файлы (без inject)
+        yield _sse({
+            "type": "phase",
+            "phase": "verify",
+            "msg": "Перепроверяю все отчёты…",
+            "total": len(report_files),
+            "build": _git_head,
+        })
         yield _sse({
             "type": "verify_start",
             "msg": "Перепроверяю все отчёты…",
