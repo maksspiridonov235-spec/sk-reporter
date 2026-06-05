@@ -381,6 +381,13 @@ async function startCheck() {
   const collectedFileCards = [];
   const downloadMap = {};
 
+  function ensureVerifyCard(msg) {
+    if (verifyOp) return verifyOp;
+    verifyOp = createOpCard('Перепроверка (verify_agent)');
+    setCardProgress(verifyOp.statusId, verifyOp.progressId, 0, total, msg || 'Перепроверяю…');
+    return verifyOp;
+  }
+
   setCardProgress(checkOp.statusId, checkOp.progressId, 0, 0, 'Запускаю проверку…');
 
   const resp = await fetch('/check/descriptions/stream', { method: 'POST' });
@@ -428,7 +435,7 @@ async function startCheck() {
         collectedFileCards.push({
           filename: ev.filename,
           hasErrors: ev.hasErrors,
-          reportText: ev.result?.report || '',
+          reportText: '',
           downloadUrl: null,
         });
       } else if (ev.type === 'check_done') {
@@ -441,23 +448,37 @@ async function startCheck() {
           { label: `Без замечаний: ${checkTotal - checkErrors}`, color: 'green' },
           ...(checkErrors > 0 ? [{ label: `С замечаниями: ${checkErrors}`, color: 'amber' }] : []),
         ], null, null);
+        ensureVerifyCard(ev.msg || 'Начинаю перепроверку…');
         bar.style.width = '55%';
       } else if (ev.type === 'verify_phase') {
         total = ev.total || total;
-        verifyOp = createOpCard('Перепроверка (verify_agent)');
-        setCardProgress(verifyOp.statusId, verifyOp.progressId, 0, total, ev.msg);
+        ensureVerifyCard(ev.msg);
         bar.style.width = '60%';
       } else if (ev.type === 'verify') {
+        const v = ensureVerifyCard();
         verifyProcessed++;
-        const pctBar = total ? Math.min(60 + (verifyProcessed / total) * 35, 95) : Math.min(60 + verifyProcessed * 30, 95);
+        const pctBar = total ? Math.min(55 + (verifyProcessed / total) * 30, 85) : Math.min(55 + verifyProcessed * 25, 85);
         bar.style.width = pctBar + '%';
-        setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyProcessed, total, ev.msg);
-        const fc = collectedFileCards.find(x => x.filename === ev.filename);
-        if (fc) {
-          if (ev.result?.report) fc.reportText = ev.result.report;
-          if (ev.hasErrors) fc.hasErrors = true;
+        setCardProgress(v.statusId, v.progressId, verifyProcessed, total, ev.msg);
+        let fc = collectedFileCards.find(x => x.filename === ev.filename);
+        if (!fc) {
+          fc = { filename: ev.filename, hasErrors: ev.hasErrors, reportText: '', downloadUrl: null };
+          collectedFileCards.push(fc);
         }
+        if (ev.result?.report) fc.reportText = ev.result.report;
+        if (ev.hasErrors) fc.hasErrors = true;
+        fc.verifyRan = ev.verify_ran !== false;
+        fc.verifyFallback = ev.fallback;
+      } else if (ev.type === 'verify_done') {
+        const v = ensureVerifyCard();
+        setCardProgress(v.statusId, v.progressId, verifyProcessed || total, total, ev.msg);
+        bar.style.width = '88%';
+      } else if (ev.type === 'inject_phase') {
+        const v = ensureVerifyCard();
+        setCardProgress(v.statusId, v.progressId, verifyProcessed || total, total, ev.msg);
+        bar.style.width = '90%';
       } else if (ev.type === 'fixed') {
+        if (!ev.after_verify) return;
         addFixed(ev.filename, ev.download);
         downloadMap[ev.filename] = ev.download;
         const fc = collectedFileCards.find(x => x.filename === ev.filename);

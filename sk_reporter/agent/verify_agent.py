@@ -51,6 +51,7 @@ def verify_report(filepath: str, check_result: dict) -> dict:
             "ok": False,
             "report": "",
             "fallback": True,
+            "verify_ran": False,
             "_source_file": filename,
         }
 
@@ -125,6 +126,7 @@ def verify_report(filepath: str, check_result: dict) -> dict:
                 "ok": False,
                 "report": draft,
                 "fallback": True,
+                "verify_ran": True,
                 "_source_file": filename,
             }
 
@@ -133,6 +135,7 @@ def verify_report(filepath: str, check_result: dict) -> dict:
             "ok": not has_issues,
             "report": report_text,
             "fallback": False,
+            "verify_ran": True,
             "_source_file": filename,
         }
         print(f"[VERIFY_AGENT] {'OK' if result['ok'] else 'ISSUES'}: {filename}")
@@ -144,5 +147,6 @@ def verify_report(filepath: str, check_result: dict) -> dict:
             "ok": False,
             "report": draft,
             "fallback": True,
+            "verify_ran": True,
             "_source_file": filename,
         }
