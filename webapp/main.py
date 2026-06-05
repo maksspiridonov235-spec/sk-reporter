@@ -151,6 +151,7 @@ async def diagnose_reports():
 async def check_descriptions_stream():
     from sk_reporter.agent.check_agent import check_report
     from sk_reporter.agent.inject_agent import inject_into_docx
+    from sk_reporter.agent.verify_agent import verify_report
 
     async def event_generator():
         report_files = sorted(UPLOAD_DIR.glob("*.docx"))
@@ -173,7 +174,9 @@ async def check_descriptions_stream():
                 if has_errors:
                     errors_count += 1
                 yield _sse({"type": "report", "filename": filename, "msg": f"{filename}: " + ("⚠️ найдены проблемы" if has_errors else "✓ ОК"), "hasErrors": has_errors, "result": result})
-                corrected_text = result.get("report", "")
+                yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: перепроверяю…"})
+                verify_result = verify_report(str(file_path), result)
+                corrected_text = verify_result.get("report") or result.get("report", "")
                 if corrected_text:
                     yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: вставляю правки в текст документа…"})
                     inject_result = inject_into_docx(str(file_path), corrected_text, filename)

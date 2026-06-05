@@ -36,13 +36,13 @@
 |----|-----------|
 | **Проверить и исправить** | `#btnCheck` → `startCheck()` → `POST /check/descriptions/stream` |
 
-Цепочка: `check_agent` (Ollama) → `inject_agent` → **запись в загрузку** (`UPLOAD_DIR`, то же имя файла). Скачать с именем `{имя}_исправлен.docx` — `/download/fixed/...` (читает тот же файл из загрузки).
+Цепочка: `check_agent` → `verify_agent` (второй LLM-проход, тот же формат ответа) → `inject_agent` → **запись в загрузку**. При сбое verify — в inject идёт текст check. Скачать `{имя}_исправлен.docx` — `/download/fixed/...`.
 
 | Слой | Файл |
 |------|------|
 | UI | `webapp/templates/index.html`, `webapp/static/app.js` (`startCheck`) |
 | API | `webapp/main.py` — stream check, `/download/fixed/...` |
-| AI + inject | `sk_reporter/agent/check_agent.py`, `sk_reporter/agent/inject_agent.py` |
+| AI + inject | `check_agent.py`, `verify_agent.py`, `inject_agent.py` |
 | Загрузка (сырые + после проверки) | temp `sk_reports_work/uploads/` — см. `UPLOAD_DIR` в `webapp/main.py` |
 
 Важно: inject пишет в ячейку-заголовок **«Описание действий»**; после проверки перезаливать не нужно. Отдельных папок `output/` в репо нет.
