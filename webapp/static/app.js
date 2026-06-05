@@ -32,7 +32,7 @@ const OP_SUBTITLES = {
   'Подготовка отчётов': 'Меняется содержимое загруженных .docx; имена файлов на диске те же.',
   'Дата в тексте болванок': 'Меняется текст внутри шаблонов; файлы на диске не переименовываются.',
   'Переименование готовых': 'Готовые сводные: новое имя на диске и дата в документе.',
-  'Проверка отчётов': 'AI-проверка; правки в загрузку (temp) — сразу «Подготовить и сформировать». Скачать с именем _исправлен — панель «Исправленные».',
+  'Проверка отчётов': 'AI-проверка; правки в загрузку (temp). Скачать с именем _исправлен — панель «Исправленные».',
   'Сборка отчётов': 'Склейка по компаниям в папку результатов.',
 };
 
@@ -362,10 +362,7 @@ async function clearReports() {
 }
 // ── Проверка и исправление (SSE) ──────────────────────────────────────────
 
-async function startCheck() {
-  const btn = document.getElementById('btnCheck');
-  btn.disabled = true;
-  btn.textContent = 'Проверяю...';
+async function runCheck() {
   document.getElementById('fixedFiles').innerHTML = '<div class="no-results">Пока нет</div>';
   fixedFiles = [];
 
@@ -384,9 +381,7 @@ async function startCheck() {
   if (!resp.ok) {
     setCardProgress(checkStatusId, checkProgressId, 0, 0, 'Ошибка запуска проверки', 'error');
     finalizeOpCard(checkCard, checkStatusId, [{ label: 'Ошибка', color: 'red' }], null, null, { errorState: true });
-    btn.disabled = false;
-    btn.textContent = 'Проверить и исправить';
-    return;
+    return { ok: false };
   }
 
   const reader = resp.body.getReader();
@@ -453,15 +448,13 @@ async function startCheck() {
           detailLabel: 'Отчёты по файлам',
         });
         setTimeout(() => { bar.style.width = '0%'; }, 2000);
-        btn.disabled = false;
-        btn.textContent = 'Проверить и исправить';
+        return { ok: true, summary: s };
       } else if (ev.type === 'error') {
         setCardProgress(checkStatusId, checkProgressId, processed, total, ev.msg, 'error');
       }
     }
   }
-  btn.disabled = false;
-  btn.textContent = 'Проверить и исправить';
+  return { ok: true };
 }
 // ── Руководитель ──────────────────────────────────────────────────────────
 
@@ -756,6 +749,7 @@ async function runBolvankaDateUpdate(dateVal) {
 async function prepareReports() {
   const btn = document.getElementById('btnPrepare');
   if (!btn) return;
+  const btnLabel = 'Проверить и сформировать';
   let dateVal;
   try {
     dateVal = getMacroReportDate();
@@ -765,15 +759,20 @@ async function prepareReports() {
   }
   const leader = getSelectedLeader();
   btn.disabled = true;
+  btn.textContent = 'Проверяю...';
+  await runCheck();
+  btn.textContent = 'Подготавливаю...';
   const leaderResult = await switchLeader(leader);
   if (leaderResult.total === 0) {
     alert('Нет загруженных отчётов (.docx). Сначала загрузите файлы.');
     btn.disabled = false;
+    btn.textContent = btnLabel;
     return;
   }
   if (leaderResult.okCount === 0) {
     alert('Не удалось сменить руководителя ни в одном файле. Подготовка отменена.');
     btn.disabled = false;
+    btn.textContent = btnLabel;
     return;
   }
   const { card, statusId, progressId } = createOpCard('Подготовка отчётов');
@@ -803,6 +802,7 @@ async function prepareReports() {
   await runBolvankaDateUpdate(dateVal);
   await mergeAll(dateVal);
   btn.disabled = false;
+  btn.textContent = btnLabel;
 }
 
 async function runRenameResults(dateVal) {
@@ -1035,7 +1035,6 @@ seedUploadedReportsCard();
 refreshResults();
 // Global handlers for inline onclick attributes
 window.uploadReports = uploadReports;
-window.startCheck = startCheck;
 window.prepareReports = prepareReports;
 window.mergeAll = mergeAll;
 window.downloadAll = downloadAll;
