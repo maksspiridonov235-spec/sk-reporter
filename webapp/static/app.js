@@ -962,7 +962,7 @@ async function downloadAll() {
       finalizeOpCard(card, statusId, [{ label: 'Нет файлов', color: 'red' }], null, null);
       return;
     }
-    _triggerDownload('/download/all.zip', 'отчёты.zip');
+    _triggerDownload(`/download/all.zip?v=${Date.now()}`, 'отчёты.zip');
     const badges = [{ label: 'отчёты.zip', color: 'green' }];
     if (hasResults && hasReports) {
       badges.push({ label: 'папки: отчеты, исправленные', color: 'blue' });

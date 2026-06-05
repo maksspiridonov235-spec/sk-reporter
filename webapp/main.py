@@ -11,7 +11,7 @@ from pathlib import Path
 
 from docx import Document
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -441,6 +441,22 @@ def _zip_files(files: list[Path], arcnames: list[str] | None = None) -> io.Bytes
     return buf
 
 
+_ZIP_HEADERS = {"Cache-Control": "no-store, no-cache, must-revalidate"}
+
+
+def _zip_download_response(
+    files: list[Path],
+    arcnames: list[str] | None,
+    disposition: str,
+) -> Response:
+    """ZIP целиком в теле ответа — без StreamingResponse(BytesIO), чтобы архив не обрезался."""
+    return Response(
+        content=_zip_files(files, arcnames).getvalue(),
+        media_type="application/zip",
+        headers={**_ZIP_HEADERS, "Content-Disposition": disposition},
+    )
+
+
 @app.get("/download/all.zip")
 async def download_all():
     """Один архив: отчеты/ (сборка) + исправленные/ (загрузка с _исправлен)."""
@@ -460,10 +476,10 @@ async def download_all():
     for f in fixed_files:
         paths.append(f)
         arcnames.append(f"исправленные/{_fixed_download_name(f.name)}")
-    return StreamingResponse(
-        _zip_files(paths, arcnames),
-        media_type="application/zip",
-        headers={"Content-Disposition": "attachment; filename*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82%D1%8B.zip"},
+    return _zip_download_response(
+        paths,
+        arcnames,
+        "attachment; filename*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82%D1%8B.zip",
     )
 
 
@@ -475,10 +491,10 @@ async def download_fixed_all():
     if not files:
         raise HTTPException(status_code=404, detail="Нет загруженных отчётов")
     arcnames = [_fixed_download_name(f.name) for f in files]
-    return StreamingResponse(
-        _zip_files(files, arcnames),
-        media_type="application/zip",
-        headers={"Content-Disposition": "attachment; filename*=UTF-8''%D0%B8%D1%81%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%BD%D1%8B%D0%B5.zip"},
+    return _zip_download_response(
+        files,
+        arcnames,
+        "attachment; filename*=UTF-8''%D0%B8%D1%81%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%BD%D1%8B%D0%B5.zip",
     )
 
 
