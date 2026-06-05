@@ -168,7 +168,7 @@ async def diagnose_reports():
 
 @app.post("/check/descriptions/stream")
 async def check_descriptions_stream():
-    from sk_reporter.agent.check_agent import check_report
+    from sk_reporter.agent.check_agent import check_report, extract_full_text, extract_sk_section
     from sk_reporter.agent.inject_agent import inject_into_docx
     from sk_reporter.agent.verify_agent import verify_report
 
@@ -183,6 +183,8 @@ async def check_descriptions_stream():
         verify_fallback_count = 0
         verify_issues_count = 0
         check_results: dict[str, dict] = {}
+        original_snapshots: dict[str, dict] = {}
+        injected_files: set[str] = set()
         verify_results: dict[str, dict] = {}
 
         # Фаза 1: проверить все файлы
@@ -202,6 +204,10 @@ async def check_descriptions_stream():
                 if has_errors:
                     errors_count += 1
                 check_results[filename] = result
+                original_snapshots[filename] = {
+                    "full_text": await asyncio.to_thread(extract_full_text, str(file_path)),
+                    "sk_section": await asyncio.to_thread(extract_sk_section, str(file_path)),
+                }
                 yield _sse({
                     "type": "report",
                     "filename": filename,
@@ -213,34 +219,70 @@ async def check_descriptions_stream():
             except Exception as e:
                 yield _sse({"type": "error", "msg": f"Ошибка проверки {Path(file_path).name}: {str(e)}"})
 
-        print("[CHECK_STREAM] === фаза 1 завершена, старт фазы 2: verify ===")
+        print("[CHECK_STREAM] === фаза 1 завершена, старт фазы 2: inject ===")
         yield _sse({
             "type": "check_done",
-            "msg": f"Проверка завершена ({len(report_files)} файлов). Начинаю перепроверку…",
+            "msg": f"Проверка завершена ({len(report_files)} файлов). Вставляю правки…",
             "summary": {"total": len(report_files), "errors": errors_count},
         })
         await asyncio.sleep(0)
 
-        # Фаза 2: перепроверить все файлы (тот же поток событий, что у check)
-        yield _sse({
-            "type": "verify_phase",
-            "msg": "Перепроверяю загруженные отчёты…",
-            "total": len(report_files),
-        })
+        # Фаза 2: вставить правки check во все файлы → _исправлен в загрузке
         for file_path in report_files:
             try:
                 filename = Path(file_path).name
                 result = check_results.get(filename)
                 if not result:
-                    yield _sse({
-                        "type": "error",
-                        "msg": f"{filename}: нет результата check — перепроверка пропущена",
-                    })
+                    yield _sse({"type": "error", "msg": f"{filename}: нет результата check — inject пропущен"})
                     continue
-                yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: перепроверяю…"})
+                corrected_text = (result.get("report") or "").strip()
+                if not corrected_text:
+                    yield _sse({"type": "error", "msg": f"{filename}: пустой текст check — inject пропущен"})
+                    continue
+                yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: вставляю правки…"})
+                await asyncio.sleep(0)
+                inject_result = await asyncio.to_thread(
+                    inject_into_docx, str(file_path), corrected_text, filename
+                )
+                if inject_result.get("ok"):
+                    dl_name = inject_result.get("download_name") or _fixed_download_name(filename)
+                    promoted_count += 1
+                    injected_files.add(filename)
+                    yield _sse({
+                        "type": "fixed",
+                        "filename": filename,
+                        "msg": f"{filename}: исправлен и записан в загрузку",
+                        "download": f"/download/fixed/{dl_name}",
+                        "promoted": True,
+                    })
+                else:
+                    yield _sse({"type": "error", "msg": f'Ошибка inject для {filename}: {inject_result.get("error")}'})
+                await asyncio.sleep(0)
+            except Exception as e:
+                yield _sse({"type": "error", "msg": f"Ошибка inject {Path(file_path).name}: {str(e)}"})
+
+        print(f"[CHECK_STREAM] === фаза 2 завершена ({promoted_count} inject), старт фазы 3: verify ===")
+        yield _sse({
+            "type": "verify_phase",
+            "msg": f"Перепроверяю: инженер vs модель ({len(injected_files)} файлов)…",
+            "total": len(injected_files) or len(report_files),
+        })
+        await asyncio.sleep(0)
+
+        # Фаза 3: перепроверка после появления _исправлен в загрузке
+        for file_path in report_files:
+            try:
+                filename = Path(file_path).name
+                if filename not in injected_files:
+                    continue
+                snap = original_snapshots.get(filename)
+                if not snap:
+                    yield _sse({"type": "error", "msg": f"{filename}: нет снимка оригинала — перепроверка пропущена"})
+                    continue
+                yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: сверяю инженера и модель…"})
                 print(f"[CHECK_STREAM] перепроверяю: {filename}")
                 await asyncio.sleep(0)
-                verify_result = await asyncio.to_thread(verify_report, str(file_path), result)
+                verify_result = await asyncio.to_thread(verify_report, str(file_path), snap)
                 verify_results[filename] = verify_result
                 verify_ok = verify_result.get("ok", False)
                 if verify_result.get("fallback"):
@@ -252,7 +294,7 @@ async def check_descriptions_stream():
                 yield _sse({
                     "type": "verify",
                     "filename": filename,
-                    "msg": f"{filename}: " + ("⚠️ замечания" if not verify_ok else "✓ ОК") + (" (fallback check)" if verify_result.get("fallback") else ""),
+                    "msg": f"{filename}: " + ("⚠️ расхождения" if not verify_ok else "✓ сверка ОК"),
                     "hasErrors": not verify_ok,
                     "result": verify_result,
                 })
@@ -260,58 +302,17 @@ async def check_descriptions_stream():
             except Exception as e:
                 yield _sse({"type": "error", "msg": f"Ошибка перепроверки {Path(file_path).name}: {str(e)}"})
 
-        print("[CHECK_STREAM] === фаза 2 завершена, старт фазы 3: inject ===")
         yield _sse({
             "type": "verify_done",
-            "msg": f"Перепроверка завершена ({len(verify_results)} файлов). Вставляю правки…",
+            "msg": f"Перепроверка завершена ({len(verify_results)} файлов).",
             "summary": {
-                "total": len(report_files),
+                "total": len(injected_files) or len(report_files),
                 "errors": verify_issues_count,
                 "verified": verify_ok_count,
                 "verify_fallback": verify_fallback_count,
             },
         })
         await asyncio.sleep(0)
-
-        # Фаза 3: inject только после перепроверки всех
-        for file_path in report_files:
-            try:
-                filename = Path(file_path).name
-                verify_result = verify_results.get(filename)
-                if not verify_result:
-                    continue
-                if not verify_result.get("verify_ran"):
-                    yield _sse({
-                        "type": "error",
-                        "msg": f"{filename}: перепроверка не выполнялась — inject пропущен",
-                    })
-                    continue
-                corrected_text = (verify_result.get("report") or "").strip()
-                if not corrected_text:
-                    yield _sse({
-                        "type": "error",
-                        "msg": f"{filename}: пустой текст после перепроверки — inject пропущен",
-                    })
-                    continue
-                yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: вставляю правки в текст документа…"})
-                await asyncio.sleep(0)
-                inject_result = await asyncio.to_thread(
-                    inject_into_docx, str(file_path), corrected_text, filename
-                )
-                if inject_result.get("ok"):
-                    dl_name = inject_result.get("download_name") or _fixed_download_name(filename)
-                    promoted_count += 1
-                    yield _sse({
-                        "type": "fixed",
-                        "filename": filename,
-                        "msg": f"{filename}: исправлен и записан в загрузку",
-                        "download": f"/download/fixed/{dl_name}",
-                        "promoted": True,
-                    })
-                else:
-                    yield _sse({"type": "error", "msg": f'Ошибка inject для {filename}: {inject_result.get("error")}'})
-            except Exception as e:
-                yield _sse({"type": "error", "msg": f"Ошибка inject {Path(file_path).name}: {str(e)}"})
         yield _sse({
             "type": "done",
             "summary": {
