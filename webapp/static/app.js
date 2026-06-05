@@ -416,7 +416,8 @@ async function startCheck() {
 
       if (ev.type === 'start') {
         total = ev.total || 0;
-        setCardProgress(checkOp.statusId, checkOp.progressId, 0, total, ev.msg);
+        const buildHint = ev.build ? ` (сервер ${ev.build})` : '';
+        setCardProgress(checkOp.statusId, checkOp.progressId, 0, total, ev.msg + buildHint);
         bar.style.width = total ? '12%' : '20%';
       } else if (ev.type === 'info') {
         if (verifyOp) {
@@ -478,7 +479,6 @@ async function startCheck() {
         setCardProgress(v.statusId, v.progressId, verifyProcessed || total, total, ev.msg);
         bar.style.width = '90%';
       } else if (ev.type === 'fixed') {
-        if (!ev.after_verify) return;
         addFixed(ev.filename, ev.download);
         downloadMap[ev.filename] = ev.download;
         const fc = collectedFileCards.find(x => x.filename === ev.filename);
@@ -499,10 +499,13 @@ async function startCheck() {
             { label: `Без замечаний: ${totalN - errors}`, color: 'green' },
             ...(errors > 0 ? [{ label: `С замечаниями: ${errors}`, color: 'amber' }] : []),
             ...(promoted > 0 ? [{ label: `В загрузке обновлено: ${promoted}`, color: 'green' }] : []),
+            ...(s.verified != null ? [{ label: `Перепроверено LLM: ${s.verified}`, color: 'green' }] : []),
           ], null, fileCardEls, {
             expandDetails: true,
             detailLabel: 'Отчёты по файлам',
           });
+        } else {
+          setCardProgress(checkOp.statusId, checkOp.progressId, checkProcessed, total, 'Перепроверка не запустилась — Ctrl+F5 и перезапуск bat', 'error');
         }
         setTimeout(() => { bar.style.width = '0%'; }, 2000);
         btn.disabled = false;

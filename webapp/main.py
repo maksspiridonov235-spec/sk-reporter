@@ -49,6 +49,7 @@ TEMPLATES_DIR = templates_dir()
 if not TEMPLATES_DIR.exists():
     raise RuntimeError(f"Папка с болванками не найдена: {TEMPLATES_DIR}")
 print(f"[INFO] Templates dir: {TEMPLATES_DIR} ({len(list(TEMPLATES_DIR.glob('*.docx')))} шаблонов)")
+_git_head = "unknown"
 try:
     _git_head = subprocess.check_output(
         ["git", "rev-parse", "--short", "HEAD"],
@@ -58,7 +59,7 @@ try:
     ).strip()
     print(f"[INFO] git: {_git_head}")
 except Exception:
-    pass
+    print("[INFO] git: unknown")
 
 
 @app.exception_handler(Exception)
@@ -185,6 +186,7 @@ async def check_descriptions_stream():
             "phase": "check",
             "msg": "Проверяю все загруженные отчёты…",
             "total": len(report_files),
+            "build": _git_head,
         })
         for file_path in report_files:
             try:
