@@ -218,34 +218,16 @@ async def check_descriptions_stream():
         print("[CHECK_STREAM] === фаза 1 завершена, старт фазы 2: verify ===")
         yield _sse({
             "type": "check_done",
-            "phase": "verify",
-            "start_verify": True,
             "msg": f"Проверка завершена ({len(report_files)} файлов). Начинаю перепроверку…",
             "summary": {"total": len(report_files), "errors": errors_count},
-            "total": len(report_files),
-            "build": _git_head,
         })
         await asyncio.sleep(0)
 
-        # Фаза 2: перепроверить все файлы (без inject)
-        yield _sse({
-            "type": "phase",
-            "phase": "verify",
-            "msg": "Перепроверяю все отчёты…",
-            "total": len(report_files),
-            "build": _git_head,
-        })
-        yield _sse({
-            "type": "verify_start",
-            "msg": "Перепроверяю все отчёты…",
-            "total": len(report_files),
-            "build": _git_head,
-        })
+        # Фаза 2: перепроверить все файлы (тот же поток событий, что у check)
         yield _sse({
             "type": "verify_phase",
             "msg": "Перепроверяю все отчёты…",
             "total": len(report_files),
-            "build": _git_head,
         })
         for file_path in report_files:
             try:
@@ -269,15 +251,12 @@ async def check_descriptions_stream():
                     verify_ok_count += 1
                 if not verify_ok:
                     verify_issues_count += 1
-                report_text = (verify_result.get("report") or "").strip()
                 yield _sse({
                     "type": "verify",
                     "filename": filename,
                     "msg": f"{filename}: " + ("⚠️ замечания" if not verify_ok else "✓ ОК") + (" (fallback check)" if verify_result.get("fallback") else ""),
                     "hasErrors": not verify_ok,
-                    "fallback": verify_result.get("fallback", False),
-                    "verify_ran": verify_result.get("verify_ran", False),
-                    "report": report_text,
+                    "report": (verify_result.get("report") or "").strip(),
                 })
                 await asyncio.sleep(0)
             except Exception as e:
@@ -288,19 +267,15 @@ async def check_descriptions_stream():
             "type": "verify_done",
             "msg": f"Перепроверка завершена ({len(verify_results)} файлов). Вставляю правки…",
             "summary": {
+                "total": len(report_files),
+                "errors": verify_issues_count,
                 "verified": verify_ok_count,
                 "verify_fallback": verify_fallback_count,
-                "verify_issues": verify_issues_count,
             },
         })
         await asyncio.sleep(0)
 
         # Фаза 3: inject только после перепроверки всех
-        yield _sse({
-            "type": "inject_phase",
-            "msg": "Вставляю правки во все отчёты…",
-            "total": len(report_files),
-        })
         for file_path in report_files:
             try:
                 filename = Path(file_path).name
@@ -330,13 +305,10 @@ async def check_descriptions_stream():
                     promoted_count += 1
                     yield _sse({
                         "type": "fixed",
-                        "phase": "inject",
                         "filename": filename,
                         "msg": f"{filename}: исправлен и записан в загрузку",
                         "download": f"/download/fixed/{dl_name}",
                         "promoted": True,
-                        "after_verify": True,
-                        "verify_fallback": verify_result.get("fallback", False),
                     })
                 else:
                     yield _sse({"type": "error", "msg": f'Ошибка inject для {filename}: {inject_result.get("error")}'})

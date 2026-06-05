@@ -378,39 +378,9 @@ async function startCheck() {
   let total = 0;
   let checkProcessed = 0;
   let verifyProcessed = 0;
-  let injectAllowed = false;
-  const pendingFixed = [];
-  const collectedFileCards = [];
+  const checkCards = [];
+  const verifyCards = [];
   const downloadMap = {};
-
-  function startVerifyCard(msg) {
-    if (verifyOp) return verifyOp;
-    verifyOp = createOpCard('Перепроверка (verify_agent)');
-    if (checkOp.card && verifyOp.card) checkOp.card.after(verifyOp.card);
-    setCardProgress(verifyOp.statusId, verifyOp.progressId, 0, total, msg || 'Перепроверяю…');
-    return verifyOp;
-  }
-
-  function allowInjectAndFlush() {
-    injectAllowed = true;
-    pendingFixed.forEach(p => addFixed(p.filename, p.download));
-    pendingFixed.length = 0;
-  }
-
-  function fileEntry(filename, hasErrors) {
-    let fc = collectedFileCards.find(x => x.filename === filename);
-    if (!fc) {
-      fc = {
-        filename,
-        hasErrors: !!hasErrors,
-        checkReportText: '',
-        reportText: '',
-        downloadUrl: null,
-      };
-      collectedFileCards.push(fc);
-    }
-    return fc;
-  }
 
   setCardProgress(checkOp.statusId, checkOp.progressId, 0, 0, 'Запускаю проверку…');
 
@@ -433,8 +403,7 @@ async function startCheck() {
     buf += decoder.decode(value, { stream: true });
     const lines = buf.split('\n');
     buf = lines.pop();
-    for (const rawLine of lines) {
-      const line = rawLine.trim();
+    for (const line of lines) {
       if (!line.startsWith('data: ')) continue;
       let ev;
       try { ev = JSON.parse(line.slice(6)); } catch { continue; }
@@ -457,26 +426,17 @@ async function startCheck() {
           ? `${ev.filename}: замечания по описаниям`
           : `${ev.filename}: без замечаний`;
         setCardProgress(checkOp.statusId, checkOp.progressId, checkProcessed, total, shortMsg);
-        const fc = fileEntry(ev.filename, ev.hasErrors);
-        const text = ev.report || (ev.result && ev.result.report) || '';
-        fc.checkReportText = text;
-        fc.reportText = text;
-        if (ev.hasErrors) fc.hasErrors = true;
-        if (total > 0 && checkProcessed >= total) {
-          startVerifyCard('Начинаю перепроверку…');
-        }
-      } else if (ev.type === 'phase' && ev.phase === 'verify') {
-        total = ev.total || total;
-        startVerifyCard(ev.msg || 'Перепроверяю…');
-        bar.style.width = '55%';
+        checkCards.push({
+          filename: ev.filename,
+          hasErrors: ev.hasErrors,
+          reportText: ev.report || (ev.result && ev.result.report) || '',
+        });
       } else if (ev.type === 'check_done') {
-        total = ev.total || total;
-        startVerifyCard(ev.msg || 'Начинаю перепроверку…');
         const cs = ev.summary || {};
         const checkTotal = cs.total || total;
         const checkErrors = cs.errors || 0;
-        const checkFileCards = collectedFileCards.map(fc =>
-          buildFileCardEl(fc.filename, fc.hasErrors, fc.checkReportText, null)
+        const checkFileCards = checkCards.map(fc =>
+          buildFileCardEl(fc.filename, fc.hasErrors, fc.reportText, null)
         );
         finalizeOpCard(checkOp.card, checkOp.statusId, [
           { label: `Файлов: ${checkTotal}`, color: 'blue' },
@@ -487,69 +447,51 @@ async function startCheck() {
           detailLabel: 'Результаты проверки',
         });
         bar.style.width = '55%';
-      } else if (ev.type === 'verify_phase' || ev.type === 'verify_start') {
+      } else if (ev.type === 'verify_phase') {
         total = ev.total || total;
-        startVerifyCard(ev.msg || 'Перепроверяю…');
+        verifyOp = createOpCard('Перепроверка (verify_agent)');
+        if (checkOp.card && verifyOp.card) checkOp.card.after(verifyOp.card);
+        setCardProgress(verifyOp.statusId, verifyOp.progressId, 0, total, ev.msg);
         bar.style.width = '60%';
       } else if (ev.type === 'verify') {
-        startVerifyCard();
+        if (!verifyOp) {
+          verifyOp = createOpCard('Перепроверка (verify_agent)');
+          if (checkOp.card && verifyOp.card) checkOp.card.after(verifyOp.card);
+        }
         verifyProcessed++;
         const pctBar = total ? Math.min(60 + (verifyProcessed / total) * 35, 95) : Math.min(60 + verifyProcessed * 30, 95);
         bar.style.width = pctBar + '%';
         setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyProcessed, total, ev.msg);
-        const fc = fileEntry(ev.filename, ev.hasErrors);
+        let fc = verifyCards.find(x => x.filename === ev.filename);
+        if (!fc) {
+          fc = { filename: ev.filename, hasErrors: ev.hasErrors, reportText: '' };
+          verifyCards.push(fc);
+        }
         const text = ev.report || (ev.result && ev.result.report) || '';
         if (text) fc.reportText = text;
         if (ev.hasErrors) fc.hasErrors = true;
-      } else if (ev.type === 'verify_done') {
-        allowInjectAndFlush();
-        if (verifyOp) {
-          setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyProcessed || total, total, ev.msg);
-        }
-        bar.style.width = '88%';
-      } else if (ev.type === 'inject_phase') {
-        allowInjectAndFlush();
-        if (verifyOp) {
-          setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyProcessed || total, total, ev.msg);
-        }
-        bar.style.width = '90%';
-      } else if (ev.type === 'fixed') {
-        if (injectAllowed) {
-          addFixed(ev.filename, ev.download);
-        } else {
-          pendingFixed.push({ filename: ev.filename, download: ev.download });
-        }
-        downloadMap[ev.filename] = ev.download;
-        const fc = fileEntry(ev.filename, false);
-        fc.downloadUrl = ev.download;
-      } else if (ev.type === 'done') {
-        allowInjectAndFlush();
-        bar.style.width = '100%';
-        const s = ev.summary || {};
-        const totalN = s.total || 0;
-        const errors = s.errors || 0;
-        const promoted = s.promoted || 0;
-        const fileCardEls = collectedFileCards.map(fc =>
-          buildFileCardEl(fc.filename, fc.hasErrors, fc.reportText, downloadMap[fc.filename] || fc.downloadUrl || null)
+      } else if (ev.type === 'verify_done' && verifyOp) {
+        const cs = ev.summary || {};
+        const verifyTotal = cs.total || total;
+        const verifyErrors = cs.errors || 0;
+        const verifyFileCards = verifyCards.map(fc =>
+          buildFileCardEl(fc.filename, fc.hasErrors, fc.reportText, downloadMap[fc.filename] || null)
         );
-        if (verifyOp) {
-          finalizeOpCard(verifyOp.card, verifyOp.statusId, [
-            { label: `Файлов: ${totalN}`, color: 'blue' },
-            { label: `Без замечаний: ${totalN - errors}`, color: 'green' },
-            ...(errors > 0 ? [{ label: `С замечаниями: ${errors}`, color: 'amber' }] : []),
-            ...(promoted > 0 ? [{ label: `В загрузке обновлено: ${promoted}`, color: 'green' }] : []),
-          ], null, fileCardEls, {
-            expandDetails: true,
-            detailLabel: 'Результаты перепроверки',
-          });
-        } else {
-          finalizeOpCard(checkOp.card, checkOp.statusId, [
-            { label: `Файлов: ${totalN}`, color: 'blue' },
-          ], null, fileCardEls, {
-            expandDetails: true,
-            detailLabel: 'Отчёты по файлам',
-          });
-        }
+        finalizeOpCard(verifyOp.card, verifyOp.statusId, [
+          { label: `Файлов: ${verifyTotal}`, color: 'blue' },
+          { label: `Без замечаний: ${verifyTotal - verifyErrors}`, color: 'green' },
+          ...(verifyErrors > 0 ? [{ label: `С замечаниями: ${verifyErrors}`, color: 'amber' }] : []),
+        ], null, verifyFileCards, {
+          expandDetails: true,
+          detailLabel: 'Результаты перепроверки',
+        });
+        bar.style.width = '88%';
+      } else if (ev.type === 'fixed') {
+        addFixed(ev.filename, ev.download);
+        downloadMap[ev.filename] = ev.download;
+        bar.style.width = '95%';
+      } else if (ev.type === 'done') {
+        bar.style.width = '100%';
         setTimeout(() => { bar.style.width = '0%'; }, 2000);
         btn.disabled = false;
         btn.textContent = 'Проверить и исправить';
@@ -561,17 +503,6 @@ async function startCheck() {
         }
       }
     }
-  }
-  if (checkProcessed > 0 && total > 0 && !verifyOp) {
-    startVerifyCard('Ошибка: перепроверка не стартовала');
-    setCardProgress(
-      verifyOp.statusId,
-      verifyOp.progressId,
-      0,
-      total,
-      'Сервер не прислал фазу verify — git pull, перезапуск bat, Ctrl+F5',
-      'error'
-    );
   }
   btn.disabled = false;
   btn.textContent = 'Проверить и исправить';
