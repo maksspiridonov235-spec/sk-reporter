@@ -307,13 +307,15 @@ function addFixed(filename, downloadUrl) {
   container.appendChild(item);
 }
 
-async function refreshReportsList() {
-  const data = await apiFetch('/files/reports');
-  const files = data.files || [];
-  const el = document.getElementById('list-reports');
-  el.innerHTML = files.length
-    ? files.map(f => `<div>${escHtml(f)}</div>`).join('')
-    : '<div style="color:#aaa;font-style:italic">—</div>';
+function buildUploadDetails(filenames) {
+  return (filenames || []).map(name => ({
+    icon: '📄',
+    name,
+    wrap: true,
+    fileRow: true,
+    badge: 'загружен',
+    badgeClass: 'db-ok',
+  }));
 }
 
 async function refreshResults() {
@@ -337,9 +339,15 @@ async function uploadReports(input) {
   setCardStatus(statusId, `Загружаю ${input.files.length} файл(ов)...`);
   try {
     const data = await apiFetch('/upload/reports', { method: 'POST', body: fd }, statusId);
-    finalizeOpCard(card, statusId, [{ label: `Загружено: ${data.count}`, color: 'green' }], null, null);
-    refreshReportsList();
+    const uploaded = data.uploaded || [];
+    finalizeOpCard(card, statusId, [
+      { label: `Загружено: ${data.count}`, color: 'green' },
+    ], buildUploadDetails(uploaded), null, {
+      expandDetails: uploaded.length > 0,
+      detailLabel: 'Загруженные файлы',
+    });
   } catch (_) {}
+  input.value = '';
 }
 
 async function clearReports() {
@@ -347,8 +355,9 @@ async function clearReports() {
   setCardStatus(statusId, 'Удаляю загруженные отчёты...');
   try {
     await apiFetch('/clear/reports', { method: 'DELETE' }, statusId);
-    finalizeOpCard(card, statusId, [{ label: 'Удалено', color: 'blue' }], null, null);
-    refreshReportsList();
+    finalizeOpCard(card, statusId, [{ label: 'Удалено', color: 'blue' }], [
+      { icon: 'ℹ', name: 'Список загруженных отчётов очищен', wrap: true },
+    ], null, { expandDetails: true, detailLabel: 'Результат' });
   } catch (_) {}
 }
 // ── Проверка и исправление (SSE) ──────────────────────────────────────────
@@ -431,7 +440,6 @@ async function startCheck() {
           expandDetails: true,
           detailLabel: 'Отчёты по файлам',
         });
-        if (promoted > 0) refreshReportsList();
         setTimeout(() => { bar.style.width = '0%'; }, 2000);
         btn.disabled = false;
         btn.textContent = 'Проверить и исправить';
@@ -522,13 +530,17 @@ async function switchLeader(leader) {
   const panel = document.getElementById('resultsPanel');
   if (!handle || !panel) return;
 
-  const MIN = 280;
+  const MIN = 318;
   const maxWidth = () => Math.min(560, Math.floor(window.innerWidth * 0.55));
 
   try {
     const saved = parseInt(localStorage.getItem('resultsPanelWidth'), 10);
-    if (saved >= MIN && saved <= maxWidth()) panel.style.width = saved + 'px';
-  } catch (_) {}
+    const w = saved >= MIN && saved <= maxWidth() ? saved : MIN;
+    panel.style.width = w + 'px';
+    if (saved < MIN) localStorage.setItem('resultsPanelWidth', String(MIN));
+  } catch (_) {
+    panel.style.width = MIN + 'px';
+  }
 
   handle.addEventListener('mousedown', (e) => {
     e.preventDefault();
@@ -891,7 +903,6 @@ async function resetAll() {
     document.getElementById('fixedFiles').innerHTML = '<div class="no-results">Пока нет</div>';
     fixedFiles = [];
     finalizeOpCard(card, statusId, [{ label: 'Сброшено', color: 'blue' }], null, null);
-    refreshReportsList();
     refreshResults();
   } catch (_) {}
 }
@@ -911,7 +922,24 @@ uploadZone.addEventListener('drop', e => {
 });
 // ── Инициализация ─────────────────────────────────────────────────────────
 
-refreshReportsList();
+async function seedUploadedReportsCard() {
+  try {
+    const res = await fetch('/files/reports');
+    if (!res.ok) return;
+    const data = await res.json();
+    const files = data.files || [];
+    if (!files.length) return;
+    const { card, statusId } = createOpCard('Загрузка файлов');
+    finalizeOpCard(card, statusId, [
+      { label: `Загружено: ${files.length}`, color: 'green' },
+    ], buildUploadDetails(files), null, {
+      expandDetails: false,
+      detailLabel: 'Загруженные файлы',
+    });
+  } catch (_) {}
+}
+
+seedUploadedReportsCard();
 refreshResults();
 // Global handlers for inline onclick attributes
 window.uploadReports = uploadReports;
