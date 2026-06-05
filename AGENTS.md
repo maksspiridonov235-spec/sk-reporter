@@ -17,7 +17,8 @@
 | Путь | Назначение |
 |------|------------|
 | `webapp/` | FastAPI + UI |
-| `sk_reporter/` | docx, компании, агенты (`check_agent`, `inject_agent`, `ocr_agent`, **`leader_ai_agent`**) |
+| `sk_reporter/` | docx, компании, агенты Ollama (`check_agent`, `inject_agent`, `ocr_agent`) |
+| `sk_reporter/leader_switch.py` | блок 2: смена руководителя в отчётах (rule-based, без Ollama) |
 | `data/templates/` | Болванки `{Компания}.docx` |
 | temp `sk_reports_work/uploads/` | Загруженные и исправленные отчёты (рабочие; не в репо) |
 | `launcher/SK-Reporter.bat` | Запуск сервера на офисном ПК |

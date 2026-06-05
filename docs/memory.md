@@ -61,7 +61,8 @@
 | UI | `webapp/templates/index.html`, `webapp/static/app.js` → `switchLeader()` (SSE) |
 | API | `webapp/main.py` → `POST /switch-leader/stream/{leader}` |
 | Логика | `sk_reporter/leader_switch.py` (+ `template_layout._main_table_indices`) |
-| Устарело | `sk_reporter/agent/leader_ai_agent.py` — не в hot path UI |
+
+**2026-06-05:** удалён `sk_reporter/agent/leader_ai_agent.py` (Ollama) — заменён `leader_switch.py`.
 
 ---
 
@@ -81,6 +82,9 @@
 - **Готовые сводные**: temp `…/sk_reports_work/results/`
 - Папки `output/` / `sk_reporter/output/` в репо удалены (2026-06-04)
 - После `git pull` на офисном ПК — **перезапустить** `launcher/SK-Reporter.bat`
+
+### 2026-06-05 — блок 2 без AI-агента
+- Удалён `sk_reporter/agent/leader_ai_agent.py`; смена руководителя только через `leader_switch.py`
 
 ### 2026-06-04 — inject «Описание действий»
 - Текст от check_agent вставляется в **ячейку-заголовок** «Описание действий»
