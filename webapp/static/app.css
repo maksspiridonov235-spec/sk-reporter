@@ -448,6 +448,11 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 }
 .detail-block.open { display: block; }
 .detail-block.log-timeline { padding: 8px 10px; }
+.agent-live-log {
+  margin-top: 8px;
+  min-height: 44px;
+  max-height: min(36vh, 320px);
+}
 .detail-row {
   display: flex; align-items: baseline; gap: 6px;
   padding: 3px 0; border-bottom: 1px solid #f3f4f6;

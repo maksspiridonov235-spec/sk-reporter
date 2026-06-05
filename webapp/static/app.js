@@ -33,7 +33,8 @@ const OP_SUBTITLES = {
   'Дата в тексте болванок': 'Меняется текст внутри шаблонов; файлы на диске не переименовываются.',
   'Переименование готовых': 'Готовые сводные: новое имя на диске и дата в документе.',
   'Проверка отчётов': 'AI-проверка; правки в загрузку (temp) — сразу «Подготовить и сформировать». Скачать с именем _исправлен — панель «Исправленные».',
-  'Проверка и перепроверка': 'check_agent → verify_agent → inject; в карточках файла — текст после перепроверки.',
+  'Проверка отчётов (check)': 'Первый LLM-проход: check_agent.',
+  'Перепроверка (verify_agent)': 'Второй LLM-проход после check; отдельный лог и текст для inject.',
   'Сборка отчётов': 'Склейка по компаниям в папку результатов.',
 };
 
@@ -49,6 +50,25 @@ function collapseOtherOpCards(keepCard) {
   document.querySelectorAll('.op-card.summary-card').forEach(c => {
     if (c !== keepCard) c.classList.add('is-collapsed');
   });
+}
+
+function attachAgentLog(card) {
+  const body = card.querySelector('.op-card-body');
+  if (!body) return () => {};
+  const logEl = document.createElement('div');
+  logEl.className = 'detail-block log-timeline open agent-live-log';
+  body.appendChild(logEl);
+  return function appendAgentLogLine(d) {
+    const row = document.createElement('div');
+    row.className = 'detail-row file-row' + (d.indent ? ' indent' : '');
+    row.innerHTML = `
+      <span class="detail-icon">${d.icon || '·'}</span>
+      <span class="detail-name wrap" title="${escHtml(d.name)}">${escHtml(d.name)}</span>
+      ${d.badge ? `<span class="detail-badge ${d.badgeClass || ''}">${escHtml(d.badge)}</span>` : ''}
+    `;
+    logEl.appendChild(row);
+    logEl.scrollTop = logEl.scrollHeight;
+  };
 }
 
 function attachOpCardCollapse(card) {
@@ -373,14 +393,25 @@ async function startCheck() {
   const bar = document.getElementById('progressBar');
   bar.style.width = '10%';
 
-  const { card, statusId, progressId } = createOpCard('Проверка и перепроверка');
+  // verify ниже check: сначала создаём verify, затем check (новые карточки вставляются сверху)
+  const verifyOp = createOpCard('Перепроверка (verify_agent)');
+  const checkOp = createOpCard('Проверка отчётов (check)');
+  const appendVerifyLog = attachAgentLog(verifyOp.card);
+  const appendCheckLog = attachAgentLog(checkOp.card);
+
   let total = 0;
-  setCardProgress(statusId, progressId, 0, 0, 'Запускаю проверку…');
+  let processed = 0;
+  let verifyDone = 0;
+  setCardProgress(checkOp.statusId, checkOp.progressId, 0, 0, 'Запускаю check_agent…');
+  setCardProgress(verifyOp.statusId, verifyOp.progressId, 0, 0, 'Ожидание check_agent…');
+  appendVerifyLog({ icon: '○', name: 'Ожидание завершения проверки (check)…', badge: 'ожидание', badgeClass: 'db-warn' });
 
   const resp = await fetch('/check/descriptions/stream', { method: 'POST' });
   if (!resp.ok) {
-    setCardProgress(statusId, progressId, 0, 0, 'Ошибка запуска проверки', 'error');
-    finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], null, null, { errorState: true });
+    setCardProgress(checkOp.statusId, checkOp.progressId, 0, 0, 'Ошибка запуска проверки', 'error');
+    setCardProgress(verifyOp.statusId, verifyOp.progressId, 0, 0, 'Не запущено', 'error');
+    finalizeOpCard(checkOp.card, checkOp.statusId, [{ label: 'Ошибка', color: 'red' }], null, null, { errorState: true });
+    finalizeOpCard(verifyOp.card, verifyOp.statusId, [{ label: 'Не запущено', color: 'red' }], null, null, { errorState: true });
     btn.disabled = false;
     btn.textContent = 'Проверить и исправить';
     return;
@@ -389,8 +420,7 @@ async function startCheck() {
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
   let buf = '';
-  let processed = 0;
-  const collectedFileCards = [];
+  const verifyFileCards = [];
   const downloadMap = {};
 
   while (true) {
@@ -406,60 +436,110 @@ async function startCheck() {
 
       if (ev.type === 'start') {
         total = ev.total || 0;
-        setCardProgress(statusId, progressId, 0, total, ev.msg);
+        setCardProgress(checkOp.statusId, checkOp.progressId, 0, total, ev.msg);
+        appendCheckLog({ icon: '▶', name: ev.msg, badge: `${total} файл(ов)`, badgeClass: 'db-ok' });
         bar.style.width = total ? '12%' : '20%';
       } else if (ev.type === 'info') {
-        setCardProgress(statusId, progressId, processed, total, ev.msg);
-      } else if (ev.type === 'verify') {
-        setCardProgress(statusId, progressId, processed, total, ev.msg);
-        const fc = collectedFileCards.find(x => x.filename === ev.filename);
-        if (fc) {
-          if (ev.result?.report) fc.reportText = ev.result.report;
-          if (ev.hasErrors) fc.hasErrors = true;
-          fc.verified = !ev.fallback;
+        const phase = ev.phase || 'check';
+        if (phase === 'verify') {
+          setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyDone, total, ev.msg);
+          appendVerifyLog({ icon: '⟳', name: ev.msg, badge: 'LLM', badgeClass: 'db-warn' });
+        } else if (phase === 'inject') {
+          setCardProgress(checkOp.statusId, checkOp.progressId, processed, total, ev.msg);
+          appendCheckLog({ icon: '↳', name: ev.msg, badge: 'inject', badgeClass: 'db-ok' });
+        } else {
+          setCardProgress(checkOp.statusId, checkOp.progressId, processed, total, ev.msg);
+          appendCheckLog({ icon: '·', name: ev.msg });
         }
+      } else if (ev.type === 'verify_start') {
+        setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyDone, total, ev.msg);
+        appendVerifyLog({ icon: '⟳', name: ev.msg, badge: 'старт', badgeClass: 'db-warn' });
+      } else if (ev.type === 'verify') {
+        verifyDone++;
+        const pctBar = total ? Math.min(12 + (verifyDone / total) * 78, 90) : Math.min(20 + verifyDone * 30, 85);
+        bar.style.width = pctBar + '%';
+        setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyDone, total, ev.msg);
+        const badge = ev.fallback ? 'fallback check' : (ev.hasErrors ? 'замечания' : 'OK');
+        const badgeClass = ev.fallback ? 'db-warn' : (ev.hasErrors ? 'db-warn' : 'db-ok');
+        appendVerifyLog({
+          icon: ev.fallback ? '⚠' : (ev.hasErrors ? '⚠' : '✓'),
+          name: ev.msg,
+          badge,
+          badgeClass,
+        });
+        let fc = verifyFileCards.find(x => x.filename === ev.filename);
+        if (!fc) {
+          fc = { filename: ev.filename, hasErrors: ev.hasErrors, reportText: '', downloadUrl: null, fallback: ev.fallback };
+          verifyFileCards.push(fc);
+        }
+        if (ev.result?.report) fc.reportText = ev.result.report;
+        if (ev.hasErrors) fc.hasErrors = true;
+        fc.fallback = ev.fallback;
+        fc.downloadUrl = downloadMap[ev.filename] || null;
       } else if (ev.type === 'report') {
         processed++;
-        const pctBar = total ? Math.min(12 + (processed / total) * 78, 90) : Math.min(20 + processed * 30, 85);
+        const pctBar = total ? Math.min(8 + (processed / total) * 40, 48) : Math.min(12 + processed * 15, 40);
         bar.style.width = pctBar + '%';
         const shortMsg = ev.hasErrors
           ? `${ev.filename}: замечания по описаниям`
           : `${ev.filename}: без замечаний`;
-        setCardProgress(statusId, progressId, processed, total, shortMsg);
-        collectedFileCards.push({
-          filename: ev.filename,
-          hasErrors: ev.hasErrors,
-          reportText: ev.result?.report || '',
-          downloadUrl: null,
-          verified: false,
+        setCardProgress(checkOp.statusId, checkOp.progressId, processed, total, shortMsg);
+        appendCheckLog({
+          icon: ev.hasErrors ? '⚠' : '✓',
+          name: ev.msg || shortMsg,
+          badge: ev.hasErrors ? 'check: замечания' : 'check: OK',
+          badgeClass: ev.hasErrors ? 'db-warn' : 'db-ok',
         });
       } else if (ev.type === 'fixed') {
         addFixed(ev.filename, ev.download);
         downloadMap[ev.filename] = ev.download;
+        const vfc = verifyFileCards.find(x => x.filename === ev.filename);
+        if (vfc) vfc.downloadUrl = ev.download;
+        appendCheckLog({
+          icon: '✓',
+          name: ev.msg || `${ev.filename}: записан в загрузку`,
+          badge: 'inject OK',
+          badgeClass: 'db-ok',
+        });
       } else if (ev.type === 'done') {
         bar.style.width = '100%';
         const s = ev.summary || {};
-        const total = s.total || 0;
+        const totalN = s.total || 0;
         const errors = s.errors || 0;
         const promoted = s.promoted || 0;
-        const fileCardEls = collectedFileCards.map(fc =>
-          buildFileCardEl(fc.filename, fc.hasErrors, fc.reportText, downloadMap[fc.filename] || null)
+        const verified = s.verified || 0;
+        const verifyFallback = s.verify_fallback || 0;
+        const verifyIssues = s.verify_issues || 0;
+
+        const verifyFileCardEls = verifyFileCards.map(fc =>
+          buildFileCardEl(fc.filename, fc.hasErrors, fc.reportText, fc.downloadUrl || null)
         );
-        setCardProgress(statusId, progressId, total || processed, total || processed, 'Проверка и перепроверка завершены', 'done');
-        finalizeOpCard(card, statusId, [
-          { label: `Файлов: ${total}`, color: 'blue' },
-          { label: `Без замечаний: ${total - errors}`, color: 'green' },
-          ...(errors > 0 ? [{ label: `С замечаниями: ${errors}`, color: 'amber' }] : []),
-          ...(promoted > 0 ? [{ label: `В загрузке обновлено: ${promoted}`, color: 'green' }] : []),
-        ], null, fileCardEls, {
-          expandDetails: true,
-          detailLabel: 'Отчёты по файлам',
+
+        setCardProgress(checkOp.statusId, checkOp.progressId, totalN || processed, totalN || total, 'check_agent завершён', 'done');
+        finalizeOpCard(checkOp.card, checkOp.statusId, [
+          { label: `Файлов: ${totalN}`, color: 'blue' },
+          { label: `check OK: ${totalN - errors}`, color: 'green' },
+          ...(errors > 0 ? [{ label: `check замечания: ${errors}`, color: 'amber' }] : []),
+          ...(promoted > 0 ? [{ label: `inject в загрузку: ${promoted}`, color: 'green' }] : []),
+        ], null, null, { detailLabel: 'Лог check' });
+
+        setCardProgress(verifyOp.statusId, verifyOp.progressId, verifyDone || totalN, totalN || total, 'verify_agent завершён', 'done');
+        finalizeOpCard(verifyOp.card, verifyOp.statusId, [
+          { label: `Перепроверено: ${verified}`, color: 'green' },
+          ...(verifyIssues > 0 ? [{ label: `verify замечания: ${verifyIssues}`, color: 'amber' }] : []),
+          ...(verifyFallback > 0 ? [{ label: `fallback на check: ${verifyFallback}`, color: 'red' }] : []),
+          ...(verified === 0 && verifyFallback === 0 ? [{ label: 'Нет данных verify', color: 'red' }] : []),
+        ], null, verifyFileCardEls, {
+          expandDetails: verifyFileCardEls.length > 0,
+          detailLabel: 'Текст после verify_agent',
         });
+
         setTimeout(() => { bar.style.width = '0%'; }, 2000);
         btn.disabled = false;
         btn.textContent = 'Проверить и исправить';
       } else if (ev.type === 'error') {
-        setCardProgress(statusId, progressId, processed, total, ev.msg, 'error');
+        appendCheckLog({ icon: '✗', name: ev.msg, badge: 'ошибка', badgeClass: 'db-err' });
+        setCardProgress(checkOp.statusId, checkOp.progressId, processed, total, ev.msg, 'error');
       }
     }
   }

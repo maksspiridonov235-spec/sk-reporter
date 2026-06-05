@@ -177,10 +177,13 @@ async def check_descriptions_stream():
             return
         errors_count = 0
         promoted_count = 0
+        verify_ok_count = 0
+        verify_fallback_count = 0
+        verify_issues_count = 0
         for file_path in report_files:
             try:
                 filename = Path(file_path).name
-                yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: проверяю (check)…"})
+                yield _sse({"type": "info", "phase": "check", "filename": filename, "msg": f"{filename}: проверяю (check)…"})
                 await asyncio.sleep(0)
                 result = await asyncio.to_thread(check_report, str(file_path))
                 has_errors = not result.get("ok", False)
@@ -188,11 +191,22 @@ async def check_descriptions_stream():
                     errors_count += 1
                 yield _sse({"type": "report", "filename": filename, "msg": f"{filename}: check — " + ("⚠️ замечания" if has_errors else "✓ ОК"), "hasErrors": has_errors, "result": result})
                 await asyncio.sleep(0)
-                yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: перепроверяю (verify)…"})
+                yield _sse({
+                    "type": "verify_start",
+                    "filename": filename,
+                    "msg": f"{filename}: verify_agent запущен",
+                })
+                yield _sse({"type": "info", "phase": "verify", "filename": filename, "msg": f"{filename}: перепроверяю (verify)…"})
                 print(f"[CHECK_STREAM] перепроверяю: {filename}")
                 await asyncio.sleep(0)
                 verify_result = await asyncio.to_thread(verify_report, str(file_path), result)
                 verify_ok = verify_result.get("ok", False)
+                if verify_result.get("fallback"):
+                    verify_fallback_count += 1
+                else:
+                    verify_ok_count += 1
+                if not verify_ok:
+                    verify_issues_count += 1
                 yield _sse({
                     "type": "verify",
                     "filename": filename,
@@ -203,7 +217,7 @@ async def check_descriptions_stream():
                 })
                 corrected_text = verify_result.get("report") or result.get("report", "")
                 if corrected_text:
-                    yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: вставляю правки в текст документа…"})
+                    yield _sse({"type": "info", "phase": "inject", "filename": filename, "msg": f"{filename}: вставляю правки в текст документа…"})
                     inject_result = await asyncio.to_thread(
                         inject_into_docx, str(file_path), corrected_text, filename
                     )
@@ -227,6 +241,9 @@ async def check_descriptions_stream():
                 "total": len(report_files),
                 "errors": errors_count,
                 "promoted": promoted_count,
+                "verified": verify_ok_count,
+                "verify_fallback": verify_fallback_count,
+                "verify_issues": verify_issues_count,
             },
         })
 
