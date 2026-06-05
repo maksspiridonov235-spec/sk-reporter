@@ -38,6 +38,8 @@
 
 Цепочка: `check_agent` → `verify_agent` (второй LLM-проход, тот же формат ответа) → `inject_agent` → **запись в загрузку**. При сбое verify — в inject идёт текст check. Скачать `{имя}_исправлен.docx` — `/download/fixed/...`.
 
+В логах сервера: `[CHECK_AGENT]` → `[VERIFY_AGENT] перепроверяю:` → `[INJECT_AGENT]`. При старте — `[INFO] git: <hash>`. В UI/SSE: этапы `check` / `verify` / `inject`; в правой панели текст файла — после verify. После `git pull` на офисном ПК — **перезапуск** `SK-Reporter.bat`.
+
 | Слой | Файл |
 |------|------|
 | UI | `webapp/templates/index.html`, `webapp/static/app.js` (`startCheck`) |

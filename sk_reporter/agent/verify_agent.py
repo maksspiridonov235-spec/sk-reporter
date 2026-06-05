@@ -46,6 +46,7 @@ def verify_report(filepath: str, check_result: dict) -> dict:
     draft = (check_result or {}).get("report", "").strip()
 
     if not draft:
+        print(f"[VERIFY_AGENT] нет черновика check, пропуск: {filename}")
         return {
             "ok": False,
             "report": "",
@@ -53,6 +54,7 @@ def verify_report(filepath: str, check_result: dict) -> dict:
             "_source_file": filename,
         }
 
+    print(f"[VERIFY_AGENT] перепроверяю: {filename}")
     full_text = extract_full_text(filepath)
     sk_section = extract_sk_section(filepath)
 

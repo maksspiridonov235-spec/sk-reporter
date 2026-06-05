@@ -33,6 +33,7 @@ const OP_SUBTITLES = {
   'Дата в тексте болванок': 'Меняется текст внутри шаблонов; файлы на диске не переименовываются.',
   'Переименование готовых': 'Готовые сводные: новое имя на диске и дата в документе.',
   'Проверка отчётов': 'AI-проверка; правки в загрузку (temp) — сразу «Подготовить и сформировать». Скачать с именем _исправлен — панель «Исправленные».',
+  'Проверка и перепроверка': 'check_agent → verify_agent → inject; в карточках файла — текст после перепроверки.',
   'Сборка отчётов': 'Склейка по компаниям в папку результатов.',
 };
 
@@ -365,14 +366,14 @@ async function clearReports() {
 async function startCheck() {
   const btn = document.getElementById('btnCheck');
   btn.disabled = true;
-  btn.textContent = 'Проверяю...';
+  btn.textContent = 'Проверяю и перепроверяю…';
   document.getElementById('fixedFiles').innerHTML = '<div class="no-results">Пока нет</div>';
   fixedFiles = [];
 
   const bar = document.getElementById('progressBar');
   bar.style.width = '10%';
 
-  const { card, statusId, progressId } = createOpCard('Проверка отчётов');
+  const { card, statusId, progressId } = createOpCard('Проверка и перепроверка');
   let total = 0;
   setCardProgress(statusId, progressId, 0, 0, 'Запускаю проверку…');
 
@@ -409,6 +410,14 @@ async function startCheck() {
         bar.style.width = total ? '12%' : '20%';
       } else if (ev.type === 'info') {
         setCardProgress(statusId, progressId, processed, total, ev.msg);
+      } else if (ev.type === 'verify') {
+        setCardProgress(statusId, progressId, processed, total, ev.msg);
+        const fc = collectedFileCards.find(x => x.filename === ev.filename);
+        if (fc) {
+          if (ev.result?.report) fc.reportText = ev.result.report;
+          if (ev.hasErrors) fc.hasErrors = true;
+          fc.verified = !ev.fallback;
+        }
       } else if (ev.type === 'report') {
         processed++;
         const pctBar = total ? Math.min(12 + (processed / total) * 78, 90) : Math.min(20 + processed * 30, 85);
@@ -417,7 +426,13 @@ async function startCheck() {
           ? `${ev.filename}: замечания по описаниям`
           : `${ev.filename}: без замечаний`;
         setCardProgress(statusId, progressId, processed, total, shortMsg);
-        collectedFileCards.push({ filename: ev.filename, hasErrors: ev.hasErrors, reportText: ev.result?.report || '', downloadUrl: null });
+        collectedFileCards.push({
+          filename: ev.filename,
+          hasErrors: ev.hasErrors,
+          reportText: ev.result?.report || '',
+          downloadUrl: null,
+          verified: false,
+        });
       } else if (ev.type === 'fixed') {
         addFixed(ev.filename, ev.download);
         downloadMap[ev.filename] = ev.download;
@@ -430,7 +445,7 @@ async function startCheck() {
         const fileCardEls = collectedFileCards.map(fc =>
           buildFileCardEl(fc.filename, fc.hasErrors, fc.reportText, downloadMap[fc.filename] || null)
         );
-        setCardProgress(statusId, progressId, total || processed, total || processed, 'Проверка завершена', 'done');
+        setCardProgress(statusId, progressId, total || processed, total || processed, 'Проверка и перепроверка завершены', 'done');
         finalizeOpCard(card, statusId, [
           { label: `Файлов: ${total}`, color: 'blue' },
           { label: `Без замечаний: ${total - errors}`, color: 'green' },

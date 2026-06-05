@@ -1,7 +1,9 @@
+import asyncio
 import io
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 import zipfile
 from datetime import datetime
@@ -47,6 +49,16 @@ TEMPLATES_DIR = templates_dir()
 if not TEMPLATES_DIR.exists():
     raise RuntimeError(f"Папка с болванками не найдена: {TEMPLATES_DIR}")
 print(f"[INFO] Templates dir: {TEMPLATES_DIR} ({len(list(TEMPLATES_DIR.glob('*.docx')))} шаблонов)")
+try:
+    _git_head = subprocess.check_output(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=Path(__file__).resolve().parent.parent,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    ).strip()
+    print(f"[INFO] git: {_git_head}")
+except Exception:
+    pass
 
 
 @app.exception_handler(Exception)
@@ -157,7 +169,7 @@ async def check_descriptions_stream():
         report_files = sorted(UPLOAD_DIR.glob("*.docx"))
         yield _sse({
             "type": "start",
-            "msg": "Проверяю загруженные отчёты…",
+            "msg": "Проверка и перепроверка загруженных отчётов…",
             "total": len(report_files),
         })
         if not report_files:
@@ -168,18 +180,33 @@ async def check_descriptions_stream():
         for file_path in report_files:
             try:
                 filename = Path(file_path).name
-                yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: проверяю..."})
-                result = check_report(str(file_path))
+                yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: проверяю (check)…"})
+                await asyncio.sleep(0)
+                result = await asyncio.to_thread(check_report, str(file_path))
                 has_errors = not result.get("ok", False)
                 if has_errors:
                     errors_count += 1
-                yield _sse({"type": "report", "filename": filename, "msg": f"{filename}: " + ("⚠️ найдены проблемы" if has_errors else "✓ ОК"), "hasErrors": has_errors, "result": result})
-                yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: перепроверяю…"})
-                verify_result = verify_report(str(file_path), result)
+                yield _sse({"type": "report", "filename": filename, "msg": f"{filename}: check — " + ("⚠️ замечания" if has_errors else "✓ ОК"), "hasErrors": has_errors, "result": result})
+                await asyncio.sleep(0)
+                yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: перепроверяю (verify)…"})
+                print(f"[CHECK_STREAM] перепроверяю: {filename}")
+                await asyncio.sleep(0)
+                verify_result = await asyncio.to_thread(verify_report, str(file_path), result)
+                verify_ok = verify_result.get("ok", False)
+                yield _sse({
+                    "type": "verify",
+                    "filename": filename,
+                    "msg": f"{filename}: verify — " + ("⚠️ замечания" if not verify_ok else "✓ ОК") + (" (fallback check)" if verify_result.get("fallback") else ""),
+                    "hasErrors": not verify_ok,
+                    "fallback": verify_result.get("fallback", False),
+                    "result": verify_result,
+                })
                 corrected_text = verify_result.get("report") or result.get("report", "")
                 if corrected_text:
                     yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: вставляю правки в текст документа…"})
-                    inject_result = inject_into_docx(str(file_path), corrected_text, filename)
+                    inject_result = await asyncio.to_thread(
+                        inject_into_docx, str(file_path), corrected_text, filename
+                    )
                     if inject_result.get("ok"):
                         dl_name = inject_result.get("download_name") or _fixed_download_name(filename)
                         promoted_count += 1
