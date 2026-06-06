@@ -8,6 +8,10 @@
 
 **Дата:** 2026-06-06  
 
+**Новый блок:** «Отчёт инженера» — ВОР → таблица в UI → выдержки из ТК → **docx того же формата**, что ежедневный отчёт СК → `/daily`.
+
+**Структура данных (2026-06-06):** файлы из корня в `data/` — см. `data/README.md`. UI **`/engineer`**: таблица по ВОР, mapping → ТК, сборка docx. Профиль: `engineer/profiles/example.yaml`, env `SK_ENGINEER_PROFILE`. Шаблон отчёта: `data/engineer/report_template.docx` (тот же формат, что `/daily`). Текст ТК: macOS `textutil` или LibreOffice для `.doc`. Кэши: `python scripts/build_engineer_data.py --all`.
+
 **Цепочка проверки:** только `check_agent` → `inject_agent`. **Агента перепроверки (verify) не будет** — не планировать, не восстанавливать из git.
 
 **Сделано (2026-06-05, UI):** убран `build {{ git_head }}` из шапки (остался только в `?v=` для cache-bust); фавикон — синий шестиугольник `webapp/static/favicon.svg` (`#1a56a0`).

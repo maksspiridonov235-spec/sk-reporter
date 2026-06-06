@@ -24,4 +24,13 @@ Thumbs.db
 *.docx
 !data/templates/
 !data/templates/*.docx
+!data/projects/**/*.docx
 *_debug.json
+
+# Данные инженера (локально; в git — yaml/json/manifest)
+data/projects/**/*.pdf
+data/projects/**/*.doc
+data/tk/*.doc
+data/tk/*.DOC
+data/personnel/*.xlsx
+data/luvr/*.xlsx

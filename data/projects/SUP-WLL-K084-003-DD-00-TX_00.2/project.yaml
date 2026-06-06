@@ -1,0 +1,7 @@
+id: SUP-WLL-K084-003-DD-00-TX_00.2
+title: "SUP — замерной коллектор (пилот)"
+vor_docx: SUP-WLL-K084-003-DD-00-TX.ВР_v.1.docx
+vor_cache: vor.json
+work_tk_map: work_tk_map.yaml
+# Шаблон ежедневного отчёта — тот же формат, что загружают в SK-Reporter (/daily)
+report_template: null  # задаётся в engineer/profiles/*.yaml

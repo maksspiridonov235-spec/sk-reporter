@@ -648,3 +648,39 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
   margin-bottom: 6px;
 }
 .home-card-desc { display: block; font-size: 13px; color: #555; line-height: 1.45; }
+
+/* Отчёт инженера */
+.header-link {
+  color: #fff; text-decoration: none; font-size: 13px; opacity: .9;
+}
+.header-link:hover { opacity: 1; text-decoration: underline; }
+.header-meta { margin-left: auto; font-size: 13px; opacity: .85; }
+.engineer-layout { height: calc(100vh - 54px); }
+.engineer-main {
+  flex: 1; min-width: 0; display: flex; flex-direction: column;
+  padding: 16px 20px; overflow: hidden;
+}
+.engineer-toolbar {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+}
+.engineer-filter { max-width: 320px; }
+.engineer-table-wrap {
+  flex: 1; overflow: auto; background: #fff; border: 1px solid #ddd; border-radius: 8px;
+}
+.engineer-table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+}
+.engineer-table th, .engineer-table td {
+  border-bottom: 1px solid #eee; padding: 8px 10px; text-align: left; vertical-align: top;
+}
+.engineer-table th {
+  position: sticky; top: 0; background: #f8fafc; z-index: 1;
+  font-size: 11px; text-transform: uppercase; color: #666;
+}
+.engineer-table .cell-name { min-width: 220px; max-width: 360px; }
+.engineer-table .cell-object { max-width: 140px; color: #555; }
+.field-input--sm { padding: 4px 6px; font-size: 12px; min-width: 64px; }
+.hint-text { font-size: 12px; color: #888; }
+.warn-text { font-size: 12px; color: #b45309; }
+.error-text { color: #b91c1c; }
+.cell-tk { font-size: 11px; color: #1a56a0; white-space: nowrap; }

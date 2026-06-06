@@ -1,0 +1,10 @@
+id: SVA-WLL-K058-002-DD-00-AS_00.4
+title: "SVA — ВР4/5/6"
+# Основной ВОР пока только в .doc — нужна конвертация в docx для парсера
+vor_docx: null
+vor_doc:
+  - SVA-WLL-K058-002-DD-00-AS.ВР4_00.3.doc
+  - SVA-WLL-K058-002-DD-00-AS.ВР5_00.3.doc
+  - SVA-WLL-K058-002-DD-00-AS.ВР6_00.3.doc
+vor_cache: vor.json
+work_tk_map: work_tk_map.yaml

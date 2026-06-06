@@ -16,7 +16,7 @@ from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from sk_reporter.companies import COMPANIES
 from sk_reporter.docx_processing import (
@@ -38,7 +38,7 @@ except ImportError as e:
 
 _WEBAPP_DIR = Path(__file__).resolve().parent
 _HTML_TEMPLATES_DIR = _WEBAPP_DIR / "templates"
-_APP_UI_BUILD = "home+daily"
+_APP_UI_BUILD = "home+daily+engineer"
 
 
 def _read_git_head() -> str:
@@ -62,8 +62,9 @@ app.mount("/static", StaticFiles(directory=_WEBAPP_DIR / "static"), name="static
 WORK_DIR = Path(tempfile.gettempdir()) / "sk_reports_work"
 UPLOAD_DIR = WORK_DIR / "uploads"
 RESULT_DIR = WORK_DIR / "results"
+ENGINEER_OUT_DIR = WORK_DIR / "engineer_out"
 
-for d in (WORK_DIR, UPLOAD_DIR, RESULT_DIR):
+for d in (WORK_DIR, UPLOAD_DIR, RESULT_DIR, ENGINEER_OUT_DIR):
     d.mkdir(exist_ok=True)
 
 TEMPLATES_DIR = templates_dir()
@@ -71,7 +72,7 @@ if not TEMPLATES_DIR.exists():
     raise RuntimeError(f"Папка с болванками не найдена: {TEMPLATES_DIR}")
 print(f"[INFO] Templates dir: {TEMPLATES_DIR} ({len(list(TEMPLATES_DIR.glob('*.docx')))} шаблонов)")
 
-for _tpl in ("home.html", "daily.html"):
+for _tpl in ("home.html", "daily.html", "engineer.html"):
     _tpl_path = _HTML_TEMPLATES_DIR / _tpl
     if not _tpl_path.is_file():
         raise RuntimeError(f"HTML-шаблон не найден: {_tpl_path} — выполните git pull и перезапустите сервер")
@@ -155,16 +156,19 @@ async def health():
     main_py = Path(__file__).resolve()
     main_mtime = main_py.stat().st_mtime
     has_daily = any(getattr(r, "path", None) == "/daily" for r in app.routes)
+    has_engineer = any(getattr(r, "path", None) == "/engineer" for r in app.routes)
     stale = (
         disk_git != _git_head
         or main_mtime > _PROCESS_START_TS
         or not has_daily
+        or not has_engineer
     )
     return {
         "ok": not stale,
         "stale_process": stale,
         "app_ui_build": _APP_UI_BUILD,
         "has_daily_route": has_daily,
+        "has_engineer_route": has_engineer,
         "pid": os.getpid(),
         "git_head_at_startup": _git_head,
         "git_head_on_disk": disk_git,
@@ -186,6 +190,125 @@ async def home(request: Request):
 async def daily_reports(request: Request):
     print(f"[REQ] GET /daily pid={os.getpid()} -> daily.html")
     return templates.TemplateResponse("daily.html", _page_context(request))
+
+
+@app.get("/engineer", response_class=HTMLResponse)
+async def engineer_page(request: Request):
+    print(f"[REQ] GET /engineer pid={os.getpid()} -> engineer.html")
+    return templates.TemplateResponse("engineer.html", _page_context(request))
+
+
+class EngineerEntry(BaseModel):
+    model_config = {"populate_by_name": True}
+
+    key: str
+    name: str
+    unit: str = ""
+    project_qty: str = ""
+    daily_qty: str = ""
+    cumulative_qty: str = ""
+    location: str = ""
+    reference: str = ""
+    stage: str = ""
+    object_title: str = Field(default="", alias="object")
+
+
+class EngineerBuildRequest(BaseModel):
+    project_id: str
+    report_date: str
+    entries: list[EngineerEntry]
+
+
+@app.get("/api/engineer/config")
+async def engineer_config():
+    from sk_reporter.engineer.profile import load_profile, resolve_report_template
+    from sk_reporter.engineer.vor_data import list_profile_projects
+
+    try:
+        profile = load_profile()
+    except (ValueError, FileNotFoundError) as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    tpl = resolve_report_template(profile)
+    return {
+        "profile": {
+            "id": profile.get("id"),
+            "name": profile.get("name"),
+            "position": profile.get("position"),
+        },
+        "projects": list_profile_projects(profile),
+        "template_ok": tpl is not None,
+        "template_path": str(tpl) if tpl else None,
+    }
+
+
+@app.post("/api/engineer/build")
+async def engineer_build(body: EngineerBuildRequest):
+    from datetime import date as date_cls
+
+    from sk_reporter.engineer.profile import load_profile, resolve_report_template
+    from sk_reporter.engineer.report_builder import ReportEntry, build_report_docx
+
+    if not body.entries:
+        raise HTTPException(status_code=400, detail="Не выбраны работы")
+
+    try:
+        profile = load_profile()
+    except (ValueError, FileNotFoundError) as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    tpl = resolve_report_template(profile)
+    if tpl is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Шаблон отчёта не найден — задайте report_template в профиле инженера",
+        )
+
+    if body.project_id not in (profile.get("projects") or []):
+        raise HTTPException(status_code=400, detail="Проект не входит в профиль")
+
+    try:
+        report_day = date_cls.fromisoformat(body.report_date)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="Неверная дата") from e
+
+    entries = [
+        ReportEntry(
+            name=e.name,
+            unit=e.unit,
+            project_qty=e.project_qty,
+            daily_qty=e.daily_qty,
+            cumulative_qty=e.cumulative_qty,
+            location=e.location,
+            reference=e.reference,
+            stage=e.stage,
+            object_title=e.object,
+        )
+        for e in body.entries
+    ]
+
+    safe_date = body.report_date.replace("-", "")
+    out_name = f"отчёт_{body.project_id}_{safe_date}.docx"
+    out_path = ENGINEER_OUT_DIR / out_name
+
+    try:
+        await asyncio.to_thread(
+            build_report_docx,
+            tpl,
+            out_path,
+            entries,
+            body.project_id,
+            report_day,
+        )
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+    return FileResponse(
+        out_path,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        filename=out_name,
+    )
 
 
 @app.post("/upload/reports")

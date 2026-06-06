@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Отчёт инженера — SK-Reporter</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
+  <link rel="stylesheet" href="/static/app.css?v={{ git_head }}"/>
+</head>
+<body>
+<header>
+  <a class="header-link" href="/">← SK-Reporter</a>
+  <span class="title">Отчёт инженера</span>
+  <span id="profileName" class="header-meta"></span>
+</header>
+
+<div class="layout engineer-layout">
+  <aside class="sidebar-shell">
+    <div class="sidebar-track">
+      <div class="sidebar">
+        <div class="section-title">Параметры</div>
+        <label class="field-label" for="projectSelect">Проект</label>
+        <select id="projectSelect" class="field-input"></select>
+        <label class="field-label" for="reportDate">Дата отчёта</label>
+        <input type="date" id="reportDate" class="field-input"/>
+        <button type="button" id="buildBtn" class="btn btn-primary" disabled>Сформировать docx</button>
+        <p id="statusMsg" class="hint-text"></p>
+        <p id="templateWarn" class="warn-text" hidden></p>
+      </div>
+    </div>
+  </aside>
+
+  <main class="engineer-main">
+    <div class="engineer-toolbar">
+      <input type="search" id="workFilter" class="field-input engineer-filter" placeholder="Поиск по работам…"/>
+      <span id="workStats" class="hint-text"></span>
+    </div>
+    <div class="engineer-table-wrap">
+      <table class="engineer-table" id="worksTable">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAll" title="Выбрать все"/></th>
+            <th>Объект</th>
+            <th>Вид работ</th>
+            <th>Ед.</th>
+            <th>Проект</th>
+            <th>За сутки</th>
+            <th>Накоп.</th>
+            <th>Участок, ПК</th>
+            <th>Ссылка</th>
+            <th>ТК</th>
+          </tr>
+        </thead>
+        <tbody id="worksBody"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<script src="/static/engineer.js?v={{ git_head }}"></script>
+</body>
+</html>

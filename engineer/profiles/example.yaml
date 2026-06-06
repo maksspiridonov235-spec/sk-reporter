@@ -1,0 +1,8 @@
+id: example
+name: "Иванов И.И."
+position: "Инженер строительного контроля"
+phone: "+7 ..."
+projects:
+  - SUP-WLL-K084-003-DD-00-TX_00.2
+# docx-образец ежедневного отчёта (формат как у загрузки в SK-Reporter)
+report_template: data/engineer/report_template.docx
