@@ -170,3 +170,4 @@ curl http://127.0.0.1:8000/diagnose/reports
 | `getaddrinfo failed` / `No matching distribution found` | **Нет интернета до PyPI** (DNS). Проверьте `ping pypi.org`. Без VPN интернет может пропасть — включите VPN офиса + `SK_REPORTER_PIP_TRUSTED=1` |
 | `Permission denied` на `venv\Scripts\python.exe` | venv занят. Закройте SK-Reporter.bat и все `(venv)` терминалы, `deactivate`, удалите `venv`, setup снова |
 | После `git pull` старый UI или нет `/daily` | `git pull` + перезапуск uvicorn (Ctrl+C → снова run). Проверка: `/health` → `templates_on_disk`: `daily.html`, `home.html`; `has_daily_route`: true |
+| `No module named 'openpyxl'` на `/api/planning/luvr` или в Планировании | Код обновился, **venv — нет**. Закрыть bat → в PowerShell: `.\venv\Scripts\Activate.ps1` → `pip install -e .` (при SSL: `$env:SK_REPORTER_PIP_TRUSTED="1"`). Или перезапустить обновлённый `launcher\SK-Reporter.bat` — он сам доустановит openpyxl |
