@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ЛУВР — SK-Reporter</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
+  <link rel="stylesheet" href="/static/app.css?v={{ git_head }}"/>
+</head>
+<body>
+<header>
+  <a class="header-link" href="/">← SK-Reporter</a>
+  <span class="title">ЛУВР</span>
+</header>
+
+<div class="planning-shell">
+  <p class="planning-hint">Лист учёта времени — файлы в <code>data/luvr/</code>.</p>
+  <div id="luvrList"></div>
+</div>
+
+<script src="/static/luvr.js?v={{ git_head }}"></script>
+</body>
+</html>

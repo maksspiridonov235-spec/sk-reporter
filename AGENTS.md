@@ -16,13 +16,14 @@
 
 | Путь | Назначение |
 |------|------------|
-| `webapp/` | FastAPI + UI |
+| `webapp/` | FastAPI + UI (`/`, `/planning`, `/engineer`, `/daily`; bat инженера — сразу `/engineer`) |
 | `sk_reporter/` | docx, компании, агенты Ollama (`check_agent`, `inject_agent`, `ocr_agent`) |
 | `sk_reporter/leader_switch.py` | блок 2: смена руководителя в отчётах (rule-based, без Ollama) |
 | `data/templates/` | Болванки `{Компания}.docx` |
-| `data/projects/`, `data/tk/`, `data/personnel/` | ВОР, ТК, справочник — блок инженера |
-| `engineer/profiles/`, `engineer/launchers/` | Профили и bat для инженеров |
-| `sk_reporter/engineer/` | Парсер ВОР, каталог ТК |
+| `data/projects/`, `data/tk/`, `data/personnel/`, `data/luvr/` | Данные планирования и инженера |
+| `engineer/profiles/`, `engineer/launchers/` | Профили и bat для инженеров (отдельный вход `/engineer`) |
+| `sk_reporter/planning_data.py` | API списков для `/planning` |
+| `sk_reporter/engineer/` | Парсер ВОР, каталог ТК, сборка отчёта инженера |
 | temp `sk_reports_work/uploads/` | Загруженные и исправленные отчёты (рабочие; не в репо) |
 | `launcher/SK-Reporter.bat` | Запуск сервера на офисном ПК |
 

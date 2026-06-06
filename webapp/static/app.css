@@ -684,3 +684,35 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 .warn-text { font-size: 12px; color: #b45309; }
 .error-text { color: #b91c1c; }
 .cell-tk { font-size: 11px; color: #1a56a0; white-space: nowrap; }
+
+/* Планирование */
+.planning-shell { padding: 20px 24px 32px; max-width: 960px; margin: 0 auto; }
+.planning-tabs {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;
+}
+.planning-tab {
+  border: 1px solid #cbd5e1; background: #fff; color: #334155;
+  padding: 8px 16px; border-radius: 999px; font-size: 13px; cursor: pointer;
+}
+.planning-tab.is-active {
+  background: #1a56a0; border-color: #1a56a0; color: #fff;
+}
+.planning-hint { font-size: 13px; color: #666; margin-bottom: 16px; }
+.planning-hint code { font-size: 12px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+.planning-cards { display: flex; flex-direction: column; gap: 16px; }
+.planning-card {
+  background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px 18px;
+}
+.planning-card h3 { font-size: 16px; color: #1a56a0; margin-bottom: 8px; }
+.planning-meta { font-size: 12px; color: #666; margin-bottom: 12px; }
+.planning-badge {
+  font-size: 10px; font-weight: normal; background: #dcfce7; color: #166534;
+  padding: 2px 8px; border-radius: 999px; vertical-align: middle;
+}
+.planning-table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+}
+.planning-table th, .planning-table td {
+  border-bottom: 1px solid #eee; padding: 6px 8px; text-align: left;
+}
+.planning-table th { color: #888; font-size: 11px; text-transform: uppercase; }
