@@ -69,16 +69,21 @@ def main() -> None:
     parser.add_argument("--personnel", action="store_true", help="Export personnel.yaml")
     parser.add_argument("--tk", action="store_true", help="Write data/tk/manifest.yaml")
     parser.add_argument("--vor", action="store_true", help="Parse VOR docx → vor.json")
+    parser.add_argument("--luvr", action="store_true", help="Export luvr.yaml from xlsx")
     parser.add_argument("--all", action="store_true", help="All of the above")
     parser.add_argument("--project", action="append", dest="projects", help="Project id filter")
     args = parser.parse_args()
 
-    if args.all or not any((args.personnel, args.tk, args.vor)):
-        args.personnel = args.tk = args.vor = True
+    if args.all or not any((args.personnel, args.tk, args.vor, args.luvr)):
+        args.personnel = args.tk = args.vor = args.luvr = True
 
     results: dict[str, str] = {}
     if args.personnel:
         results["personnel"] = str(export_personnel())
+    if args.luvr:
+        from sk_reporter.luvr_store import export_luvr
+
+        results["luvr"] = str(export_luvr())
     if args.tk:
         results["tk_manifest"] = str(write_manifest())
     if args.vor:

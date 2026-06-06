@@ -7,9 +7,10 @@ from typing import Any
 
 import yaml
 
+from sk_reporter.luvr_store import luvr_planning_payload
 from sk_reporter.personnel_store import is_engineer, list_engineers, load_people
 from sk_reporter.project_store import engineer_project_map, get_project, list_projects_rich, set_project_engineers
-from sk_reporter.paths import luvr_dir, personnel_dir, repo_root, tk_dir
+from sk_reporter.paths import personnel_dir, repo_root, tk_dir
 
 _SECTIONS = frozenset({"projects", "luvr", "personnel", "otkk"})
 
@@ -54,11 +55,7 @@ def projects_planning_payload() -> dict[str, Any]:
 
 
 def list_luvr() -> dict[str, Any]:
-    folder = luvr_dir()
-    return {
-        "folder": str(folder.relative_to(repo_root())),
-        "files": _list_files(folder),
-    }
+    return luvr_planning_payload()
 
 
 def list_personnel() -> dict[str, Any]:

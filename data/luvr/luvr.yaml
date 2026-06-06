@@ -1,0 +1,2802 @@
+source: ЛУВР.xlsx
+source_kb: 324.0
+contract: '25.0008'
+months:
+- sheet: Январь
+  year: 2026
+  month: 1
+  title: Лист учета  времени посещения объектов специалистами НТН ООО «Техресурс»
+    . на объектах ООО «Салым Петролеум Девелопмент» и в интересах ООО «Салым Петролеум
+    Девелопмент»  по договору № MOS.25.0008  от 01.07.2025 года.
+  people_count: 49
+  days_in_sheet: 31
+  people:
+  - num: 1
+    fio: Манджиев Игорь Александрович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 18
+    days_half: 1
+    days_marked: 19
+  - num: 2
+    fio: Аюпов Альберт Рималович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 28
+    days_half: 0
+    days_marked: 29
+  - num: 3
+    fio: Расаев Артур Тимерьянович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 9
+    days_half: 1
+    days_marked: 11
+  - num: 4
+    fio: Симонов Александр Алексеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 19
+    days_half: 1
+    days_marked: 21
+  - num: 5
+    fio: Громов Виктор Борисович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 6
+    days_half: 0
+    days_marked: 7
+  - num: 6
+    fio: Лебедев Михаил Игоревич
+    position: Инженер СК
+    nrs: С-65-274304
+    specialty: ОС/СТ
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 7
+    fio: Ишутин Станислав Николавеич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 23
+    days_half: 1
+    days_marked: 25
+  - num: 8
+    fio: Пряхин Илья Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 10
+    days_half: 1
+    days_marked: 12
+  - num: 9
+    fio: Никишин Олег Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 17
+    days_half: 1
+    days_marked: 19
+  - num: 10
+    fio: Бородин Вадим Леонидович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 26
+    days_half: 0
+    days_marked: 27
+  - num: 11
+    fio: Шешуков Сергей Анатольевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 10
+    days_half: 1
+    days_marked: 12
+  - num: 12
+    fio: Сивокозов Юрий Валентинович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 13
+    fio: Кетских Игорь Валерьевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ОС
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 14
+    fio: Нафиков Айдар Фанилович
+    position: Инженер СК
+    nrs: С-02--036796
+    specialty: ОС
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 15
+    fio: Трофимов Сергей Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 19
+    days_half: 0
+    days_marked: 20
+  - num: 16
+    fio: Чебарев Игорь Витальевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ЭМР
+    days_present: 15
+    days_half: 0
+    days_marked: 16
+  - num: 17
+    fio: Бирюков Алексей Анатольевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ЭМР
+    days_present: 5
+    days_half: 0
+    days_marked: 6
+  - num: 18
+    fio: Поспелов Андрей Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ЭМР
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 19
+    fio: Степанников Андрей Викторович
+    position: Инженер СК
+    nrs: С-86-160666
+    specialty: ЭМР
+    days_present: 26
+    days_half: 1
+    days_marked: 28
+  - num: 20
+    fio: Гугнин Александр Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ЭМР
+    days_present: 26
+    days_half: 0
+    days_marked: 27
+  - num: 21
+    fio: Джево Сергей Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПИЛ
+    days_present: 14
+    days_half: 1
+    days_marked: 16
+  - num: 22
+    fio: Дунаев Александр Михайлович
+    position: инженер СК
+    nrs: нет
+    specialty: ПИЛ
+    days_present: 21
+    days_half: 0
+    days_marked: 23
+  - num: 23
+    fio: Глущенко Сергей Игоревич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 15
+    days_half: 0
+    days_marked: 16
+  - num: 24
+    fio: Исаев Абрахам Вахаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 6
+    days_half: 1
+    days_marked: 8
+  - num: 25
+    fio: Канащук Игорь Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 16
+    days_half: 1
+    days_marked: 18
+  - num: 26
+    fio: Куринный Николай Алексеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 27
+    fio: Княжин Антон Андреевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 12
+    days_half: 1
+    days_marked: 14
+  - num: 28
+    fio: Бадаев Валентин Борисович
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 29
+    fio: Шиляев Юрий Андреевич
+    position: ''
+    nrs: ''
+    specialty: ГЯ
+    days_present: 8
+    days_half: 0
+    days_marked: 9
+  - num: 30
+    fio: Добрыгин Андрей Аркадьевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ГЯ
+    days_present: 20
+    days_half: 0
+    days_marked: 21
+  - num: 31
+    fio: Носков Дмитрий Сергеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 13
+    days_half: 1
+    days_marked: 15
+  - num: 32
+    fio: Конихин Александр Станиславович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 16
+    days_half: 1
+    days_marked: 18
+  - num: 33
+    fio: Спиридонов Максим Олегович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 13
+    days_half: 2
+    days_marked: 16
+  - num: 34
+    fio: Ломоносов Евгений Олегович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 35
+    fio: Каньшин Егор Викторович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 36
+    fio: Аминев Данил Зайнуллович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 29
+    days_half: 0
+    days_marked: 30
+  - num: 37
+    fio: Новоселов Михаил Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 5
+    days_half: 0
+    days_marked: 6
+  - num: 38
+    fio: Слышкин Дмитрий Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 26
+    days_half: 0
+    days_marked: 27
+  - num: 39
+    fio: Петров Алексей Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 17
+    days_half: 1
+    days_marked: 18
+  - num: 40
+    fio: Шнайдер Елена Александровна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 10
+    days_half: 0
+    days_marked: 10
+  - num: 41
+    fio: Созонова Наталья Михайловна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 42
+    fio: Федотов Евгений Эдуардович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 43
+    fio: Александров Юрий Георгиевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 44
+    fio: Глазунова Елена Александровна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 45
+    fio: Мингалева Ольга Николаевна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 46
+    fio: Бородин Сергей Иванович
+    position: Инженер СК
+    nrs: нет
+    specialty: ИЗ
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 47
+    fio: Очкасов Юрий Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ИЗ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 48
+    fio: Манджиев Игорь Александрович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 12
+    days_half: 1
+    days_marked: 13
+  - num: 49
+    fio: Аниськов Владимир Иванович
+    position: Вед.инженер СК Руководитель СК
+    nrs: С-56-216-377
+    specialty: ОС/СТ
+    days_present: 18
+    days_half: 1
+    days_marked: 20
+- sheet: Февраль
+  year: 2026
+  month: 2
+  title: Лист учета  времени посещения объектов специалистами НТН ООО «Техресурс»
+    . на объектах ООО «Салым Петролеум Девелопмент» и в интересах ООО «Салым Петролеум
+    Девелопмент»  по договору № MOS.25.0008  от 01.07.2025 года.
+  people_count: 51
+  days_in_sheet: 28
+  people:
+  - num: 1
+    fio: Манджиев Игорь Александрович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 2
+    days_half: 2
+    days_marked: 6
+  - num: 2
+    fio: Аюпов Альберт Рималович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 25
+    days_half: 0
+    days_marked: 26
+  - num: 3
+    fio: Расаев Артур Тимерьянович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 28
+    days_half: 0
+    days_marked: 28
+  - num: 4
+    fio: Симонов Александр Алексеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 22
+    days_half: 0
+    days_marked: 23
+  - num: 5
+    fio: Громов Виктор Борисович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 28
+    days_half: 0
+    days_marked: 28
+  - num: 6
+    fio: Лебедев Михаил Игоревич
+    position: Инженер СК
+    nrs: С-65-274304
+    specialty: ОС/СТ
+    days_present: 14
+    days_half: 0
+    days_marked: 15
+  - num: 7
+    fio: Ишутин Станислав Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 15
+    days_half: 0
+    days_marked: 16
+  - num: 8
+    fio: Пряхин Илья Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 28
+    days_half: 0
+    days_marked: 28
+  - num: 9
+    fio: Никишин Олег Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 26
+    days_half: 0
+    days_marked: 27
+  - num: 10
+    fio: Бородин Вадим Леонидович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 11
+    fio: Шешуков Сергей Анатольевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 17
+    days_half: 0
+    days_marked: 18
+  - num: 12
+    fio: Сивокозов Юрий Валентинович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 13
+    fio: Кетских Игорь Валерьевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ОС
+    days_present: 23
+    days_half: 1
+    days_marked: 25
+  - num: 14
+    fio: Тимофеев Андрей Николаевич
+    position: Инженер СК
+    nrs: С-63-311591
+    specialty: ОС
+    days_present: 17
+    days_half: 1
+    days_marked: 19
+  - num: 15
+    fio: Сапельников Павел Сергеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 15
+    days_half: 1
+    days_marked: 17
+  - num: 16
+    fio: Нафиков Айдар Фанилович
+    position: Инженер СК
+    nrs: С-02--036796
+    specialty: ОС
+    days_present: 7
+    days_half: 0
+    days_marked: 8
+  - num: 17
+    fio: Трофимов Сергей Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 22
+    days_half: 1
+    days_marked: 24
+  - num: 18
+    fio: Чебарев Игорь Витальевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ЭМР
+    days_present: 28
+    days_half: 0
+    days_marked: 28
+  - num: 19
+    fio: Бирюков Алексей Анатольевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ЭМР
+    days_present: 28
+    days_half: 0
+    days_marked: 28
+  - num: 20
+    fio: Поспелов Андрей Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ЭМР
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 21
+    fio: Степанников Андрей Викторович
+    position: Инженер СК
+    nrs: С-86-160666
+    specialty: ЭМР
+    days_present: 9
+    days_half: 0
+    days_marked: 10
+  - num: 22
+    fio: Гугнин Александр Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ЭМР
+    days_present: 17
+    days_half: 0
+    days_marked: 18
+  - num: 23
+    fio: Джево Сергей Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПИЛ
+    days_present: 28
+    days_half: 0
+    days_marked: 28
+  - num: 24
+    fio: Дунаев Александр Михайлович
+    position: инженер СК
+    nrs: нет
+    specialty: ПИЛ
+    days_present: 28
+    days_half: 0
+    days_marked: 28
+  - num: 25
+    fio: Глущенко Сергей Игоревич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 23
+    days_half: 0
+    days_marked: 24
+  - num: 26
+    fio: Исаев Абрахам Вахаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 26
+    days_half: 0
+    days_marked: 27
+  - num: 27
+    fio: Канащук Игорь Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 28
+    days_half: 0
+    days_marked: 28
+  - num: 28
+    fio: Куринный Николай Алексеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 13
+    days_half: 2
+    days_marked: 17
+  - num: 29
+    fio: Княжин Антон Андреевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 19
+    days_half: 1
+    days_marked: 21
+  - num: 30
+    fio: Бадаев Валентин Борисович
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 28
+    days_half: 0
+    days_marked: 28
+  - num: 31
+    fio: Шиляев Юрий Андреевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 28
+    days_half: 0
+    days_marked: 28
+  - num: 32
+    fio: Добрыгин Андрей Аркадьевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ГЯ
+    days_present: 0
+    days_half: 0
+    days_marked: 1
+  - num: 33
+    fio: Носков Дмитрий Сергеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 19
+    days_half: 1
+    days_marked: 21
+  - num: 34
+    fio: Конихин Александр Станиславович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 27
+    days_half: 0
+    days_marked: 28
+  - num: 35
+    fio: Спиридонов Максим Олегович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 26
+    days_half: 1
+    days_marked: 28
+  - num: 36
+    fio: Ломоносов Евгений Олегович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 10
+    days_half: 0
+    days_marked: 12
+  - num: 37
+    fio: Каньшин Егор Викторович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 17
+    days_half: 0
+    days_marked: 19
+  - num: 38
+    fio: Аминев Данил Зайнуллович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 14
+    days_half: 1
+    days_marked: 16
+  - num: 39
+    fio: Новоселов Михаил Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 28
+    days_half: 0
+    days_marked: 28
+  - num: 40
+    fio: Слышкин Дмитрий Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 12
+    days_half: 0
+    days_marked: 13
+  - num: 41
+    fio: Петров Алексей Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 18
+    days_half: 1
+    days_marked: 20
+  - num: 42
+    fio: Шнайдер Елена Александровна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 19
+    days_half: 0
+    days_marked: 19
+  - num: 43
+    fio: Созонова Наталья Михайловна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 19
+    days_half: 0
+    days_marked: 19
+  - num: 44
+    fio: Федотов Евгений Эдуардович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 19
+    days_half: 0
+    days_marked: 19
+  - num: 45
+    fio: Александров Юрий Георгиевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 19
+    days_half: 0
+    days_marked: 19
+  - num: 46
+    fio: Глазунова Елена Александровна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 19
+    days_half: 0
+    days_marked: 19
+  - num: 47
+    fio: Мингалева Ольга Николаевна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 19
+    days_half: 0
+    days_marked: 19
+  - num: 48
+    fio: Бородин Сергей Иванович
+    position: Инженер СК
+    nrs: нет
+    specialty: ИЗ
+    days_present: 17
+    days_half: 0
+    days_marked: 18
+  - num: 49
+    fio: Очкасов Юрий Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ИЗ
+    days_present: 11
+    days_half: 1
+    days_marked: 13
+  - num: 50
+    fio: Манджиев Игорь Александрович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 1
+    days_half: 0
+    days_marked: 1
+  - num: 51
+    fio: Аниськов Владимир Иванович
+    position: Вед.инженер СК Руководитель СК
+    nrs: С-56-216-377
+    specialty: ОС/СТ
+    days_present: 27
+    days_half: 0
+    days_marked: 28
+- sheet: Март
+  year: 2026
+  month: 3
+  title: Лист учета  времени посещения объектов специалистами НТН ООО «Техресурс»
+    . на объектах ООО «Салым Петролеум Девелопмент» и в интересах ООО «Салым Петролеум
+    Девелопмент»  по договору № MOS.25.0008  от 01.07.2025 года.
+  people_count: 57
+  days_in_sheet: 31
+  people:
+  - num: 1
+    fio: Манджиев Игорь Александрович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 14
+    days_half: 1
+    days_marked: 15
+  - num: 2
+    fio: Аюпов Альберт Рималович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 20
+    days_half: 0
+    days_marked: 21
+  - num: 3
+    fio: Расаев Артур Тимерьянович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 9
+    days_half: 0
+    days_marked: 10
+  - num: 4
+    fio: Симонов Александр Алексеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 29
+    days_half: 1
+    days_marked: 31
+  - num: 5
+    fio: Громов Виктор Борисович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 24
+    days_half: 0
+    days_marked: 25
+  - num: 6
+    fio: Лебедев Михаил Игоревич
+    position: Инженер СК
+    nrs: С-65-274304
+    specialty: ОС/СТ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 7
+    fio: Ишутин Станислав Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 16
+    days_half: 0
+    days_marked: 17
+  - num: 8
+    fio: Пряхин Илья Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 9
+    days_half: 1
+    days_marked: 12
+  - num: 9
+    fio: Шемелин Игорь Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 19
+    days_half: 1
+    days_marked: 21
+  - num: 9
+    fio: Каримов Ильдар Робертович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 19
+    days_half: 0
+    days_marked: 20
+  - num: 11
+    fio: Никишин Олег Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 11
+    days_half: 0
+    days_marked: 12
+  - num: 12
+    fio: Бородин Вадим Леонидович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 18
+    days_half: 1
+    days_marked: 20
+  - num: 13
+    fio: Шешуков Сергей Анатольевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 16
+    days_half: 1
+    days_marked: 18
+  - num: 14
+    fio: Сивокозов Юрий Валентинович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 15
+    fio: Кетских Игорь Валерьевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ОС
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 16
+    fio: Тимофеев Андрей Николаевич
+    position: Инженер СК
+    nrs: С-63-311591
+    specialty: ОС
+    days_present: 22
+    days_half: 0
+    days_marked: 23
+  - num: 17
+    fio: Сапельников Павел Сергеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 18
+    fio: Нафиков Айдар Фанилович
+    position: Инженер СК
+    nrs: С-02--036796
+    specialty: ОС
+    days_present: 10
+    days_half: 0
+    days_marked: 11
+  - num: 19
+    fio: Трофимов Сергей Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 19
+    days_half: 0
+    days_marked: 20
+  - num: 20
+    fio: Чебарев Игорь Витальевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ЭМР
+    days_present: 11
+    days_half: 2
+    days_marked: 15
+  - num: 21
+    fio: Бирюков Алексей Анатольевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ЭМР
+    days_present: 9
+    days_half: 0
+    days_marked: 11
+  - num: 22
+    fio: Поспелов Андрей Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ЭМР
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 23
+    fio: Степанников Андрей Викторович
+    position: Инженер СК
+    nrs: С-86-160666
+    specialty: ЭМР
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 24
+    fio: Гугнин Александр Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ЭМР
+    days_present: 23
+    days_half: 0
+    days_marked: 24
+  - num: 25
+    fio: Джево Сергей Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПИЛ
+    days_present: 28
+    days_half: 0
+    days_marked: 28
+  - num: 26
+    fio: Дунаев Александр Михайлович
+    position: инженер СК
+    nrs: нет
+    specialty: ПИЛ
+    days_present: 28
+    days_half: 0
+    days_marked: 29
+  - num: 27
+    fio: Мальсагов Турпал-Эл аАсланович
+    position: Инженер СК
+    nrs: нет
+    specialty: СЛ
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 28
+    fio: Хайбулин Айрат Асхатович
+    position: Инженер СК
+    nrs: нет
+    specialty: СЛ
+    days_present: 3
+    days_half: 0
+    days_marked: 4
+  - num: 29
+    fio: Глущенко Сергей Игоревич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 14
+    days_half: 0
+    days_marked: 15
+  - num: 30
+    fio: Исаев Абрахам Вахаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 20
+    days_half: 1
+    days_marked: 22
+  - num: 31
+    fio: Канащук Игорь Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 16
+    days_half: 0
+    days_marked: 17
+  - num: 32
+    fio: Куринный Николай Алексеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 33
+    fio: Княжин Антон Андреевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 12
+    days_half: 0
+    days_marked: 13
+  - num: 34
+    fio: Елисеев Владимир Сергеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС БДД
+    days_present: 5
+    days_half: 0
+    days_marked: 6
+  - num: 35
+    fio: Бадаев Валентин Борисович
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 13
+    days_half: 0
+    days_marked: 14
+  - num: 36
+    fio: Шиляев Юрий Андреевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 2
+    days_half: 1
+    days_marked: 4
+  - num: 37
+    fio: Добрыгин Андрей Аркадьевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ГЯ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 38
+    fio: Хлебников Андрей Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 15
+    days_half: 0
+    days_marked: 16
+  - num: 39
+    fio: Носков Дмитрий Сергеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 40
+    fio: Сидоров Роман Евгеньевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 21
+    days_half: 0
+    days_marked: 22
+  - num: 41
+    fio: Спиридонов Максим Олегович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 14
+    days_half: 0
+    days_marked: 15
+  - num: 42
+    fio: Ломоносов Евгений Олегович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 43
+    fio: Каньшин Егор Викторович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 44
+    fio: Аминев Данил Зайнуллович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 24
+    days_half: 0
+    days_marked: 25
+  - num: 45
+    fio: Новоселов Михаил Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 10
+    days_half: 0
+    days_marked: 11
+  - num: 46
+    fio: Слышкин Дмитрий Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 28
+    days_half: 1
+    days_marked: 30
+  - num: 47
+    fio: Петров Алексей Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 20
+    days_half: 1
+    days_marked: 22
+  - num: 48
+    fio: Шнайдер Елена Александровна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 49
+    fio: Созонова Наталья Михайловна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 21
+    days_half: 0
+    days_marked: 21
+  - num: 50
+    fio: Федотов Евгений Эдуардович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 21
+    days_half: 0
+    days_marked: 21
+  - num: 51
+    fio: Александров Юрий Георгиевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 21
+    days_half: 0
+    days_marked: 21
+  - num: 52
+    fio: Глазунова Елена Александровна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 21
+    days_half: 0
+    days_marked: 21
+  - num: 53
+    fio: Мингалева Ольга Николаевна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 21
+    days_half: 0
+    days_marked: 21
+  - num: 54
+    fio: Бородин Сергей Иванович
+    position: Инженер СК
+    nrs: нет
+    specialty: ИЗ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 55
+    fio: Очкасов Юрий Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ИЗ
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 56
+    fio: Манджиев Игорь Александрович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 16
+    days_half: 1
+    days_marked: 17
+  - num: 57
+    fio: Аниськов Владимир Иванович
+    position: Вед.инженер СК Руководитель СК
+    nrs: С-56-216-377
+    specialty: ОС/СТ
+    days_present: 14
+    days_half: 1
+    days_marked: 16
+- sheet: Апрель
+  year: 2026
+  month: 4
+  title: Лист учета  времени посещения объектов специалистами НТН ООО «Техресурс»
+    . на объектах ООО «Салым Петролеум Девелопмент» и в интересах ООО «Салым Петролеум
+    Девелопмент»  по договору № MOS.25.0008  от 01.07.2025 года.
+  people_count: 59
+  days_in_sheet: 30
+  people:
+  - num: 1
+    fio: Манджиев Игорь Александрович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 9
+    days_half: 1
+    days_marked: 12
+  - num: 2
+    fio: Аюпов Альберт Рималович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 20
+    days_half: 1
+    days_marked: 22
+  - num: 3
+    fio: Расаев Артур Тимерьянович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 30
+    days_half: 0
+    days_marked: 30
+  - num: 4
+    fio: Симонов Александр Алексеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 3
+    days_half: 0
+    days_marked: 4
+  - num: 5
+    fio: Громов Виктор Борисович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 6
+    days_half: 0
+    days_marked: 7
+  - num: 6
+    fio: Долов Сергей Анатольевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 29
+    days_half: 0
+    days_marked: 30
+  - num: 7
+    fio: Спиридонов Олег Вячеславович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 29
+    days_half: 0
+    days_marked: 30
+  - num: 8
+    fio: Ишутин Станислав Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 25
+    days_half: 0
+    days_marked: 26
+  - num: 9
+    fio: Пряхин Илья Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 30
+    days_half: 0
+    days_marked: 30
+  - num: 9
+    fio: Шемелин Игорь Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 30
+    days_half: 0
+    days_marked: 30
+  - num: 9
+    fio: Каримов Ильдар Робертович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 29
+    days_half: 0
+    days_marked: 30
+  - num: 12
+    fio: Никишин Олег Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 28
+    days_half: 0
+    days_marked: 29
+  - num: 13
+    fio: Бородин Вадим Леонидович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 25
+    days_half: 0
+    days_marked: 26
+  - num: 14
+    fio: Шешуков Сергей Анатольевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 23
+    days_half: 0
+    days_marked: 24
+  - num: 15
+    fio: Сивокозов Юрий Валентинович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 16
+    fio: Кетских Игорь Валерьевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ОС
+    days_present: 28
+    days_half: 0
+    days_marked: 29
+  - num: 17
+    fio: Тимофеев Андрей Николаевич
+    position: Инженер СК
+    nrs: С-63-311591
+    specialty: ОС
+    days_present: 0
+    days_half: 0
+    days_marked: 1
+  - num: 18
+    fio: Сапельников Павел Сергеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 8
+    days_half: 1
+    days_marked: 10
+  - num: 19
+    fio: Нафиков Айдар Фанилович
+    position: Инженер СК
+    nrs: С-02--036796
+    specialty: ОС
+    days_present: 30
+    days_half: 0
+    days_marked: 30
+  - num: 20
+    fio: Трофимов Сергей Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 20
+    days_half: 0
+    days_marked: 21
+  - num: 21
+    fio: Чебарев Игорь Витальевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ЭМР
+    days_present: 30
+    days_half: 0
+    days_marked: 30
+  - num: 22
+    fio: Бирюков Алексей Анатольевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ЭМР
+    days_present: 30
+    days_half: 0
+    days_marked: 30
+  - num: 23
+    fio: Поспелов Андрей Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ЭМР
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 24
+    fio: Степанников Андрей Викторович
+    position: Инженер СК
+    nrs: С-86-160666
+    specialty: ЭМР
+    days_present: 0
+    days_half: 0
+    days_marked: 1
+  - num: 25
+    fio: Гугнин Александр Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ЭМР
+    days_present: 21
+    days_half: 0
+    days_marked: 22
+  - num: 26
+    fio: Джево Сергей Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПИЛ
+    days_present: 6
+    days_half: 0
+    days_marked: 7
+  - num: 27
+    fio: Дунаев Александр Михайлович
+    position: инженер СК
+    nrs: нет
+    specialty: ПИЛ
+    days_present: 22
+    days_half: 0
+    days_marked: 23
+  - num: 28
+    fio: Мальсагов Турпал-Эл аАсланович
+    position: Инженер СК
+    nrs: нет
+    specialty: СЛ
+    days_present: 0
+    days_half: 0
+    days_marked: 1
+  - num: 29
+    fio: Сидоров Михаил Андреевич
+    position: ''
+    nrs: ''
+    specialty: СЛ
+    days_present: 3
+    days_half: 1
+    days_marked: 5
+  - num: 30
+    fio: Хайбулин Айрат Асхатович
+    position: Инженер СК
+    nrs: нет
+    specialty: СЛ
+    days_present: 28
+    days_half: 0
+    days_marked: 29
+  - num: 31
+    fio: Глущенко Сергей Игоревич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 30
+    days_half: 0
+    days_marked: 30
+  - num: 32
+    fio: Исаев Абрахам Вахаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 5
+    days_half: 0
+    days_marked: 6
+  - num: 33
+    fio: Канащук Игорь Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 30
+    days_half: 0
+    days_marked: 30
+  - num: 34
+    fio: Куринный Николай Алексеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 20
+    days_half: 1
+    days_marked: 23
+  - num: 35
+    fio: Княжин Антон Андреевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 7
+    days_half: 0
+    days_marked: 8
+  - num: 36
+    fio: Елисеев Владимир Сергеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС БДД
+    days_present: 30
+    days_half: 0
+    days_marked: 30
+  - num: 37
+    fio: Бадаев Валентин Борисович
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 28
+    days_half: 0
+    days_marked: 29
+  - num: 38
+    fio: Шиляев Юрий Андреевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 22
+    days_half: 1
+    days_marked: 24
+  - num: 39
+    fio: Добрыгин Андрей Аркадьевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ГЯ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 40
+    fio: Хлебников Андрей Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 41
+    fio: Носков Дмитрий Сергеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 2
+    days_half: 0
+    days_marked: 3
+  - num: 42
+    fio: Сидоров Роман Евгеньевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 21
+    days_half: 1
+    days_marked: 24
+  - num: 43
+    fio: Спиридонов Максим Олегович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 22
+    days_half: 0
+    days_marked: 23
+  - num: 44
+    fio: Ломоносов Евгений Олегович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 20
+    days_half: 0
+    days_marked: 21
+  - num: 45
+    fio: Каньшин Егор Викторович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 30
+    days_half: 0
+    days_marked: 30
+  - num: 46
+    fio: Аминев Данил Зайнуллович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 21
+    days_half: 1
+    days_marked: 23
+  - num: 47
+    fio: Новоселов Михаил Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 26
+    days_half: 0
+    days_marked: 27
+  - num: 48
+    fio: Слышкин Дмитрий Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 9
+    days_half: 0
+    days_marked: 10
+  - num: 49
+    fio: Петров Алексей Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 19
+    days_half: 1
+    days_marked: 21
+  - num: 50
+    fio: Шнайдер Елена Александровна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 51
+    fio: Созонова Наталья Михайловна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 24
+    days_half: 0
+    days_marked: 24
+  - num: 52
+    fio: Федотов Евгений Эдуардович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 22
+    days_half: 0
+    days_marked: 22
+  - num: 53
+    fio: Александров Юрий Георгиевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 22
+    days_half: 0
+    days_marked: 22
+  - num: 54
+    fio: Глазунова Елена Александровна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 22
+    days_half: 0
+    days_marked: 22
+  - num: 55
+    fio: Мингалева Ольга Николаевна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 22
+    days_half: 0
+    days_marked: 22
+  - num: 56
+    fio: Бородин Сергей Иванович
+    position: Инженер СК
+    nrs: нет
+    specialty: ИЗ
+    days_present: 28
+    days_half: 0
+    days_marked: 28
+  - num: 57
+    fio: Очкасов Юрий Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ИЗ
+    days_present: 2
+    days_half: 0
+    days_marked: 2
+  - num: 58
+    fio: Манджиев Игорь Александрович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 1
+    days_half: 0
+    days_marked: 1
+  - num: 59
+    fio: Аниськов Владимир Иванович
+    position: Вед.инженер СК Руководитель СК
+    nrs: С-56-216-377
+    specialty: ОС/СТ
+    days_present: 29
+    days_half: 0
+    days_marked: 30
+- sheet: Май
+  year: 2026
+  month: 5
+  title: Лист учета  времени посещения объектов специалистами НТН ООО «Техресурс»
+    . на объектах ООО «Салым Петролеум Девелопмент» и в интересах ООО «Салым Петролеум
+    Девелопмент»  по договору № MOS.25.0008  от 01.07.2025 года.
+  people_count: 63
+  days_in_sheet: 31
+  people:
+  - num: 1
+    fio: Манджиев Игорь Александрович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 13
+    days_half: 1
+    days_marked: 14
+  - num: 2
+    fio: Аюпов Альберт Рималович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 24
+    days_half: 0
+    days_marked: 25
+  - num: 3
+    fio: Расаев Артур Тимерьянович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 15
+    days_half: 0
+    days_marked: 16
+  - num: 4
+    fio: Симонов Александр Алексеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 5
+    fio: Громов Виктор Борисович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 6
+    fio: Долов Сергей Анатольевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 15
+    days_half: 0
+    days_marked: 16
+  - num: 7
+    fio: Спиридонов Олег Вячеславович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 26
+    days_half: 0
+    days_marked: 27
+  - num: 8
+    fio: Ишутин Станислав Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 15
+    days_half: 0
+    days_marked: 16
+  - num: 9
+    fio: Пряхин Илья Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 9
+    days_half: 0
+    days_marked: 10
+  - num: 10
+    fio: Шемелин Игорь Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 4
+    days_half: 1
+    days_marked: 6
+  - num: 11
+    fio: Каримов Ильдар Робертович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 23
+    days_half: 1
+    days_marked: 25
+  - num: 12
+    fio: Никишин Олег Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 9
+    days_half: 0
+    days_marked: 10
+  - num: 13
+    fio: Бородин Вадим Леонидович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 14
+    fio: Шешуков Сергей Анатольевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 16
+    days_half: 1
+    days_marked: 18
+  - num: 15
+    fio: Сивокозов Юрий Валентинович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 16
+    fio: Кетских Игорь Валерьевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ОС
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 17
+    fio: Тимофеев Андрей Николаевич
+    position: Инженер СК
+    nrs: С-63-311591
+    specialty: ОС
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 18
+    fio: Сапельников Павел Сергеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 27
+    days_half: 1
+    days_marked: 29
+  - num: 19
+    fio: Нафиков Айдар Фанилович
+    position: Инженер СК
+    nrs: С-02--036796
+    specialty: ОС
+    days_present: 4
+    days_half: 0
+    days_marked: 5
+  - num: 20
+    fio: Трофимов Сергей Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 26
+    days_half: 0
+    days_marked: 27
+  - num: 21
+    fio: Чебарев Игорь Витальевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ЭМР
+    days_present: 15
+    days_half: 2
+    days_marked: 19
+  - num: 22
+    fio: Бирюков Алексей Анатольевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ЭМР
+    days_present: 13
+    days_half: 0
+    days_marked: 14
+  - num: 23
+    fio: Гугнин Александр Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ЭМР
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 24
+    fio: Джево Сергей Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПИЛ
+    days_present: 30
+    days_half: 1
+    days_marked: 31
+  - num: 25
+    fio: Дунаев Александр Михайлович
+    position: инженер СК
+    nrs: нет
+    specialty: ПИЛ
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 26
+    fio: Мальсагов Турпал-Эл аАсланович
+    position: Инженер СК
+    nrs: нет
+    specialty: СЛ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 27
+    fio: Сидоров Михаил Андреевич
+    position: ''
+    nrs: ''
+    specialty: СЛ
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 28
+    fio: Хайбулин Айрат Асхатович
+    position: Инженер СК
+    nrs: нет
+    specialty: СЛ
+    days_present: 0
+    days_half: 0
+    days_marked: 1
+  - num: 29
+    fio: Глущенко Сергей Игоревич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 10
+    days_half: 0
+    days_marked: 11
+  - num: 30
+    fio: Чадов Евгений Геннадьевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 3
+    days_half: 0
+    days_marked: 4
+  - num: 31
+    fio: Коломейцев Олег Геннадьевич
+    position: ''
+    nrs: ''
+    specialty: ОЗОТОБОС
+    days_present: 2
+    days_half: 0
+    days_marked: 3
+  - num: 32
+    fio: Куркин Сергей Владимирович
+    position: ''
+    nrs: ''
+    specialty: ОЗОТОБОС
+    days_present: 2
+    days_half: 0
+    days_marked: 3
+  - num: 33
+    fio: Исаев Абрахам Вахаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 20
+    days_half: 0
+    days_marked: 21
+  - num: 34
+    fio: Канащук Игорь Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 20
+    days_half: 0
+    days_marked: 21
+  - num: 35
+    fio: Куринный Николай Алексеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 21
+    days_half: 0
+    days_marked: 22
+  - num: 36
+    fio: Коломейцев Павел Геннадьевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 25
+    days_half: 0
+    days_marked: 26
+  - num: 37
+    fio: Муллагалиев Ринат Шамильевич
+    position: ''
+    nrs: ''
+    specialty: ОЗОТОБОС
+    days_present: 13
+    days_half: 0
+    days_marked: 14
+  - num: 38
+    fio: Елисеев Владимир Сергеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС БДД
+    days_present: 8
+    days_half: 1
+    days_marked: 10
+  - num: 39
+    fio: Ларин Кирилл Евгеньевич
+    position: ''
+    nrs: ''
+    specialty: ОЗОТОБОС БДД
+    days_present: 25
+    days_half: 0
+    days_marked: 26
+  - num: 40
+    fio: Бадаев Валентин Борисович
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 12
+    days_half: 0
+    days_marked: 13
+  - num: 41
+    fio: Шиляев Юрий Андреевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 17
+    days_half: 1
+    days_marked: 19
+  - num: 42
+    fio: Добрыгин Андрей Аркадьевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ГЯ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 43
+    fio: Хлебников Андрей Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 44
+    fio: Носков Дмитрий Сергеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 45
+    fio: Сидоров Роман Евгеньевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 22
+    days_half: 1
+    days_marked: 24
+  - num: 46
+    fio: Спиридонов Максим Олегович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 15
+    days_half: 2
+    days_marked: 19
+  - num: 47
+    fio: Ломоносов Евгений Олегович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 23
+    days_half: 1
+    days_marked: 25
+  - num: 48
+    fio: Каньшин Егор Викторович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 31
+    days_half: 0
+    days_marked: 31
+  - num: 49
+    fio: Аминев Данил Зайнуллович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 19
+    days_half: 0
+    days_marked: 20
+  - num: 50
+    fio: Новоселов Михаил Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 14
+    days_half: 1
+    days_marked: 16
+  - num: 51
+    fio: Слышкин Дмитрий Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 30
+    days_half: 1
+    days_marked: 31
+  - num: 52
+    fio: Петров Алексей Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 20
+    days_half: 0
+    days_marked: 21
+  - num: 53
+    fio: Мальнов Максим Борисович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 23
+    days_half: 0
+    days_marked: 23
+  - num: 54
+    fio: Созонова Наталья Михайловна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 23
+    days_half: 0
+    days_marked: 23
+  - num: 55
+    fio: Федотов Евгений Эдуардович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 19
+    days_half: 0
+    days_marked: 19
+  - num: 56
+    fio: Александров Юрий Георгиевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 9
+    days_half: 0
+    days_marked: 9
+  - num: 57
+    fio: Александрова Оксана Владимировна
+    position: ''
+    nrs: ''
+    specialty: ПТО
+    days_present: 10
+    days_half: 0
+    days_marked: 10
+  - num: 58
+    fio: Глазунова Елена Александровна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 19
+    days_half: 0
+    days_marked: 19
+  - num: 59
+    fio: Мингалева Ольга Николаевна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 19
+    days_half: 0
+    days_marked: 19
+  - num: 60
+    fio: Бородин Сергей Иванович
+    position: Инженер СК
+    nrs: нет
+    specialty: ИЗ
+    days_present: 19
+    days_half: 0
+    days_marked: 20
+  - num: 61
+    fio: Очкасов Юрий Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ИЗ
+    days_present: 13
+    days_half: 0
+    days_marked: 14
+  - num: 62
+    fio: Манджиев Игорь Александрович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 17
+    days_half: 1
+    days_marked: 18
+  - num: 63
+    fio: Аниськов Владимир Иванович
+    position: Вед.инженер СК Руководитель СК
+    nrs: С-56-216-377
+    specialty: ОС/СТ
+    days_present: 13
+    days_half: 1
+    days_marked: 15
+- sheet: Июнь
+  year: 2026
+  month: 6
+  title: Лист учета  времени посещения объектов специалистами НТН ООО «Техресурс»
+    . на объектах ООО «Салым Петролеум Девелопмент» и в интересах ООО «Салым Петролеум
+    Девелопмент»  по договору № MOS.25.0008  от 01.07.2025 года.
+  people_count: 64
+  days_in_sheet: 30
+  people:
+  - num: 1
+    fio: Манджиев Игорь Александрович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 14
+    days_half: 0
+    days_marked: 15
+  - num: 2
+    fio: Аюпов Альберт Рималович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 16
+    days_half: 0
+    days_marked: 17
+  - num: 3
+    fio: Расаев Артур Тимерьянович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 4
+    fio: Симонов Александр Алексеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 7
+    days_half: 0
+    days_marked: 8
+  - num: 5
+    fio: Громов Виктор Борисович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 20
+    days_half: 0
+    days_marked: 20
+  - num: 6
+    fio: Долов Сергей Анатольевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 7
+    fio: Спиридонов Олег Вячеславович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 8
+    fio: Ишутин Станислав Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 9
+    fio: Пряхин Илья Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 26
+    days_half: 1
+    days_marked: 28
+  - num: 10
+    fio: Шемелин Игорь Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 11
+    fio: Каримов Ильдар Робертович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 12
+    fio: Никишин Олег Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 13
+    fio: Бородин Вадим Леонидович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 14
+    fio: Шешуков Сергей Анатольевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 15
+    fio: Сивокозов Юрий Валентинович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 16
+    fio: Кетских Игорь Валерьевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ОС
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 17
+    fio: Тимофеев Андрей Николаевич
+    position: Инженер СК
+    nrs: С-63-311591
+    specialty: ОС
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 18
+    fio: Сапельников Павел Сергеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 12
+    days_half: 0
+    days_marked: 13
+  - num: 19
+    fio: Нафиков Айдар Фанилович
+    position: Инженер СК
+    nrs: С-02--036796
+    specialty: ОС
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 20
+    fio: Трофимов Сергей Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОС
+    days_present: 13
+    days_half: 0
+    days_marked: 14
+  - num: 21
+    fio: Чебарев Игорь Витальевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ЭМР
+    days_present: 14
+    days_half: 0
+    days_marked: 14
+  - num: 22
+    fio: Бирюков Алексей Анатольевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ЭМР
+    days_present: 22
+    days_half: 0
+    days_marked: 22
+  - num: 23
+    fio: Гугнин Александр Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ЭМР
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 24
+    fio: Джево Сергей Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПИЛ
+    days_present: 13
+    days_half: 0
+    days_marked: 14
+  - num: 25
+    fio: Дунаев Александр Михайлович
+    position: инженер СК
+    nrs: нет
+    specialty: ПИЛ
+    days_present: 6
+    days_half: 0
+    days_marked: 7
+  - num: 26
+    fio: Мальсагов Турпал-Эл аАсланович
+    position: Инженер СК
+    nrs: нет
+    specialty: СЛ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 27
+    fio: Сидоров Михаил Андреевич
+    position: ''
+    nrs: ''
+    specialty: СЛ
+    days_present: 0
+    days_half: 1
+    days_marked: 2
+  - num: 28
+    fio: Хайбулин Айрат Асхатович
+    position: Инженер СК
+    nrs: нет
+    specialty: СЛ
+    days_present: 30
+    days_half: 0
+    days_marked: 30
+  - num: 29
+    fio: Глущенко Сергей Игоревич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 29
+    days_half: 0
+    days_marked: 30
+  - num: 30
+    fio: Чадов Евгений Геннадьевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 31
+    fio: Коломейцев Олег Геннадьевич
+    position: ''
+    nrs: ''
+    specialty: ОЗОТОБОС
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 32
+    fio: Куркин Сергей Владимирович
+    position: ''
+    nrs: ''
+    specialty: ОЗОТОБОС
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 33
+    fio: Исаев Абрахам Вахаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 34
+    fio: Канащук Игорь Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 35
+    fio: Куринный Николай Алексеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 19
+    days_half: 1
+    days_marked: 21
+  - num: 36
+    fio: Коломейцев Павел Геннадьевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 37
+    fio: Муллагалиев Ринат Шамильевич
+    position: ''
+    nrs: ''
+    specialty: ОЗОТОБОС
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 38
+    fio: Елисеев Владимир Сергеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ОЗОТОБОС БДД
+    days_present: 16
+    days_half: 1
+    days_marked: 18
+  - num: 39
+    fio: Ларин Кирилл Евгеньевич
+    position: ''
+    nrs: ''
+    specialty: ОЗОТОБОС БДД
+    days_present: 13
+    days_half: 1
+    days_marked: 15
+  - num: 40
+    fio: Бадаев Валентин Борисович
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 41
+    fio: Шиляев Юрий Андреевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 42
+    fio: Добрыгин Андрей Аркадьевич
+    position: Инженер СК
+    nrs: С-24-289840
+    specialty: ГЯ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 43
+    fio: Хлебников Андрей Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 44
+    fio: Носков Дмитрий Сергеевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ГЯ
+    days_present: 7
+    days_half: 0
+    days_marked: 8
+  - num: 45
+    fio: Сидоров Роман Евгеньевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 22
+    days_half: 0
+    days_marked: 23
+  - num: 46
+    fio: Спиридонов Максим Олегович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 47
+    fio: Ломоносов Евгений Олегович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 9
+    days_half: 0
+    days_marked: 10
+  - num: 48
+    fio: Каньшин Егор Викторович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 49
+    fio: Гроза Владислав Валерьевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 25
+    days_half: 0
+    days_marked: 26
+  - num: 50
+    fio: Аминев Данил Зайнуллович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 51
+    fio: Новоселов Михаил Александрович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 28
+    days_half: 0
+    days_marked: 29
+  - num: 52
+    fio: Слышкин Дмитрий Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 0
+    days_half: 0
+    days_marked: 1
+  - num: 53
+    fio: Петров Алексей Владимирович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 54
+    fio: Мальнов Максим Борисович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 55
+    fio: Созонова Наталья Михайловна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 56
+    fio: Федотов Евгений Эдуардович
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 57
+    fio: Александров Юрий Георгиевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 58
+    fio: Александрова Оксана Владимировна
+    position: ''
+    nrs: ''
+    specialty: ПТО
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 59
+    fio: Глазунова Елена Александровна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 60
+    fio: Мингалева Ольга Николаевна
+    position: Инженер СК
+    nrs: нет
+    specialty: ПТО
+    days_present: 15
+    days_half: 0
+    days_marked: 15
+  - num: 61
+    fio: Бородин Сергей Иванович
+    position: Инженер СК
+    nrs: нет
+    specialty: ИЗ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 62
+    fio: Очкасов Юрий Николаевич
+    position: Инженер СК
+    nrs: нет
+    specialty: ИЗ
+    days_present: 14
+    days_half: 0
+    days_marked: 14
+  - num: 63
+    fio: Манджиев Игорь Александрович
+    position: Вед.инженер СК
+    nrs: нет
+    specialty: ОС/СТ
+    days_present: 0
+    days_half: 0
+    days_marked: 0
+  - num: 64
+    fio: Аниськов Владимир Иванович
+    position: Вед.инженер СК Руководитель СК
+    nrs: С-56-216-377
+    specialty: ОС/СТ
+    days_present: 14
+    days_half: 0
+    days_marked: 14

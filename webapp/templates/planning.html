@@ -18,6 +18,7 @@
     <button type="button" class="planning-tab is-active" data-tab="projects" role="tab">Проекты</button>
     <button type="button" class="planning-tab" data-tab="personnel" role="tab">Сотрудники</button>
     <button type="button" class="planning-tab" data-tab="otkk" role="tab">ОТКК</button>
+    <button type="button" class="planning-tab" data-tab="luvr" role="tab">ЛУВР</button>
   </nav>
 
   <div class="planning-panel" id="panel-projects" role="tabpanel">
@@ -33,6 +34,11 @@
   <div class="planning-panel" id="panel-otkk" role="tabpanel" hidden>
     <p class="planning-hint">Технологические карты в <code>data/tk/</code> — manifest.yaml.</p>
     <div id="otkkList"></div>
+  </div>
+
+  <div class="planning-panel" id="panel-luvr" role="tabpanel" hidden>
+    <p class="planning-hint">Лист учёта времени — <code>data/luvr/ЛУВР.xlsx</code>, таблица по месяцам из <code>luvr.yaml</code>.</p>
+    <div id="luvrList"></div>
   </div>
 </div>
 

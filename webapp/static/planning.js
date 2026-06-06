@@ -4,6 +4,7 @@
     projects: document.getElementById("panel-projects"),
     personnel: document.getElementById("panel-personnel"),
     otkk: document.getElementById("panel-otkk"),
+    luvr: document.getElementById("panel-luvr"),
   };
   const loaded = {};
 
@@ -203,6 +204,81 @@
     })), data.folder);
   }
 
+  function renderLuvr(data) {
+    const el = document.getElementById("luvrList");
+    if (!data.xlsx_present) {
+      el.innerHTML = '<p class="hint-text">Положите <code>ЛУВР.xlsx</code> в data/luvr/</p>';
+      return;
+    }
+    if (!data.cache_ready) {
+      el.innerHTML = `<p class="planning-meta">Файл: <strong>${esc(data.source)}</strong> (${data.source_kb} КБ)</p>
+        <p class="warn-text">Кэш не собран. На сервере: <code>python scripts/build_engineer_data.py --luvr</code></p>`;
+      return;
+    }
+
+    const months = data.months || [];
+    const defaultSheet = data.default_month || months[months.length - 1]?.sheet || "";
+
+    el.innerHTML = `
+      <div class="luvr-header">
+        <p class="planning-meta">Файл: <strong>${esc(data.source)}</strong> · ${data.source_kb} КБ · <code>${esc(data.folder)}/${esc(data.source)}</code></p>
+        ${data.contract ? `<p class="planning-meta">Договор: ${esc(data.contract)}</p>` : ""}
+        <label class="field-label">Месяц</label>
+        <select id="luvrMonth" class="field-input luvr-month-select"></select>
+      </div>
+      <div class="personnel-table-wrap">
+        <table class="planning-table personnel-table" id="luvrTable">
+          <thead>
+            <tr>
+              <th>№</th>
+              <th>ФИО</th>
+              <th>Должность</th>
+              <th>НРС</th>
+              <th>Специальность</th>
+              <th>Дней на объекте</th>
+              <th>Всего отметок</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>`;
+
+    const sel = el.querySelector("#luvrMonth");
+    const tbody = el.querySelector("#luvrTable tbody");
+    months.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m.sheet;
+      opt.textContent = `${m.sheet}${m.year ? ` ${m.year}` : ""} — ${m.people_count} чел., ${m.days_in_sheet} дн.`;
+      if (m.sheet === defaultSheet) opt.selected = true;
+      sel.appendChild(opt);
+    });
+
+    function renderMonth(sheet) {
+      const month = months.find((m) => m.sheet === sheet);
+      const people = month?.people || [];
+      tbody.innerHTML = people
+        .map(
+          (p) =>
+            `<tr>
+              <td>${esc(p.num)}</td>
+              <td>${esc(p.fio)}</td>
+              <td>${esc(p.position || "—")}</td>
+              <td>${esc(p.nrs || "—")}</td>
+              <td>${esc(p.specialty || "—")}</td>
+              <td>${p.days_present ?? 0}</td>
+              <td>${p.days_marked ?? 0}</td>
+            </tr>`
+        )
+        .join("");
+      if (!people.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="hint-text">Нет данных за месяц</td></tr>';
+      }
+    }
+
+    sel.addEventListener("change", () => renderMonth(sel.value));
+    renderMonth(sel.value);
+  }
+
   function renderOtkk(data) {
     const el = document.getElementById("otkkList");
     const cards = data.cards || [];
@@ -228,6 +304,7 @@
     if (name === "projects") renderProjects(data);
     else if (name === "otkk") renderOtkk(data);
     else if (name === "personnel") renderPersonnel(data);
+    else if (name === "luvr") renderLuvr(data);
     loaded[name] = true;
   }
 
@@ -238,7 +315,7 @@
       t.setAttribute("aria-selected", on ? "true" : "false");
     });
     Object.entries(panels).forEach(([key, panel]) => {
-      panel.hidden = key !== name;
+      if (panel) panel.hidden = key !== name;
     });
     loadTab(name).catch((e) => {
       const panel = panels[name];
@@ -251,5 +328,5 @@
   });
 
   const hash = (location.hash || "#projects").replace("#", "");
-  activateTab(["projects", "personnel", "otkk"].includes(hash) ? hash : "projects");
+  activateTab(["projects", "personnel", "otkk", "luvr"].includes(hash) ? hash : "projects");
 })();

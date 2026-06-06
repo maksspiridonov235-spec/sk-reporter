@@ -747,4 +747,5 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 .personnel-table-wrap { overflow-x: auto; }
 .personnel-table td:first-child { font-weight: 500; white-space: nowrap; }
 .personnel-table td:nth-child(2) { max-width: 280px; }
-.personnel-table td:nth-child(4) { min-width: 160px; }
+.luvr-month-select { max-width: 320px; margin-bottom: 12px; }
+.luvr-header { margin-bottom: 8px; }
