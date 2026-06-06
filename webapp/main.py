@@ -80,6 +80,13 @@ print(f"[INFO] main.py: {Path(__file__).resolve()}")
 _git_head = _read_git_head()
 print(f"[INFO] git: {_git_head}")
 print(f"[INFO] UI build: {_APP_UI_BUILD}")
+for _html in sorted(_HTML_TEMPLATES_DIR.glob("*.html")):
+    print(f"[INFO]   template: {_html.name} ({_html.stat().st_size} bytes)")
+try:
+    templates.env.get_template("home.html")
+    templates.env.get_template("daily.html")
+except Exception as _tpl_err:
+    raise RuntimeError(f"Jinja не видит шаблоны в {_HTML_TEMPLATES_DIR}: {_tpl_err}") from _tpl_err
 
 
 @app.exception_handler(Exception)
@@ -171,11 +178,13 @@ async def health():
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
+    print(f"[REQ] GET / pid={os.getpid()} -> home.html")
     return templates.TemplateResponse("home.html", _page_context(request))
 
 
 @app.get("/daily", response_class=HTMLResponse)
 async def daily_reports(request: Request):
+    print(f"[REQ] GET /daily pid={os.getpid()} -> daily.html")
     return templates.TemplateResponse("daily.html", _page_context(request))
 
 
