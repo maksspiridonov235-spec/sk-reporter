@@ -10,19 +10,19 @@
 
 ## Роль проекта
 
-Веб-приложение для **ежедневных отчётов строительного контроля** (.docx): загрузка, проверка описаний (Ollama), вставка правок, сборка в болванку подрядчика.
+Веб-приложение для **строительного контроля**: ежедневные отчёты (.docx), **планирование (ЛУВР)**, отчёт инженера по ВОР.
 
 ## Код
 
 | Путь | Назначение |
 |------|------------|
-| `webapp/` | FastAPI + UI (`/`, `/planning`, `/engineer`, `/daily`; bat инженера — сразу `/engineer`) |
-| `sk_reporter/` | docx, компании, агенты Ollama (`check_agent`, `inject_agent`, `ocr_agent`) |
-| `sk_reporter/leader_switch.py` | блок 2: смена руководителя в отчётах (rule-based, без Ollama) |
-| `data/templates/` | Болванки `{Компания}.docx` |
-| `data/projects/`, `data/tk/`, `data/personnel/`, `data/luvr/` | Данные планирования и инженера |
-| `engineer/profiles/`, `engineer/launchers/` | Профили и bat для инженеров (отдельный вход `/engineer`) |
-| `sk_reporter/planning_data.py` | API списков для `/planning` |
+| `webapp/` | FastAPI + UI: `/`, `/planning`, `/reporting`, `/daily`, `/engineer-hub`, `/engineer` |
+| `sk_reporter/` | docx, компании, агенты Ollama, `luvr_store.py`, `planning_data.py` |
+| `sk_reporter/leader_switch.py` | смена руководителя в отчётах (rule-based) |
+| `data/luvr/` | **ЛУВР**, luvr.yaml, шаблоны Прил.7 и расстановки (`manifest.yaml`) |
+| `data/templates/` | Болванки подрядчиков |
+| `data/projects/`, `data/tk/`, `data/personnel/` | Планирование |
+| `engineer/profiles/`, `engineer/launchers/` | Профили и bat для инженеров |
 | `sk_reporter/engineer/` | Парсер ВОР, каталог ТК, сборка отчёта инженера |
 | temp `sk_reports_work/uploads/` | Загруженные и исправленные отчёты (рабочие; не в репо) |
 | `launcher/SK-Reporter.bat` | Запуск сервера на офисном ПК |

@@ -158,6 +158,15 @@ def luvr_planning_payload() -> dict[str, Any]:
 
     data = load_luvr()
     months = data.get("months") or []
+    if not months and xlsx_path is not None:
+        try:
+            export_luvr()
+            data = load_luvr()
+            months = data.get("months") or []
+        except Exception:
+            pass
+
+    yaml_path = luvr_dir() / "luvr.yaml"
     default_month = months[-1]["sheet"] if months else None
 
     return {
@@ -168,6 +177,7 @@ def luvr_planning_payload() -> dict[str, Any]:
         "months": months,
         "default_month": default_month,
         "cache_ready": bool(months),
+        "cache_from_yaml": bool(months) and yaml_path.is_file(),
         "xlsx_present": xlsx_path is not None,
     }
 
