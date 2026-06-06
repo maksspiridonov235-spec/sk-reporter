@@ -7,7 +7,9 @@ from typing import Any
 
 import yaml
 
-from sk_reporter.paths import luvr_dir, personnel_dir, projects_dir, repo_root, tk_dir
+from sk_reporter.personnel_store import is_engineer, list_engineers, load_people
+from sk_reporter.project_store import engineer_project_map, get_project, list_projects_rich, set_project_engineers
+from sk_reporter.paths import luvr_dir, personnel_dir, repo_root, tk_dir
 
 _SECTIONS = frozenset({"projects", "luvr", "personnel", "otkk"})
 
@@ -40,32 +42,15 @@ def _list_files(folder: Path, pattern: str = "*") -> list[dict[str, Any]]:
 
 
 def list_projects() -> list[dict[str, Any]]:
-    out = []
-    root = projects_dir()
-    if not root.is_dir():
-        return out
-    for proj in sorted(root.iterdir()):
-        if not proj.is_dir() or proj.name.startswith("."):
-            continue
-        meta: dict[str, Any] = {"id": proj.name, "title": proj.name}
-        meta_path = proj / "project.yaml"
-        if meta_path.is_file():
-            meta.update(yaml.safe_load(meta_path.read_text(encoding="utf-8")) or {})
-        files = []
-        for p in sorted(proj.iterdir()):
-            if p.is_file() and not p.name.startswith("."):
-                files.append(_file_row(p))
-        out.append(
-            {
-                "id": meta.get("id") or proj.name,
-                "title": meta.get("title") or proj.name,
-                "vor_docx": meta.get("vor_docx"),
-                "has_vor_cache": (proj / "vor.json").is_file(),
-                "files": files,
-                "path": str(proj.relative_to(repo_root())),
-            }
-        )
-    return out
+    return list_projects_rich()
+
+
+def projects_planning_payload() -> dict[str, Any]:
+    return {
+        "section": "projects",
+        "engineers_available": list_engineers(),
+        "items": list_projects(),
+    }
 
 
 def list_luvr() -> dict[str, Any]:
@@ -78,15 +63,25 @@ def list_luvr() -> dict[str, Any]:
 
 def list_personnel() -> dict[str, Any]:
     folder = personnel_dir()
-    people_count = 0
-    yaml_path = folder / "personnel.yaml"
-    if yaml_path.is_file():
-        data = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
-        people_count = len(data.get("people") or [])
+    assignments = engineer_project_map()
+    people = []
+    engineers_count = 0
+    for p in load_people():
+        eng = is_engineer(p)
+        if eng:
+            engineers_count += 1
+        people.append(
+            {
+                **p,
+                "is_engineer": eng,
+                "projects": assignments.get(p["id"], []),
+            }
+        )
     return {
         "folder": str(folder.relative_to(repo_root())),
-        "people_count": people_count,
-        "files": _list_files(folder),
+        "people_count": len(people),
+        "engineers_count": engineers_count,
+        "people": people,
     }
 
 
@@ -129,7 +124,7 @@ def planning_section(section: str) -> dict[str, Any]:
     if section not in _SECTIONS:
         raise KeyError(section)
     if section == "projects":
-        return {"section": section, "items": list_projects()}
+        return projects_planning_payload()
     if section == "luvr":
         return {"section": section, **list_luvr()}
     if section == "personnel":

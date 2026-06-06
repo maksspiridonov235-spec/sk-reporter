@@ -716,3 +716,35 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
   border-bottom: 1px solid #eee; padding: 6px 8px; text-align: left;
 }
 .planning-table th { color: #888; font-size: 11px; text-transform: uppercase; }
+.project-stats {
+  display: grid; gap: 8px; margin: 12px 0 16px; font-size: 13px;
+}
+.project-stats div { display: grid; grid-template-columns: 100px 1fr; gap: 8px; }
+.project-stats dt { color: #888; font-weight: bold; }
+.project-stats dd { margin: 0; }
+.project-assign { display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+.engineer-checklist {
+  max-height: 220px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px;
+  padding: 8px 10px; background: #fafafa; display: flex; flex-direction: column; gap: 4px;
+}
+.engineer-check {
+  display: flex; align-items: flex-start; gap: 8px; font-size: 13px; cursor: pointer;
+  padding: 4px 2px; border-radius: 4px;
+}
+.engineer-check:hover { background: #f0f4f8; }
+.engineer-check input { margin-top: 2px; flex-shrink: 0; }
+.engineer-select { min-height: 120px; }
+.btn-sm { padding: 6px 12px; font-size: 12px; align-self: flex-start; }
+.engineer-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.engineer-chip {
+  background: #eff6ff; color: #1a56a0; font-size: 12px; padding: 2px 8px; border-radius: 999px;
+}
+.personnel-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 12px;
+}
+.personnel-filter { font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.personnel-search { max-width: 240px; font-size: 13px; padding: 6px 10px; }
+.personnel-table-wrap { overflow-x: auto; }
+.personnel-table td:first-child { font-weight: 500; white-space: nowrap; }
+.personnel-table td:nth-child(2) { max-width: 280px; }
+.personnel-table td:nth-child(4) { min-width: 160px; }

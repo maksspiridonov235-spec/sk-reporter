@@ -30,20 +30,161 @@
   function renderProjects(data) {
     const el = document.getElementById("projectsList");
     const items = data.items || [];
+    const engineers = data.engineers_available || [];
     if (!items.length) {
-      el.innerHTML = '<p class="hint-text">Проекты не найдены.</p>';
+      el.innerHTML = '<p class="hint-text">Проекты не найдены. Добавьте каталог в data/projects/</p>';
       return;
     }
     el.innerHTML = items
       .map((p) => {
-        const badge = p.has_vor_cache ? '<span class="planning-badge">vor.json</span>' : "";
-        return `<article class="planning-card">
-          <h3>${esc(p.title)} ${badge}</h3>
-          <p class="planning-meta"><code>${esc(p.path)}</code>${p.vor_docx ? ` · ВОР: ${esc(p.vor_docx)}` : ""}</p>
-          ${fileTable(p.files)}
+        const v = p.vor || {};
+        const vorLine = v.ready
+          ? `ВОР: ${v.works} работ · ${v.objects} объектов · ${v.stages} этапов`
+          : `<span class="warn-text">${esc(v.message || "ВОР не обработан")}</span>`;
+        const vorSources = [p.vor_docx, ...(p.vor_doc || [])].filter(Boolean);
+        const vorMeta = vorSources.length
+          ? ` · ${vorSources.map((f) => esc(f)).join(", ")}`
+          : "";
+        const tkLine = p.tk_mappings
+          ? `Сопоставлений work→ТК: ${p.tk_mappings}`
+          : "Сопоставления work→ТК не заданы";
+        const assigned = (p.engineers || [])
+          .map((e) => `<span class="engineer-chip">${esc(e.fio)}</span>`)
+          .join("") || '<span class="hint-text">Инженеры не назначены</span>';
+        const assignedCount = (p.engineers || []).length;
+        const checkboxes = engineers
+          .map((e) => {
+            const on = (p.engineer_ids || []).includes(e.id);
+            return `<label class="engineer-check">
+              <input type="checkbox" class="engineer-cb" value="${esc(e.id)}"${on ? " checked" : ""}/>
+              <span>${esc(e.fio)}</span>
+            </label>`;
+          })
+          .join("");
+        return `<article class="planning-card" data-project-id="${esc(p.id)}">
+          <h3>${esc(p.title)}</h3>
+          <p class="planning-meta"><code>${esc(p.path)}</code>${vorMeta}</p>
+          <dl class="project-stats">
+            <div><dt>ВОР</dt><dd>${vorLine}</dd></div>
+            <div><dt>ТК</dt><dd>${tkLine}</dd></div>
+            <div><dt>Инженеры</dt><dd class="engineer-chips">${assignedCount ? `<span class="hint-text">${assignedCount}:</span> ` : ""}${assigned}</dd></div>
+          </dl>
+          <div class="project-assign">
+            <label class="field-label">Инженеры на проекте <span class="hint-text">(отметьте несколько)</span></label>
+            <div class="engineer-checklist">${checkboxes}</div>
+            <button type="button" class="btn btn-primary btn-sm save-engineers">Сохранить</button>
+            <span class="save-status hint-text"></span>
+          </div>
         </article>`;
       })
       .join("");
+
+    el.querySelectorAll(".save-engineers").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const card = btn.closest(".planning-card");
+        const projectId = card.dataset.projectId;
+        const status = card.querySelector(".save-status");
+        const ids = Array.from(card.querySelectorAll(".engineer-cb:checked")).map((cb) => cb.value);
+        btn.disabled = true;
+        status.textContent = "Сохранение…";
+        try {
+          const res = await fetch(`/api/planning/projects/${encodeURIComponent(projectId)}/engineers`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ engineer_ids: ids }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || res.statusText);
+          }
+          loaded.projects = false;
+          await loadTab("projects");
+          status.textContent = "Сохранено";
+        } catch (e) {
+          status.textContent = e.message;
+          status.classList.add("error-text");
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  function renderPersonnel(data) {
+    const el = document.getElementById("personnelList");
+    let people = data.people || [];
+    if (!people.length && data.people_count > 0) {
+      el.innerHTML =
+        '<p class="warn-text">Справочник на диске есть (' +
+        data.people_count +
+        " записей), но сервер отдаёт старый API. Перезапустите сервер (Ctrl+C → снова uvicorn).</p>";
+      return;
+    }
+    if (!people.length) {
+      el.innerHTML =
+        '<p class="hint-text">Справочник пуст. Запустите: <code>python scripts/build_engineer_data.py --personnel</code></p>';
+      return;
+    }
+
+    el.innerHTML = `
+      <div class="personnel-toolbar">
+        <p class="planning-meta">${data.people_count} сотрудников · <strong>${data.engineers_count}</strong> инженеров СК</p>
+        <label class="personnel-filter">
+          <input type="checkbox" id="personnelEngineersOnly" checked/>
+          Только инженеры СК
+        </label>
+        <input type="search" id="personnelSearch" class="field-input personnel-search" placeholder="Поиск по ФИО…"/>
+      </div>
+      <div class="personnel-table-wrap">
+        <table class="planning-table personnel-table" id="personnelTable">
+          <thead>
+            <tr>
+              <th>ФИО</th>
+              <th>Должность</th>
+              <th>Телефон</th>
+              <th>Проекты</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>`;
+
+    const tbody = el.querySelector("#personnelTable tbody");
+    const engineersOnly = el.querySelector("#personnelEngineersOnly");
+    const search = el.querySelector("#personnelSearch");
+
+    function projectCell(projects) {
+      if (!projects?.length) return '<span class="hint-text">—</span>';
+      return projects.map((pr) => `<span class="engineer-chip">${esc(pr.title)}</span>`).join(" ");
+    }
+
+    function renderRows() {
+      const q = (search.value || "").trim().toLowerCase();
+      const onlyEng = engineersOnly.checked;
+      const rows = people.filter((p) => {
+        if (onlyEng && !p.is_engineer) return false;
+        if (q && !p.fio.toLowerCase().includes(q)) return false;
+        return true;
+      });
+      tbody.innerHTML = rows
+        .map(
+          (p) =>
+            `<tr data-engineer="${p.is_engineer ? "1" : "0"}">
+              <td>${esc(p.fio)}</td>
+              <td>${esc(p.position || "—")}</td>
+              <td>${esc(p.phone || "—")}</td>
+              <td class="engineer-chips">${projectCell(p.projects)}</td>
+            </tr>`
+        )
+        .join("");
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="hint-text">Никого не найдено</td></tr>';
+      }
+    }
+
+    engineersOnly.addEventListener("change", renderRows);
+    search.addEventListener("input", renderRows);
+    renderRows();
   }
 
   function renderSimpleList(elId, data) {
@@ -86,7 +227,7 @@
     const data = await res.json();
     if (name === "projects") renderProjects(data);
     else if (name === "otkk") renderOtkk(data);
-    else if (name === "personnel") renderSimpleList("personnelList", data);
+    else if (name === "personnel") renderPersonnel(data);
     loaded[name] = true;
   }
 

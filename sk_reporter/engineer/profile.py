@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from sk_reporter.personnel_store import get_person
 from sk_reporter.paths import engineer_profiles_dir, repo_root
 
 
@@ -22,6 +23,13 @@ def load_profile(profile_id: str | None = None) -> dict[str, Any]:
 
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     data["id"] = data.get("id") or pid
+    person_id = data.get("person_id")
+    if person_id:
+        person = get_person(str(person_id))
+        if person:
+            data.setdefault("name", person["fio"])
+            data.setdefault("position", person["position"])
+            data.setdefault("phone", person["phone"])
     return data
 
 

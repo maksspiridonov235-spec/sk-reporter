@@ -1,8 +1,5 @@
-id: example
-name: "Иванов И.И."
-position: "Инженер строительного контроля"
-phone: "+7 ..."
-projects:
-  - SUP-WLL-K084-003-DD-00-TX_00.2
-# docx-образец ежедневного отчёта (формат как у загрузки в SK-Reporter)
+id: ayupov
+person_id: аюпов-а
+# projects подтягиваются из project.yaml, где инженер назначен в Планировании
+projects: []
 report_template: data/engineer/report_template.docx

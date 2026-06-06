@@ -70,12 +70,25 @@ def flatten_vor_works(project_id: str) -> list[dict[str, Any]]:
     return out
 
 
+def _project_ids_for_profile(profile: dict[str, Any]) -> list[str]:
+    ids: set[str] = set(profile.get("projects") or [])
+    person_id = profile.get("person_id")
+    if person_id:
+        root = projects_dir()
+        if root.is_dir():
+            for proj in root.iterdir():
+                if not proj.is_dir():
+                    continue
+                meta = load_project_meta(proj.name)
+                assigned = meta.get("engineers") or []
+                if person_id in assigned:
+                    ids.add(proj.name)
+    return sorted(ids)
+
+
 def list_profile_projects(profile: dict[str, Any]) -> list[dict[str, Any]]:
-    ids = profile.get("projects") or []
     result = []
-    for pid in ids:
-        if not (projects_dir() / pid).is_dir():
-            continue
+    for pid in _project_ids_for_profile(profile):
         meta = load_project_meta(pid)
         try:
             works = flatten_vor_works(pid)

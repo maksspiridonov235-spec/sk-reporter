@@ -11,8 +11,8 @@ import yaml
 from openpyxl import load_workbook
 
 from sk_reporter.engineer.tk_catalog import write_manifest
-from sk_reporter.engineer.vor_parser import write_vor_cache
-from sk_reporter.paths import personnel_dir, project_dir, projects_dir
+from sk_reporter.personnel_store import person_id_from_fio
+from sk_reporter.paths import personnel_dir, projects_dir
 
 
 def export_personnel() -> Path:
@@ -32,6 +32,9 @@ def export_personnel() -> Path:
         rec = {headers[i]: (row[i] if i < len(row) else None) for i in range(len(headers))}
         if not any(rec.values()):
             continue
+        fio = str(rec.get("ФИО") or "").strip()
+        if fio:
+            rec["id"] = person_id_from_fio(fio)
         people.append(rec)
     out = personnel_dir() / "personnel.yaml"
     out.write_text(yaml.safe_dump({"people": people}, allow_unicode=True, sort_keys=False), encoding="utf-8")
@@ -39,21 +42,25 @@ def export_personnel() -> Path:
 
 
 def build_vor_caches(project_ids: list[str] | None = None) -> list[Path]:
+    from sk_reporter.engineer.vor_legacy import write_project_vor_cache
+
     built: list[Path] = []
-    for proj in projects_dir().iterdir():
-        if not proj.is_dir():
+    for proj in sorted(projects_dir().iterdir()):
+        if not proj.is_dir() or proj.name.startswith("."):
             continue
         if project_ids and proj.name not in project_ids:
             continue
         meta_path = proj / "project.yaml"
-        vor_name = None
-        if meta_path.is_file():
-            meta = yaml.safe_load(meta_path.read_text(encoding="utf-8")) or {}
-            vor_name = meta.get("vor_docx")
-        if vor_name:
-            vor_path = proj / vor_name
-            if vor_path.is_file():
-                built.append(write_vor_cache(vor_path))
+        if not meta_path.is_file():
+            continue
+        meta = yaml.safe_load(meta_path.read_text(encoding="utf-8")) or {}
+        has_vor = bool(meta.get("vor_docx")) or bool(meta.get("vor_doc"))
+        if not has_vor:
+            continue
+        try:
+            built.append(write_project_vor_cache(proj))
+        except FileNotFoundError:
+            continue
     return built
 
 

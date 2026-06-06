@@ -17,4 +17,7 @@ Get-ChildItem $templates -Filter *.html | ForEach-Object { Write-Host "  $($_.Na
 Write-Host "[INFO] Open: http://127.0.0.1:$port/"
 
 Set-Location $webapp
-& (Join-Path $root "venv\Scripts\python.exe") -m uvicorn main:app --reload --host 127.0.0.1 --port $port
+& (Join-Path $root "venv\Scripts\python.exe") -m uvicorn main:app --reload `
+  --reload-dir (Join-Path $root "webapp") `
+  --reload-dir (Join-Path $root "sk_reporter") `
+  --host 127.0.0.1 --port $port

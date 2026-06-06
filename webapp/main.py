@@ -211,6 +211,23 @@ async def planning_api(section: str):
         raise HTTPException(status_code=404, detail="Неизвестный раздел") from None
 
 
+class ProjectEngineersBody(BaseModel):
+    engineer_ids: list[str] = []
+
+
+@app.post("/api/planning/projects/{project_id}/engineers")
+async def planning_set_project_engineers(project_id: str, body: ProjectEngineersBody):
+    from sk_reporter.project_store import set_project_engineers
+
+    try:
+        return await asyncio.to_thread(set_project_engineers, project_id, body.engineer_ids)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @app.get("/luvr", response_class=HTMLResponse)
 async def luvr_page(request: Request):
     print(f"[REQ] GET /luvr pid={os.getpid()} -> luvr.html")
