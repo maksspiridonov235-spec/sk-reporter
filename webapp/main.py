@@ -148,12 +148,15 @@ def find_reports_for_company(company_name: str, keywords: list[str]):
     return found
 
 
-def _page_context(request: Request) -> dict:
-    return {
+def _page_context(request: Request, breadcrumbs: list[dict] | None = None, **extra) -> dict:
+    ctx = {
         "request": request,
         "agent_enabled": AGENT_ENABLED,
         "git_head": _git_head,
+        "breadcrumbs": breadcrumbs or [],
     }
+    ctx.update(extra)
+    return ctx
 
 
 @app.get("/health")
@@ -205,19 +208,34 @@ async def home(request: Request):
 @app.get("/reporting", response_class=HTMLResponse)
 async def reporting_page(request: Request):
     print(f"[REQ] GET /reporting pid={os.getpid()} -> reporting.html")
-    return templates.TemplateResponse("reporting.html", _page_context(request))
+    return templates.TemplateResponse(
+        "reporting.html",
+        _page_context(request, breadcrumbs=[{"label": "Отчётность"}]),
+    )
 
 
 @app.get("/daily", response_class=HTMLResponse)
 async def daily_reports(request: Request):
     print(f"[REQ] GET /daily pid={os.getpid()} -> daily.html")
-    return templates.TemplateResponse("daily.html", _page_context(request))
+    return templates.TemplateResponse(
+        "daily.html",
+        _page_context(
+            request,
+            breadcrumbs=[
+                {"label": "Отчётность", "href": "/reporting"},
+                {"label": "Ежедневные отчёты"},
+            ],
+        ),
+    )
 
 
 @app.get("/planning", response_class=HTMLResponse)
 async def planning_page(request: Request):
     print(f"[REQ] GET /planning pid={os.getpid()} -> planning.html")
-    return templates.TemplateResponse("planning.html", _page_context(request))
+    return templates.TemplateResponse(
+        "planning.html",
+        _page_context(request, breadcrumbs=[{"label": "Планирование"}]),
+    )
 
 
 @app.get("/planning/{section}", response_class=HTMLResponse)
@@ -226,8 +244,15 @@ async def planning_section_page(request: Request, section: str):
     if not title:
         raise HTTPException(status_code=404, detail="Неизвестный раздел планирования")
     print(f"[REQ] GET /planning/{section} pid={os.getpid()} -> planning_section.html")
-    ctx = _page_context(request)
-    ctx.update({"section": section, "section_title": title})
+    ctx = _page_context(
+        request,
+        breadcrumbs=[
+            {"label": "Планирование", "href": "/planning"},
+            {"label": title},
+        ],
+        section=section,
+        section_title=title,
+    )
     return templates.TemplateResponse("planning_section.html", ctx)
 
 
@@ -261,7 +286,16 @@ async def planning_set_project_engineers(project_id: str, body: ProjectEngineers
 @app.get("/luvr", response_class=HTMLResponse)
 async def luvr_page(request: Request):
     print(f"[REQ] GET /luvr pid={os.getpid()} -> luvr.html")
-    return templates.TemplateResponse("luvr.html", _page_context(request))
+    return templates.TemplateResponse(
+        "luvr.html",
+        _page_context(
+            request,
+            breadcrumbs=[
+                {"label": "Планирование", "href": "/planning"},
+                {"label": "ЛУВР"},
+            ],
+        ),
+    )
 
 
 @app.get("/api/luvr")
@@ -274,13 +308,26 @@ async def luvr_api():
 @app.get("/engineer-hub", response_class=HTMLResponse)
 async def engineer_hub_page(request: Request):
     print(f"[REQ] GET /engineer-hub pid={os.getpid()} -> engineer_hub.html")
-    return templates.TemplateResponse("engineer_hub.html", _page_context(request))
+    return templates.TemplateResponse(
+        "engineer_hub.html",
+        _page_context(request, breadcrumbs=[{"label": "Инженер ФИО"}]),
+    )
 
 
 @app.get("/engineer", response_class=HTMLResponse)
 async def engineer_page(request: Request):
     print(f"[REQ] GET /engineer pid={os.getpid()} -> engineer.html")
-    return templates.TemplateResponse("engineer.html", _page_context(request))
+    return templates.TemplateResponse(
+        "engineer.html",
+        _page_context(
+            request,
+            breadcrumbs=[
+                {"label": "Инженер ФИО", "href": "/engineer-hub"},
+                {"label": "Отчёт инженера"},
+            ],
+            header_meta_id="profileName",
+        ),
+    )
 
 
 class EngineerEntry(BaseModel):

@@ -1,0 +1,21 @@
+<header>
+  <a href="/" class="header-brand">SK-Reporter</a>
+  {% if breadcrumbs %}
+  <nav class="breadcrumbs" aria-label="Навигация">
+    <ol class="breadcrumb-list">
+      {% for crumb in breadcrumbs %}
+      <li>
+        {% if crumb.href %}
+        <a href="{{ crumb.href }}">{{ crumb.label }}</a>
+        {% else %}
+        <span aria-current="page">{{ crumb.label }}</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+  </nav>
+  {% endif %}
+  {% if header_meta_id %}
+  <span id="{{ header_meta_id }}" class="header-meta"></span>
+  {% endif %}
+</header>

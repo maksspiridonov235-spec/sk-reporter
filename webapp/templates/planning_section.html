@@ -8,10 +8,7 @@
   <link rel="stylesheet" href="/static/app.css?v={{ git_head }}"/>
 </head>
 <body data-planning-section="{{ section }}">
-<header>
-  <a class="header-link" href="/planning">← Планирование</a>
-  <span class="title">{{ section_title }}</span>
-</header>
+{% include "_header.html" %}
 
 <div class="planning-shell">
   {% if section == "projects" %}

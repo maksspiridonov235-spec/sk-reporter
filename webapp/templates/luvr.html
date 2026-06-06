@@ -8,10 +8,7 @@
   <link rel="stylesheet" href="/static/app.css?v={{ git_head }}"/>
 </head>
 <body>
-<header>
-  <a class="header-link" href="/planning">← Планирование</a>
-  <span class="title">ЛУВР</span>
-</header>
+{% include "_header.html" %}
 
 <div class="planning-shell">
   <p class="planning-hint">Лист учёта времени — <code>data/luvr/ЛУВР.xlsx</code>, таблица по месяцам.</p>

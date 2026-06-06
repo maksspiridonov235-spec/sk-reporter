@@ -8,11 +8,7 @@
   <link rel="stylesheet" href="/static/app.css?v={{ git_head }}"/>
 </head>
 <body>
-<header>
-  <a class="header-link" href="/engineer-hub">← Инженер ФИО</a>
-  <span class="title">Отчёт инженера</span>
-  <span id="profileName" class="header-meta"></span>
-</header>
+{% include "_header.html" %}
 
 <div class="layout engineer-layout">
   <aside class="sidebar-shell">
