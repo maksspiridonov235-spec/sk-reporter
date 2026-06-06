@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
+import time
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -37,6 +38,22 @@ except ImportError as e:
 
 _WEBAPP_DIR = Path(__file__).resolve().parent
 _HTML_TEMPLATES_DIR = _WEBAPP_DIR / "templates"
+_APP_UI_BUILD = "home+daily"
+
+
+def _read_git_head() -> str:
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=_WEBAPP_DIR.parent,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except Exception:
+        return "unknown"
+
+
+_PROCESS_START_TS = time.time()
 
 app = FastAPI(title="Объединение отчётов СК")
 templates = Jinja2Templates(directory=str(_HTML_TEMPLATES_DIR))
@@ -54,23 +71,15 @@ if not TEMPLATES_DIR.exists():
     raise RuntimeError(f"Папка с болванками не найдена: {TEMPLATES_DIR}")
 print(f"[INFO] Templates dir: {TEMPLATES_DIR} ({len(list(TEMPLATES_DIR.glob('*.docx')))} шаблонов)")
 
-for _tpl in ("home.html", "daily.html", "index.html"):
+for _tpl in ("home.html", "daily.html"):
     _tpl_path = _HTML_TEMPLATES_DIR / _tpl
     if not _tpl_path.is_file():
         raise RuntimeError(f"HTML-шаблон не найден: {_tpl_path} — выполните git pull и перезапустите сервер")
 print(f"[INFO] UI templates: {_HTML_TEMPLATES_DIR}")
 print(f"[INFO] main.py: {Path(__file__).resolve()}")
-_git_head = "unknown"
-try:
-    _git_head = subprocess.check_output(
-        ["git", "rev-parse", "--short", "HEAD"],
-        cwd=Path(__file__).resolve().parent.parent,
-        stderr=subprocess.DEVNULL,
-        text=True,
-    ).strip()
-    print(f"[INFO] git: {_git_head}")
-except Exception:
-    print("[INFO] git: unknown")
+_git_head = _read_git_head()
+print(f"[INFO] git: {_git_head}")
+print(f"[INFO] UI build: {_APP_UI_BUILD}")
 
 
 @app.exception_handler(Exception)
@@ -128,17 +137,29 @@ def _page_context(request: Request) -> dict:
 
 @app.get("/health")
 async def health():
-    """Проверка версии и наличия UI-шаблонов (для отладки после git pull)."""
-    missing = [
-        name for name in ("home.html", "daily.html", "index.html")
-        if not (_HTML_TEMPLATES_DIR / name).is_file()
-    ]
+    """На диске новый git, а процесс старый — stale_process: true → нужен перезапуск uvicorn."""
+    disk_git = _read_git_head()
+    main_py = Path(__file__).resolve()
+    main_mtime = main_py.stat().st_mtime
+    has_daily = any(getattr(r, "path", None) == "/daily" for r in app.routes)
+    stale = (
+        disk_git != _git_head
+        or main_mtime > _PROCESS_START_TS
+        or not has_daily
+    )
     return {
-        "ok": not missing,
-        "git_head": _git_head,
-        "main_py": str(Path(__file__).resolve()),
+        "ok": not stale,
+        "stale_process": stale,
+        "app_ui_build": _APP_UI_BUILD,
+        "has_daily_route": has_daily,
+        "pid": os.getpid(),
+        "git_head_at_startup": _git_head,
+        "git_head_on_disk": disk_git,
+        "main_py": str(main_py),
+        "main_py_mtime_after_start": main_mtime > _PROCESS_START_TS,
         "ui_templates": str(_HTML_TEMPLATES_DIR),
-        "missing_templates": missing,
+        "templates_on_disk": sorted(p.name for p in _HTML_TEMPLATES_DIR.glob("*.html")),
+        "fix": "Shift+F5 в VS Code, затем F5 (git pull не перезапускает Python)" if stale else None,
     }
 
 
