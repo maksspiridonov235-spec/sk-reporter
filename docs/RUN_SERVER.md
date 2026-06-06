@@ -169,4 +169,4 @@ curl http://127.0.0.1:8000/diagnose/reports
 | `SSL: CERTIFICATE_VERIFY_FAILED` / timeout при `pip install` | Корпоративная сеть: `$env:SK_REPORTER_PIP_TRUSTED = "1"` и снова `.\scripts\setup.ps1` (см. раздел про ярлык выше) |
 | `getaddrinfo failed` / `No matching distribution found` | **Нет интернета до PyPI** (DNS). Проверьте `ping pypi.org`. Без VPN интернет может пропасть — включите VPN офиса + `SK_REPORTER_PIP_TRUSTED=1` |
 | `Permission denied` на `venv\Scripts\python.exe` | venv занят. Закройте SK-Reporter.bat и все `(venv)` терминалы, `deactivate`, удалите `venv`, setup снова |
-| После `git pull` старый UI / `index.html` / нет главной | `git pull` **не перезапускает** uvicorn. Открыть http://localhost:8000/health — если `"stale_process": true`, Shift+F5 → F5. Новый код: `"app_ui_build": "home+daily"`, `"has_daily_route": true` |
+| После `git pull` старый UI или нет `/daily` | `git pull` + перезапуск uvicorn (Ctrl+C → снова run). Проверка: `/health` → `templates_on_disk`: `daily.html`, `home.html`; `has_daily_route`: true |
