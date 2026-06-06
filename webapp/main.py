@@ -71,7 +71,7 @@ if not TEMPLATES_DIR.exists():
     raise RuntimeError(f"Папка с болванками не найдена: {TEMPLATES_DIR}")
 print(f"[INFO] Templates dir: {TEMPLATES_DIR} ({len(list(TEMPLATES_DIR.glob('*.docx')))} шаблонов)")
 
-for _tpl in ("home.html", "daily.html"):
+for _tpl in ("home.html", "daily.html", "index.html"):
     _tpl_path = _HTML_TEMPLATES_DIR / _tpl
     if not _tpl_path.is_file():
         raise RuntimeError(f"HTML-шаблон не найден: {_tpl_path} — выполните git pull и перезапустите сервер")
@@ -87,7 +87,13 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     traceback.print_exc()
     return JSONResponse(
         status_code=500,
-        content={"detail": f"Внутренняя ошибка сервера: {str(exc)}"},
+        content={
+            "detail": f"Внутренняя ошибка сервера: {exc}",
+            "path": str(request.url.path),
+            "pid": os.getpid(),
+            "git": _git_head,
+            "ui_build": _APP_UI_BUILD,
+        },
     )
 
 
@@ -166,6 +172,11 @@ async def health():
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("home.html", _page_context(request))
+
+
+@app.get("/index.html", response_class=HTMLResponse, include_in_schema=False)
+async def legacy_index_html(request: Request):
+    return templates.TemplateResponse("index.html", _page_context(request))
 
 
 @app.get("/daily", response_class=HTMLResponse)
