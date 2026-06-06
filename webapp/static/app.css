@@ -622,3 +622,29 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
   border-radius: 50%; animation: spin .7s linear infinite;
   vertical-align: middle; margin-right: 6px;
 }
+
+/* Главная страница */
+.header-back {
+  color: #fff; text-decoration: none; font-size: 20px; line-height: 1;
+  opacity: .85; padding: 2px 4px; border-radius: 4px;
+}
+.header-back:hover { opacity: 1; background: rgba(255,255,255,.12); }
+.home-body { min-height: 100vh; }
+.home-main {
+  max-width: 640px; margin: 0 auto; padding: 32px 24px 48px;
+}
+.home-lead { font-size: 14px; color: #666; margin-bottom: 20px; }
+.home-nav { list-style: none; }
+.home-card {
+  display: block; background: #fff; border: 1px solid #ddd; border-radius: 8px;
+  padding: 20px 22px; text-decoration: none; color: inherit;
+  transition: border-color .15s, box-shadow .15s;
+}
+.home-card:hover {
+  border-color: #1a56a0; box-shadow: 0 2px 8px rgba(26,86,160,.12);
+}
+.home-card-title {
+  display: block; font-size: 17px; font-weight: bold; color: #1a56a0;
+  margin-bottom: 6px;
+}
+.home-card-desc { display: block; font-size: 13px; color: #555; line-height: 1.45; }

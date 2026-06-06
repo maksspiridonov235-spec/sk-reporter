@@ -106,13 +106,22 @@ def find_reports_for_company(company_name: str, keywords: list[str]):
     return found
 
 
-@app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
-    return templates.TemplateResponse("index.html", {
+def _page_context(request: Request) -> dict:
+    return {
         "request": request,
         "agent_enabled": AGENT_ENABLED,
         "git_head": _git_head,
-    })
+    }
+
+
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse("home.html", _page_context(request))
+
+
+@app.get("/daily", response_class=HTMLResponse)
+async def daily_reports(request: Request):
+    return templates.TemplateResponse("daily.html", _page_context(request))
 
 
 @app.post("/upload/reports")

@@ -48,7 +48,7 @@
 
 | Слой | Файл |
 |------|------|
-| UI | `webapp/templates/index.html`, `webapp/static/app.js` (`runCheck`, `prepareReports`) |
+| UI | `webapp/templates/home.html`, `webapp/templates/daily.html`, `webapp/static/app.js` |
 | API | `webapp/main.py` — stream check, `/download/fixed/...` |
 | AI + inject | `check_agent.py`, `inject_agent.py` — **не откатывать** колонки Участок/ПК/Ссылка в check |
 | Загрузка (сырые + после проверки) | temp `sk_reports_work/uploads/` — см. `UPLOAD_DIR` в `webapp/main.py` |
