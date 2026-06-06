@@ -7,41 +7,40 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
   <link rel="stylesheet" href="/static/app.css?v={{ git_head }}"/>
 </head>
-<body>
+<body class="home-body">
 <header>
   <a class="header-link" href="/">← SK-Reporter</a>
   <span class="title">Планирование</span>
 </header>
 
-<div class="planning-shell">
-  <nav class="planning-tabs" role="tablist">
-    <button type="button" class="planning-tab is-active" data-tab="projects" role="tab">Проекты</button>
-    <button type="button" class="planning-tab" data-tab="personnel" role="tab">Сотрудники</button>
-    <button type="button" class="planning-tab" data-tab="otkk" role="tab">ОТКК</button>
-    <button type="button" class="planning-tab" data-tab="luvr" role="tab">ЛУВР</button>
-  </nav>
-
-  <div class="planning-panel" id="panel-projects" role="tabpanel">
-    <p class="planning-hint">Проекты из <code>data/projects/</code>: ВОР, ТК, инженеры. На один проект можно назначить <strong>несколько</strong> инженеров.</p>
-    <div id="projectsList" class="planning-cards"></div>
-  </div>
-
-  <div class="planning-panel" id="panel-personnel" role="tabpanel" hidden>
-    <p class="planning-hint">Справочник из <code>personnel.yaml</code> — инженеры назначаются на проекты во вкладке «Проекты».</p>
-    <div id="personnelList"></div>
-  </div>
-
-  <div class="planning-panel" id="panel-otkk" role="tabpanel" hidden>
-    <p class="planning-hint">Технологические карты в <code>data/tk/</code> — manifest.yaml.</p>
-    <div id="otkkList"></div>
-  </div>
-
-  <div class="planning-panel" id="panel-luvr" role="tabpanel" hidden>
-    <p class="planning-hint">Лист учёта времени — <code>data/luvr/ЛУВР.xlsx</code>, таблица по месяцам из <code>luvr.yaml</code>.</p>
-    <div id="luvrList"></div>
-  </div>
-</div>
-
-<script src="/static/planning.js?v={{ git_head }}"></script>
+<main class="home-main">
+  <p class="home-lead">Выберите раздел</p>
+  <ul class="home-nav">
+    <li>
+      <a class="home-card" href="/planning/projects">
+        <span class="home-card-title">Проекты</span>
+        <span class="home-card-desc">ВОР, сопоставление ТК, назначение инженеров на проект</span>
+      </a>
+    </li>
+    <li>
+      <a class="home-card" href="/planning/personnel">
+        <span class="home-card-title">Сотрудники</span>
+        <span class="home-card-desc">Справочник из personnel.yaml — инженеры и проекты</span>
+      </a>
+    </li>
+    <li>
+      <a class="home-card" href="/planning/otkk">
+        <span class="home-card-title">ОТКК</span>
+        <span class="home-card-desc">Технологические карты в data/tk/, manifest.yaml</span>
+      </a>
+    </li>
+    <li>
+      <a class="home-card" href="/planning/luvr">
+        <span class="home-card-title">ЛУВР</span>
+        <span class="home-card-desc">Лист учёта времени — таблица по месяцам из ЛУВР.xlsx</span>
+      </a>
+    </li>
+  </ul>
+</main>
 </body>
 </html>

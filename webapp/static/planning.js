@@ -1,11 +1,5 @@
 (function () {
-  const tabs = document.querySelectorAll(".planning-tab");
-  const panels = {
-    projects: document.getElementById("panel-projects"),
-    personnel: document.getElementById("panel-personnel"),
-    otkk: document.getElementById("panel-otkk"),
-    luvr: document.getElementById("panel-luvr"),
-  };
+  const sectionOnly = document.body.dataset.planningSection;
   const loaded = {};
 
   function esc(s) {
@@ -99,7 +93,7 @@
             throw new Error(err.detail || res.statusText);
           }
           loaded.projects = false;
-          await loadTab("projects");
+          await loadTab("projects", true);
           status.textContent = "Сохранено";
         } catch (e) {
           status.textContent = e.message;
@@ -296,8 +290,8 @@
       <table class="planning-table"><thead><tr><th>ID</th><th>Файл</th><th>КБ</th><th>На диске</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
-  async function loadTab(name) {
-    if (loaded[name]) return;
+  async function loadTab(name, force) {
+    if (!force && loaded[name]) return;
     const res = await fetch(`/api/planning/${name}`);
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
@@ -308,25 +302,19 @@
     loaded[name] = true;
   }
 
-  function activateTab(name) {
-    tabs.forEach((t) => {
-      const on = t.dataset.tab === name;
-      t.classList.toggle("is-active", on);
-      t.setAttribute("aria-selected", on ? "true" : "false");
-    });
-    Object.entries(panels).forEach(([key, panel]) => {
-      if (panel) panel.hidden = key !== name;
-    });
-    loadTab(name).catch((e) => {
-      const panel = panels[name];
-      if (panel) panel.insertAdjacentHTML("beforeend", `<p class="error-text">${esc(e.message)}</p>`);
-    });
+  function showLoadError(name, e) {
+    const ids = {
+      projects: "projectsList",
+      personnel: "personnelList",
+      otkk: "otkkList",
+      luvr: "luvrList",
+    };
+    const el = document.getElementById(ids[name]);
+    if (el) el.insertAdjacentHTML("beforeend", `<p class="error-text">${esc(e.message)}</p>`);
   }
 
-  tabs.forEach((tab) => {
-    tab.addEventListener("click", () => activateTab(tab.dataset.tab));
-  });
-
-  const hash = (location.hash || "#projects").replace("#", "");
-  activateTab(["projects", "personnel", "otkk", "luvr"].includes(hash) ? hash : "projects");
+  if (sectionOnly) {
+    loadTab(sectionOnly).catch((e) => showLoadError(sectionOnly, e));
+    return;
+  }
 })();

@@ -38,7 +38,14 @@ except ImportError as e:
 
 _WEBAPP_DIR = Path(__file__).resolve().parent
 _HTML_TEMPLATES_DIR = _WEBAPP_DIR / "templates"
-_APP_UI_BUILD = "home+daily+planning+luvr+engineer"
+_APP_UI_BUILD = "home+reporting+daily+planning+planning-sections+luvr+engineer-hub+engineer"
+
+_PLANNING_SECTIONS = {
+    "projects": "Проекты",
+    "personnel": "Сотрудники",
+    "otkk": "ОТКК",
+    "luvr": "ЛУВР",
+}
 
 
 def _read_git_head() -> str:
@@ -72,7 +79,7 @@ if not TEMPLATES_DIR.exists():
     raise RuntimeError(f"Папка с болванками не найдена: {TEMPLATES_DIR}")
 print(f"[INFO] Templates dir: {TEMPLATES_DIR} ({len(list(TEMPLATES_DIR.glob('*.docx')))} шаблонов)")
 
-for _tpl in ("home.html", "daily.html", "planning.html", "luvr.html", "engineer.html"):
+for _tpl in ("home.html", "reporting.html", "daily.html", "planning.html", "planning_section.html", "luvr.html", "engineer_hub.html", "engineer.html"):
     _tpl_path = _HTML_TEMPLATES_DIR / _tpl
     if not _tpl_path.is_file():
         raise RuntimeError(f"HTML-шаблон не найден: {_tpl_path} — выполните git pull и перезапустите сервер")
@@ -156,21 +163,27 @@ async def health():
     main_py = Path(__file__).resolve()
     main_mtime = main_py.stat().st_mtime
     has_daily = any(getattr(r, "path", None) == "/daily" for r in app.routes)
+    has_reporting = any(getattr(r, "path", None) == "/reporting" for r in app.routes)
     has_planning = any(getattr(r, "path", None) == "/planning" for r in app.routes)
     has_engineer = any(getattr(r, "path", None) == "/engineer" for r in app.routes)
+    has_engineer_hub = any(getattr(r, "path", None) == "/engineer-hub" for r in app.routes)
     stale = (
         disk_git != _git_head
         or main_mtime > _PROCESS_START_TS
         or not has_daily
+        or not has_reporting
         or not has_planning
         or not has_engineer
+        or not has_engineer_hub
     )
     return {
         "ok": not stale,
         "stale_process": stale,
         "app_ui_build": _APP_UI_BUILD,
         "has_daily_route": has_daily,
+        "has_reporting_route": has_reporting,
         "has_planning_route": has_planning,
+        "has_engineer_hub_route": has_engineer_hub,
         "has_engineer_route": has_engineer,
         "pid": os.getpid(),
         "git_head_at_startup": _git_head,
@@ -189,6 +202,12 @@ async def home(request: Request):
     return templates.TemplateResponse("home.html", _page_context(request))
 
 
+@app.get("/reporting", response_class=HTMLResponse)
+async def reporting_page(request: Request):
+    print(f"[REQ] GET /reporting pid={os.getpid()} -> reporting.html")
+    return templates.TemplateResponse("reporting.html", _page_context(request))
+
+
 @app.get("/daily", response_class=HTMLResponse)
 async def daily_reports(request: Request):
     print(f"[REQ] GET /daily pid={os.getpid()} -> daily.html")
@@ -199,6 +218,17 @@ async def daily_reports(request: Request):
 async def planning_page(request: Request):
     print(f"[REQ] GET /planning pid={os.getpid()} -> planning.html")
     return templates.TemplateResponse("planning.html", _page_context(request))
+
+
+@app.get("/planning/{section}", response_class=HTMLResponse)
+async def planning_section_page(request: Request, section: str):
+    title = _PLANNING_SECTIONS.get(section)
+    if not title:
+        raise HTTPException(status_code=404, detail="Неизвестный раздел планирования")
+    print(f"[REQ] GET /planning/{section} pid={os.getpid()} -> planning_section.html")
+    ctx = _page_context(request)
+    ctx.update({"section": section, "section_title": title})
+    return templates.TemplateResponse("planning_section.html", ctx)
 
 
 @app.get("/api/planning/{section}")
@@ -239,6 +269,12 @@ async def luvr_api():
     from sk_reporter.planning_data import list_luvr
 
     return list_luvr()
+
+
+@app.get("/engineer-hub", response_class=HTMLResponse)
+async def engineer_hub_page(request: Request):
+    print(f"[REQ] GET /engineer-hub pid={os.getpid()} -> engineer_hub.html")
+    return templates.TemplateResponse("engineer_hub.html", _page_context(request))
 
 
 @app.get("/engineer", response_class=HTMLResponse)

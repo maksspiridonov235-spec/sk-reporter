@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{{ section_title }} — Планирование — SK-Reporter</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
+  <link rel="stylesheet" href="/static/app.css?v={{ git_head }}"/>
+</head>
+<body data-planning-section="{{ section }}">
+<header>
+  <a class="header-link" href="/planning">← Планирование</a>
+  <span class="title">{{ section_title }}</span>
+</header>
+
+<div class="planning-shell">
+  {% if section == "projects" %}
+  <p class="planning-hint">Проекты из <code>data/projects/</code>: ВОР, ТК, инженеры. На один проект можно назначить <strong>несколько</strong> инженеров.</p>
+  <div id="projectsList" class="planning-cards"></div>
+  {% elif section == "personnel" %}
+  <p class="planning-hint">Справочник из <code>personnel.yaml</code> — инженеры назначаются на проекты в разделе «Проекты».</p>
+  <div id="personnelList"></div>
+  {% elif section == "otkk" %}
+  <p class="planning-hint">Технологические карты в <code>data/tk/</code> — manifest.yaml.</p>
+  <div id="otkkList"></div>
+  {% elif section == "luvr" %}
+  <p class="planning-hint">Лист учёта времени — <code>data/luvr/ЛУВР.xlsx</code>, таблица по месяцам из <code>luvr.yaml</code>.</p>
+  <div id="luvrList"></div>
+  {% endif %}
+</div>
+
+<script src="/static/planning.js?v={{ git_head }}"></script>
+</body>
+</html>
