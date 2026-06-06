@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -53,11 +54,12 @@ if not TEMPLATES_DIR.exists():
     raise RuntimeError(f"Папка с болванками не найдена: {TEMPLATES_DIR}")
 print(f"[INFO] Templates dir: {TEMPLATES_DIR} ({len(list(TEMPLATES_DIR.glob('*.docx')))} шаблонов)")
 
-for _tpl in ("home.html", "daily.html"):
+for _tpl in ("home.html", "daily.html", "index.html"):
     _tpl_path = _HTML_TEMPLATES_DIR / _tpl
     if not _tpl_path.is_file():
         raise RuntimeError(f"HTML-шаблон не найден: {_tpl_path} — выполните git pull и перезапустите сервер")
 print(f"[INFO] UI templates: {_HTML_TEMPLATES_DIR}")
+print(f"[INFO] main.py: {Path(__file__).resolve()}")
 _git_head = "unknown"
 try:
     _git_head = subprocess.check_output(
@@ -73,6 +75,7 @@ except Exception:
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
+    traceback.print_exc()
     return JSONResponse(
         status_code=500,
         content={"detail": f"Внутренняя ошибка сервера: {str(exc)}"},
@@ -127,12 +130,13 @@ def _page_context(request: Request) -> dict:
 async def health():
     """Проверка версии и наличия UI-шаблонов (для отладки после git pull)."""
     missing = [
-        name for name in ("home.html", "daily.html")
+        name for name in ("home.html", "daily.html", "index.html")
         if not (_HTML_TEMPLATES_DIR / name).is_file()
     ]
     return {
         "ok": not missing,
         "git_head": _git_head,
+        "main_py": str(Path(__file__).resolve()),
         "ui_templates": str(_HTML_TEMPLATES_DIR),
         "missing_templates": missing,
     }
