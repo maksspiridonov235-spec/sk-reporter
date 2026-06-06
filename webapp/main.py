@@ -34,9 +34,12 @@ except ImportError as e:
     AGENT_ENABLED = False
     print(f"[WARNING] Agent not found: {e}")
 
+_WEBAPP_DIR = Path(__file__).resolve().parent
+_HTML_TEMPLATES_DIR = _WEBAPP_DIR / "templates"
+
 app = FastAPI(title="Объединение отчётов СК")
-templates = Jinja2Templates(directory="templates")
-app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
+templates = Jinja2Templates(directory=str(_HTML_TEMPLATES_DIR))
+app.mount("/static", StaticFiles(directory=_WEBAPP_DIR / "static"), name="static")
 
 WORK_DIR = Path(tempfile.gettempdir()) / "sk_reports_work"
 UPLOAD_DIR = WORK_DIR / "uploads"
@@ -49,6 +52,12 @@ TEMPLATES_DIR = templates_dir()
 if not TEMPLATES_DIR.exists():
     raise RuntimeError(f"Папка с болванками не найдена: {TEMPLATES_DIR}")
 print(f"[INFO] Templates dir: {TEMPLATES_DIR} ({len(list(TEMPLATES_DIR.glob('*.docx')))} шаблонов)")
+
+for _tpl in ("home.html", "daily.html"):
+    _tpl_path = _HTML_TEMPLATES_DIR / _tpl
+    if not _tpl_path.is_file():
+        raise RuntimeError(f"HTML-шаблон не найден: {_tpl_path} — выполните git pull и перезапустите сервер")
+print(f"[INFO] UI templates: {_HTML_TEMPLATES_DIR}")
 _git_head = "unknown"
 try:
     _git_head = subprocess.check_output(
@@ -111,6 +120,21 @@ def _page_context(request: Request) -> dict:
         "request": request,
         "agent_enabled": AGENT_ENABLED,
         "git_head": _git_head,
+    }
+
+
+@app.get("/health")
+async def health():
+    """Проверка версии и наличия UI-шаблонов (для отладки после git pull)."""
+    missing = [
+        name for name in ("home.html", "daily.html")
+        if not (_HTML_TEMPLATES_DIR / name).is_file()
+    ]
+    return {
+        "ok": not missing,
+        "git_head": _git_head,
+        "ui_templates": str(_HTML_TEMPLATES_DIR),
+        "missing_templates": missing,
     }
 
 
