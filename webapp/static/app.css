@@ -767,3 +767,41 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 .personnel-table td:nth-child(2) { max-width: 280px; }
 .luvr-month-select { max-width: 320px; margin-bottom: 12px; }
 .luvr-header { margin-bottom: 8px; }
+.luvr-grid-wrap {
+  overflow: auto; max-height: calc(100vh - 220px); border: 1px solid #ddd;
+  border-radius: 8px; background: #fff;
+}
+.luvr-grid { width: max-content; min-width: 100%; font-size: 11px; }
+.luvr-grid th, .luvr-grid td { padding: 4px 5px; text-align: center; white-space: nowrap; }
+.luvr-grid .luvr-col-fio, .luvr-grid .luvr-col-pos { text-align: left; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+.luvr-grid .luvr-col-fio { max-width: 180px; }
+.luvr-grid .luvr-sticky {
+  position: sticky; left: 0; z-index: 2; background: #fff;
+  box-shadow: 2px 0 0 #eee;
+}
+.luvr-grid .luvr-col-num { left: 0; min-width: 28px; }
+.luvr-grid .luvr-col-fio { left: 28px; }
+.luvr-grid .luvr-col-pos { left: 208px; }
+.luvr-grid thead .luvr-sticky { z-index: 3; background: #f8fafc; }
+.luvr-grid thead th { position: sticky; top: 0; z-index: 1; background: #f8fafc; }
+.luvr-grid thead .luvr-sticky { z-index: 4; }
+.luvr-day { min-width: 26px; font-weight: normal; color: #666; }
+.luvr-sum { font-weight: bold; background: #f1f5f9; min-width: 28px; }
+.luvr-mark--empty { color: #ccc; }
+.luvr-mark--full { background: #dbeafe; font-weight: bold; }
+.luvr-mark--half { background: #fef3c7; }
+.luvr-mark--other { background: #fce7f3; }
+.luvr-legend { margin-top: 8px; font-size: 12px; }
+.luvr-legend .luvr-mark { display: inline-block; padding: 0 6px; border-radius: 3px; }
+.luvr-cell { cursor: pointer; user-select: none; }
+.luvr-cell:focus { outline: 2px solid #3b82f6; outline-offset: -2px; z-index: 1; }
+.luvr-cell--pending { opacity: 0.55; }
+.luvr-cell--saved { box-shadow: inset 0 0 0 2px #22c55e; }
+.luvr-save-status { min-height: 1.2em; margin-top: 6px; font-size: 12px; color: #64748b; }
+.luvr-save-status--ok { color: #15803d; }
+.luvr-save-status--error { color: #b91c1c; }
+.luvr-save-status--pending { color: #b45309; }
+.luvr-legend kbd {
+  display: inline-block; padding: 0 4px; border: 1px solid #cbd5e1;
+  border-radius: 3px; background: #f8fafc; font-size: 11px;
+}

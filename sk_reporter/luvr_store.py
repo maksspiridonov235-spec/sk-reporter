@@ -54,6 +54,17 @@ def _count_days(values: list[Any]) -> dict[str, int]:
     return out
 
 
+def _norm_mark(v: Any) -> str:
+    if v is None or v == "":
+        return ""
+    s = str(v).strip().replace(",", ".")
+    if s == "1":
+        return "1"
+    if s == "0.5":
+        return "0.5"
+    return s
+
+
 def _parse_sheet(ws) -> dict[str, Any] | None:
     rows = list(ws.iter_rows(values_only=True))
     hdr_idx = None
@@ -83,6 +94,7 @@ def _parse_sheet(ws) -> dict[str, Any] | None:
             continue
         day_values = [row[c["col"]] if c["col"] < len(row) else None for c in day_cols]
         counts = _count_days(day_values)
+        marks = [_norm_mark(v) for v in day_values]
         people.append(
             {
                 "num": row[0],
@@ -93,6 +105,7 @@ def _parse_sheet(ws) -> dict[str, Any] | None:
                 "days_present": counts["present"],
                 "days_half": counts["half"],
                 "days_marked": counts["present"] + counts["half"] + counts["other"],
+                "marks": marks,
             }
         )
 
@@ -105,6 +118,7 @@ def _parse_sheet(ws) -> dict[str, Any] | None:
         "title": title,
         "people_count": len(people),
         "days_in_sheet": len(day_cols),
+        "days": [{"date": c["date"], "day": c["day"]} for c in day_cols],
         "people": people,
     }
 
@@ -138,12 +152,78 @@ def export_luvr() -> Path:
     return out
 
 
+def _recalc_person_stats(person: dict[str, Any]) -> None:
+    marks = person.get("marks") or []
+    counts = _count_days(marks)
+    person["days_present"] = counts["present"]
+    person["days_half"] = counts["half"]
+    person["days_marked"] = counts["present"] + counts["half"] + counts["other"]
+
+
+def save_luvr(data: dict[str, Any] | None = None) -> Path:
+    payload = data if data is not None else load_luvr()
+    out = luvr_dir() / "luvr.yaml"
+    out.write_text(yaml.safe_dump(payload, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    load_luvr.cache_clear()
+    return out
+
+
+def update_luvr_mark(sheet: str, person_idx: int, day_idx: int, mark: Any) -> dict[str, Any]:
+    if sheet not in _MONTH_SHEETS:
+        raise KeyError(f"Неизвестный лист: {sheet}")
+    data = load_luvr()
+    if not data.get("months"):
+        raise FileNotFoundError("luvr.yaml пуст — сначала build_engineer_data.py --luvr")
+
+    month = next((m for m in data["months"] if m.get("sheet") == sheet), None)
+    if month is None:
+        raise KeyError(f"Лист «{sheet}» не найден в luvr.yaml")
+
+    people = month.get("people") or []
+    if person_idx < 0 or person_idx >= len(people):
+        raise IndexError("person_idx вне диапазона")
+
+    days = month.get("days") or []
+    if day_idx < 0 or day_idx >= len(days):
+        raise IndexError("day_idx вне диапазона")
+
+    person = people[person_idx]
+    marks = list(person.get("marks") or [])
+    while len(marks) < len(days):
+        marks.append("")
+
+    norm = _norm_mark(mark)
+    marks[day_idx] = norm
+    person["marks"] = marks
+    _recalc_person_stats(person)
+    save_luvr(data)
+
+    return {
+        "sheet": sheet,
+        "person_idx": person_idx,
+        "day_idx": day_idx,
+        "mark": norm,
+        "days_present": person["days_present"],
+        "days_marked": person["days_marked"],
+    }
+
+
 @lru_cache(maxsize=1)
 def load_luvr() -> dict[str, Any]:
     cache = luvr_dir() / "luvr.yaml"
     if cache.is_file():
         return yaml.safe_load(cache.read_text(encoding="utf-8")) or {}
     return {}
+
+
+def _cache_has_grid(months: list[dict[str, Any]]) -> bool:
+    if not months:
+        return False
+    m = months[0]
+    if not m.get("days"):
+        return False
+    people = m.get("people") or []
+    return bool(people and "marks" in people[0])
 
 
 def luvr_planning_payload() -> dict[str, Any]:
@@ -158,7 +238,7 @@ def luvr_planning_payload() -> dict[str, Any]:
 
     data = load_luvr()
     months = data.get("months") or []
-    if not months and xlsx_path is not None:
+    if xlsx_path is not None and (not months or not _cache_has_grid(months)):
         try:
             export_luvr()
             data = load_luvr()
@@ -178,6 +258,8 @@ def luvr_planning_payload() -> dict[str, Any]:
         "default_month": default_month,
         "cache_ready": bool(months),
         "cache_from_yaml": bool(months) and yaml_path.is_file(),
+        "grid_ready": _cache_has_grid(months),
+        "editable": _cache_has_grid(months),
         "xlsx_present": xlsx_path is not None,
     }
 

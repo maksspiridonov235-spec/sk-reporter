@@ -11,10 +11,11 @@
 {% include "_header.html" %}
 
 <div class="planning-shell">
-  <p class="planning-hint">Лист учёта времени — <code>data/luvr/ЛУВР.xlsx</code>, таблица по месяцам.</p>
+  <p class="planning-hint">Лист учёта времени — сетка по дням из <code>luvr.yaml</code>.</p>
   <div id="luvrList"></div>
 </div>
 
+<script src="/static/luvr_render.js?v={{ git_head }}"></script>
 <script src="/static/luvr.js?v={{ git_head }}"></script>
 </body>
 </html>

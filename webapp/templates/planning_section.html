@@ -21,11 +21,14 @@
   <p class="planning-hint">Технологические карты в <code>data/tk/</code> — manifest.yaml.</p>
   <div id="otkkList"></div>
   {% elif section == "luvr" %}
-  <p class="planning-hint">Лист учёта времени — <code>data/luvr/ЛУВР.xlsx</code>, таблица по месяцам из <code>luvr.yaml</code>.</p>
+  <p class="planning-hint">Лист учёта времени — сетка по дням из <code>luvr.yaml</code> (источник: <code>data/luvr/ЛУВР.xlsx</code>). Клик по ячейке — правка, сохраняется в yaml.</p>
   <div id="luvrList"></div>
   {% endif %}
 </div>
 
+{% if section == "luvr" %}
+<script src="/static/luvr_render.js?v={{ git_head }}"></script>
+{% endif %}
 <script src="/static/planning.js?v={{ git_head }}"></script>
 </body>
 </html>

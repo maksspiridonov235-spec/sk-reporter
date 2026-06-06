@@ -305,6 +305,32 @@ async def luvr_api():
     return list_luvr()
 
 
+class LuvrMarkBody(BaseModel):
+    sheet: str
+    person_idx: int = Field(ge=0)
+    day_idx: int = Field(ge=0)
+    mark: str = ""
+
+
+@app.post("/api/luvr/mark")
+async def luvr_set_mark(body: LuvrMarkBody):
+    from sk_reporter.luvr_store import update_luvr_mark
+
+    try:
+        return await asyncio.to_thread(
+            update_luvr_mark, body.sheet, body.person_idx, body.day_idx, body.mark
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except IndexError as e:
+        raise HTTPException(status_code=400, detail="Неверный индекс строки или дня") from e
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @app.get("/engineer-hub", response_class=HTMLResponse)
 async def engineer_hub_page(request: Request):
     print(f"[REQ] GET /engineer-hub pid={os.getpid()} -> engineer_hub.html")
