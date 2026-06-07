@@ -1,4 +1,4 @@
-"""ЛУВР — лист учёта времени (xlsx → luvr.yaml)."""
+"""ЛУВР — лист учёта времени (xlsx ↔ luvr.yaml)."""
 
 from __future__ import annotations
 
@@ -17,6 +17,141 @@ _MONTH_SHEETS = ("Январь", "Февраль", "Март", "Апрель", "
 _MONTH_NUM = {name: i + 1 for i, name in enumerate(_MONTH_SHEETS)}
 
 
+def _personnel_fio_index() -> dict[str, str]:
+    from sk_reporter.personnel_store import load_people
+
+    return {_norm_fio(p["fio"]).lower(): p["id"] for p in load_people()}
+
+
+def _manual_links_by_fio(data: dict[str, Any]) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for month in data.get("months") or []:
+        for person in month.get("people") or []:
+            if person.get("link_source") == "manual" and person.get("person_id"):
+                out[_norm_fio(person["fio"]).lower()] = str(person["person_id"])
+    return out
+
+
+def _apply_person_link(person: dict[str, Any], by_fio: dict[str, str], manual_links: dict[str, str]) -> None:
+    fio_key = _norm_fio(person["fio"]).lower()
+    if fio_key in manual_links:
+        person["person_id"] = manual_links[fio_key]
+        person["link_source"] = "manual"
+        return
+    if person.get("link_source") == "manual" and person.get("person_id"):
+        return
+    pid = by_fio.get(fio_key)
+    if pid:
+        person["person_id"] = pid
+        person["link_source"] = "auto"
+    else:
+        person.pop("person_id", None)
+        person["link_source"] = "unmatched"
+
+
+def enrich_luvr_links(data: dict[str, Any]) -> None:
+    by_fio = _personnel_fio_index()
+    manual_links = _manual_links_by_fio(data)
+    for month in data.get("months") or []:
+        for person in month.get("people") or []:
+            _apply_person_link(person, by_fio, manual_links)
+
+
+def auto_link_luvr(save: bool = True) -> dict[str, Any]:
+    data = load_luvr()
+    if not data.get("months"):
+        raise FileNotFoundError("luvr.yaml пуст")
+    manual_links = _manual_links_by_fio(data)
+    by_fio = _personnel_fio_index()
+    linked = manual = unmatched = 0
+    for month in data.get("months") or []:
+        for person in month.get("people") or []:
+            _apply_person_link(person, by_fio, manual_links)
+            src = person.get("link_source")
+            if src == "manual":
+                manual += 1
+            elif src == "auto":
+                linked += 1
+            else:
+                unmatched += 1
+    if save:
+        save_luvr(data)
+    return {
+        "ok": True,
+        "linked": linked,
+        "manual": manual,
+        "unmatched": unmatched,
+        "total": linked + manual + unmatched,
+    }
+
+
+def set_luvr_person_link(sheet: str, person_idx: int, person_id: str | None) -> dict[str, Any]:
+    if sheet not in _MONTH_SHEETS:
+        raise KeyError(f"Неизвестный лист: {sheet}")
+    data = load_luvr()
+    month = next((m for m in data.get("months") or [] if m.get("sheet") == sheet), None)
+    if month is None:
+        raise KeyError(f"Лист «{sheet}» не найден")
+    people = month.get("people") or []
+    if person_idx < 0 or person_idx >= len(people):
+        raise IndexError("person_idx вне диапазона")
+
+    person = people[person_idx]
+    if person_id:
+        from sk_reporter.personnel_store import get_person
+
+        if get_person(person_id) is None:
+            raise KeyError(f"person_id «{person_id}» не найден в personnel.yaml")
+        person["person_id"] = person_id
+        person["link_source"] = "manual"
+    else:
+        by_fio = _personnel_fio_index()
+        fio_key = _norm_fio(person["fio"]).lower()
+        pid = by_fio.get(fio_key)
+        if pid:
+            person["person_id"] = pid
+            person["link_source"] = "auto"
+        else:
+            person.pop("person_id", None)
+            person["link_source"] = "unmatched"
+
+    save_luvr(data)
+    return {
+        "sheet": sheet,
+        "person_idx": person_idx,
+        "person_id": person.get("person_id"),
+        "link_source": person.get("link_source"),
+        "fio": person.get("fio"),
+    }
+
+
+def luvr_link_stats(months: list[dict[str, Any]]) -> dict[str, int]:
+    linked = manual = unmatched = 0
+    for month in months:
+        for person in month.get("people") or []:
+            src = person.get("link_source")
+            if src == "manual":
+                manual += 1
+            elif person.get("person_id"):
+                linked += 1
+            else:
+                unmatched += 1
+    total = linked + manual + unmatched
+    return {
+        "total": total,
+        "linked": linked + manual,
+        "auto": linked,
+        "manual": manual,
+        "unmatched": unmatched,
+    }
+
+
+def luvr_personnel_options() -> list[dict[str, str]]:
+    from sk_reporter.personnel_store import load_people
+
+    return [{"id": p["id"], "fio": p["fio"]} for p in load_people()]
+
+
 def _luvr_xlsx() -> Path:
     folder = luvr_dir()
     for name in ("ЛУВР.xlsx", "luvr.xlsx"):
@@ -32,6 +167,8 @@ def _luvr_xlsx() -> Path:
 def _cell_date(v: Any) -> date | None:
     if isinstance(v, datetime):
         return v.date()
+    if isinstance(v, date):
+        return v
     return None
 
 
@@ -65,43 +202,151 @@ def _norm_mark(v: Any) -> str:
     return s
 
 
-def _parse_sheet(ws) -> dict[str, Any] | None:
-    rows = list(ws.iter_rows(values_only=True))
-    hdr_idx = None
-    for i, row in enumerate(rows):
-        if row and row[1] == "ФИО":
-            hdr_idx = i
+def _mark_to_cell_value(mark: str) -> Any:
+    if not mark:
+        return None
+    if mark == "1":
+        return 1
+    if mark == "0.5":
+        return 0.5
+    return mark
+
+
+def _cell_values_equal(current: Any, new: Any) -> bool:
+    if current is None and new is None:
+        return True
+    if current is None or new is None:
+        return False
+    if isinstance(current, float) and isinstance(new, float):
+        return abs(current - new) < 1e-9
+    return _norm_mark(current) == _norm_mark(new)
+
+
+def _is_mark_like(v: Any) -> bool:
+    if v is None or v == "":
+        return True
+    s = _norm_mark(v)
+    return s in {"", "1", "0.5"}
+
+
+def _infer_mark_columns_ws(ws, data_row_start: int, limit: int | None = None) -> list[int]:
+    cols: list[int] = []
+    max_col = ws.max_column or 0
+    for c in range(6, max_col + 1):
+        v = ws.cell(row=data_row_start, column=c).value
+        if not _is_mark_like(v):
+            if cols:
+                break
+            continue
+        cols.append(c)
+        if limit is not None and len(cols) >= limit:
             break
-    if hdr_idx is None:
+        if limit is None and len(cols) >= 31:
+            break
+    return cols
+
+
+def _day_cols_for_month(ws, layout: dict[str, Any], month: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    yaml_days = (month or {}).get("days") or []
+    if yaml_days and all(d.get("col") for d in yaml_days):
+        return [{"col": int(d["col"]), "date": d.get("date"), "day": d.get("day")} for d in yaml_days]
+
+    day_row = layout["hdr_row"] + 1
+    day_cols: list[dict[str, Any]] = []
+    max_col = ws.max_column or 0
+    for col in range(1, max_col + 1):
+        d = _cell_date(ws.cell(row=day_row, column=col).value)
+        if d:
+            day_cols.append({"col": col, "date": d.isoformat(), "day": d.day})
+
+    if yaml_days and len(day_cols) == len(yaml_days):
+        return day_cols
+
+    if yaml_days:
+        return [
+            {
+                "col": 6 + i,
+                "date": yd.get("date") or (day_cols[i]["date"] if i < len(day_cols) else None),
+                "day": yd.get("day") if yd.get("day") is not None else (i + 1),
+            }
+            for i, yd in enumerate(yaml_days)
+        ]
+
+    mark_cols = _infer_mark_columns_ws(ws, layout["data_row_start"])
+    if mark_cols:
+        return [{"col": c, "date": None, "day": i + 1} for i, c in enumerate(mark_cols)]
+    return day_cols
+
+
+def _layout_for_sheet_ws(ws) -> dict[str, Any] | None:
+    hdr_row = None
+    max_scan = min(ws.max_row or 0, 80)
+    for r in range(1, max_scan + 1):
+        if ws.cell(row=r, column=2).value == "ФИО":
+            hdr_row = r
+            break
+    if hdr_row is None:
         return None
 
+    day_row = hdr_row + 1
+    day_cols: list[dict[str, Any]] = []
+    max_col = ws.max_column or 0
+    for col in range(1, max_col + 1):
+        d = _cell_date(ws.cell(row=day_row, column=col).value)
+        if d:
+            day_cols.append({"col": col, "date": d.isoformat(), "day": d.day})
+
+    if not day_cols:
+        mark_cols = _infer_mark_columns_ws(ws, hdr_row + 2)
+        for i, col in enumerate(mark_cols):
+            day_cols.append({"col": col, "date": None, "day": i + 1})
+
+    return {
+        "hdr_row": hdr_row,
+        "data_row_start": hdr_row + 2,
+        "day_cols": day_cols,
+    }
+
+
+def _person_row_by_fio_ws(ws, data_row_start: int, fio: str) -> int | None:
+    target = _norm_fio(fio)
+    for r in range(data_row_start, (ws.max_row or 0) + 1):
+        if _norm_fio(ws.cell(row=r, column=2).value) == target:
+            return r
+    return None
+
+
+def _parse_sheet(ws) -> dict[str, Any] | None:
+    layout = _layout_for_sheet_ws(ws)
+    if layout is None:
+        return None
+
+    hdr_row = layout["hdr_row"]
+    day_cols = layout["day_cols"]
+    data_row_start = layout["data_row_start"]
+
     title = ""
-    for row in rows[: hdr_idx + 1]:
-        if row and row[0] and isinstance(row[0], str) and "Лист учета" in row[0]:
-            title = row[0].replace("\n", " ").strip()
+    for r in range(1, hdr_row + 1):
+        val = ws.cell(row=r, column=1).value
+        if val and isinstance(val, str) and "Лист учета" in val:
+            title = val.replace("\n", " ").strip()
             break
 
-    day_row = rows[hdr_idx + 1] if hdr_idx + 1 < len(rows) else ()
-    day_cols: list[dict[str, Any]] = []
-    for col_idx, val in enumerate(day_row):
-        d = _cell_date(val)
-        if d:
-            day_cols.append({"col": col_idx, "date": d.isoformat(), "day": d.day})
-
     people: list[dict[str, Any]] = []
-    for row in rows[hdr_idx + 2 :]:
-        if not row or not _norm_fio(row[1]):
+    for r in range(data_row_start, (ws.max_row or 0) + 1):
+        fio = _norm_fio(ws.cell(row=r, column=2).value)
+        if not fio:
             continue
-        day_values = [row[c["col"]] if c["col"] < len(row) else None for c in day_cols]
+        day_values = [ws.cell(row=r, column=c["col"]).value for c in day_cols]
         counts = _count_days(day_values)
         marks = [_norm_mark(v) for v in day_values]
         people.append(
             {
-                "num": row[0],
-                "fio": _norm_fio(row[1]),
-                "position": str(row[2] or "").strip(),
-                "nrs": str(row[3] or "").strip(),
-                "specialty": str(row[4] or "").strip(),
+                "num": ws.cell(row=r, column=1).value,
+                "fio": fio,
+                "position": str(ws.cell(row=r, column=3).value or "").strip(),
+                "nrs": str(ws.cell(row=r, column=4).value or "").strip(),
+                "specialty": str(ws.cell(row=r, column=5).value or "").strip(),
                 "days_present": counts["present"],
                 "days_half": counts["half"],
                 "days_marked": counts["present"] + counts["half"] + counts["other"],
@@ -118,14 +363,14 @@ def _parse_sheet(ws) -> dict[str, Any] | None:
         "title": title,
         "people_count": len(people),
         "days_in_sheet": len(day_cols),
-        "days": [{"date": c["date"], "day": c["day"]} for c in day_cols],
+        "days": [{"date": c["date"], "day": c["day"], "col": c["col"]} for c in day_cols],
         "people": people,
     }
 
 
 def export_luvr() -> Path:
     xlsx = _luvr_xlsx()
-    wb = load_workbook(xlsx, read_only=True, data_only=True)
+    wb = load_workbook(xlsx, data_only=True)
     months: list[dict[str, Any]] = []
     contract = ""
     for sheet_name in wb.sheetnames:
@@ -140,16 +385,150 @@ def export_luvr() -> Path:
             months.append(parsed)
     wb.close()
 
+    old = load_luvr()
+    manual_links = _manual_links_by_fio(old)
+
     payload = {
         "source": xlsx.name,
         "source_kb": round(xlsx.stat().st_size / 1024, 1),
         "contract": contract,
+        "xlsx_stale": False,
         "months": months,
     }
+    by_fio = _personnel_fio_index()
+    for month in payload["months"]:
+        for person in month.get("people") or []:
+            _apply_person_link(person, by_fio, manual_links)
+
     out = luvr_dir() / "luvr.yaml"
     out.write_text(yaml.safe_dump(payload, allow_unicode=True, sort_keys=False), encoding="utf-8")
     load_luvr.cache_clear()
     return out
+
+
+def import_luvr_from_xlsx() -> dict[str, Any]:
+    out = export_luvr()
+    data = load_luvr()
+    return {
+        "ok": True,
+        "yaml": str(out),
+        "source": data.get("source"),
+        "months_count": len(data.get("months") or []),
+        "xlsx_stale": False,
+    }
+
+
+def _sync_month_to_ws(ws, month: dict[str, Any], layout: dict[str, Any]) -> int:
+    updated = 0
+    day_cols = _day_cols_for_month(ws, layout, month)
+    if not day_cols:
+        return 0
+    for person in month.get("people") or []:
+        row = _person_row_by_fio_ws(ws, layout["data_row_start"], person["fio"])
+        if row is None:
+            continue
+        marks = person.get("marks") or []
+        for i, dc in enumerate(day_cols):
+            if i >= len(marks):
+                break
+            new_val = _mark_to_cell_value(marks[i])
+            cell = ws.cell(row=row, column=dc["col"])
+            if not _cell_values_equal(cell.value, new_val):
+                cell.value = new_val
+                updated += 1
+    return updated
+
+
+def sync_luvr_to_xlsx(sheet: str | None = None) -> dict[str, Any]:
+    xlsx = _luvr_xlsx()
+    data = load_luvr()
+    months = data.get("months") or []
+    if not months:
+        raise FileNotFoundError("luvr.yaml пуст")
+
+    wb = load_workbook(xlsx)
+    total_updated = 0
+    sheets_synced: list[str] = []
+
+    for month in months:
+        name = month.get("sheet")
+        if not name or name not in wb.sheetnames:
+            continue
+        if sheet is not None and name != sheet:
+            continue
+        layout = _layout_for_sheet_ws(wb[name])
+        if not layout:
+            continue
+        n = _sync_month_to_ws(wb[name], month, layout)
+        total_updated += n
+        sheets_synced.append(name)
+
+    if sheet is not None and sheet not in sheets_synced:
+        wb.close()
+        raise KeyError(f"Лист «{sheet}» не найден или пуст")
+
+    wb.save(xlsx)
+    wb.close()
+
+    data["xlsx_stale"] = False
+    data["source"] = xlsx.name
+    data["source_kb"] = round(xlsx.stat().st_size / 1024, 1)
+    save_luvr(data)
+
+    return {
+        "ok": True,
+        "xlsx": xlsx.name,
+        "cells_updated": total_updated,
+        "sheets": sheets_synced,
+        "xlsx_stale": False,
+    }
+
+
+def write_luvr_mark_to_xlsx(sheet: str, person_idx: int, day_idx: int, mark: str) -> bool:
+    try:
+        xlsx = _luvr_xlsx()
+    except FileNotFoundError:
+        return False
+
+    data = load_luvr()
+    month = next((m for m in data.get("months") or [] if m.get("sheet") == sheet), None)
+    if month is None:
+        return False
+    people = month.get("people") or []
+    if person_idx < 0 or person_idx >= len(people):
+        return False
+    days = month.get("days") or []
+    if day_idx < 0 or day_idx >= len(days):
+        return False
+
+    wb = load_workbook(xlsx)
+    if sheet not in wb.sheetnames:
+        wb.close()
+        return False
+    ws = wb[sheet]
+    layout = _layout_for_sheet_ws(ws)
+    if not layout:
+        wb.close()
+        return False
+
+    day_cols = _day_cols_for_month(ws, layout, month)
+    if day_idx >= len(day_cols):
+        wb.close()
+        return False
+
+    row = _person_row_by_fio_ws(ws, layout["data_row_start"], people[person_idx]["fio"])
+    if row is None:
+        wb.close()
+        return False
+
+    col = day_cols[day_idx]["col"]
+    new_val = _mark_to_cell_value(_norm_mark(mark))
+    cell = ws.cell(row=row, column=col)
+    if not _cell_values_equal(cell.value, new_val):
+        cell.value = new_val
+        wb.save(xlsx)
+    wb.close()
+    return True
 
 
 def _recalc_person_stats(person: dict[str, Any]) -> None:
@@ -196,6 +575,9 @@ def update_luvr_mark(sheet: str, person_idx: int, day_idx: int, mark: Any) -> di
     marks[day_idx] = norm
     person["marks"] = marks
     _recalc_person_stats(person)
+
+    xlsx_synced = write_luvr_mark_to_xlsx(sheet, person_idx, day_idx, norm)
+    data["xlsx_stale"] = not xlsx_synced
     save_luvr(data)
 
     return {
@@ -205,6 +587,8 @@ def update_luvr_mark(sheet: str, person_idx: int, day_idx: int, mark: Any) -> di
         "mark": norm,
         "days_present": person["days_present"],
         "days_marked": person["days_marked"],
+        "xlsx_synced": xlsx_synced,
+        "xlsx_stale": data.get("xlsx_stale", False),
     }
 
 
@@ -246,8 +630,13 @@ def luvr_planning_payload() -> dict[str, Any]:
         except Exception:
             pass
 
+    enrich_luvr_links(data)
+    months = data.get("months") or []
+
     yaml_path = luvr_dir() / "luvr.yaml"
     default_month = months[-1]["sheet"] if months else None
+    xlsx_stale = bool(data.get("xlsx_stale")) if xlsx_path else False
+    link_stats = luvr_link_stats(months)
 
     return {
         "folder": str(folder.relative_to(repo_root())),
@@ -261,6 +650,9 @@ def luvr_planning_payload() -> dict[str, Any]:
         "grid_ready": _cache_has_grid(months),
         "editable": _cache_has_grid(months),
         "xlsx_present": xlsx_path is not None,
+        "xlsx_stale": xlsx_stale,
+        "personnel": luvr_personnel_options(),
+        "link_stats": link_stats,
     }
 
 

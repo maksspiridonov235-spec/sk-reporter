@@ -19,7 +19,13 @@
 python scripts/build_engineer_data.py --luvr
 ```
 
-После правок в Excel или на сайте — пересборка и/или экспорт в xlsx (когда будет в UI).
+После правок в Excel или на сайте — **«Загрузить из Excel»** / **«Выгрузить в Excel»** в UI, или CLI:
+
+```bash
+python scripts/build_engineer_data.py --luvr   # yaml ← xlsx
+```
+
+Выгрузка yaml → xlsx — только через UI или API `POST /api/luvr/export-to-xlsx` (на офисном ПК, где лежит xlsx).
 
 ## Git
 

@@ -767,6 +767,15 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 .personnel-table td:nth-child(2) { max-width: 280px; }
 .luvr-month-select { max-width: 320px; margin-bottom: 12px; }
 .luvr-header { margin-bottom: 8px; }
+.luvr-sync-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+  margin: 10px 0 12px; padding: 10px 12px; background: #f8fafc;
+  border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px;
+}
+.luvr-sync-actions { display: flex; gap: 8px; margin-left: auto; }
+.luvr-sync-stale { color: #b45309; }
+.luvr-sync-ok { color: #15803d; }
+.btn-sm { padding: 4px 10px; font-size: 13px; }
 .luvr-grid-wrap {
   overflow: auto; max-height: calc(100vh - 220px); border: 1px solid #ddd;
   border-radius: 8px; background: #fff;
@@ -780,8 +789,18 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
   box-shadow: 2px 0 0 #eee;
 }
 .luvr-grid .luvr-col-num { left: 0; min-width: 28px; }
-.luvr-grid .luvr-col-fio { left: 28px; }
-.luvr-grid .luvr-col-pos { left: 208px; }
+.luvr-grid .luvr-col-fio { left: 28px; max-width: 160px; }
+.luvr-grid .luvr-col-link { left: 188px; min-width: 120px; max-width: 140px; padding: 2px; }
+.luvr-grid .luvr-col-pos { left: 328px; }
+.luvr-person-link {
+  width: 100%; max-width: 136px; font-size: 10px; padding: 2px 4px;
+  border: 1px solid #cbd5e1; border-radius: 4px; background: #fff;
+}
+.luvr-link--ok { border-color: #86efac; background: #f0fdf4; }
+.luvr-link--manual { border-color: #93c5fd; background: #eff6ff; }
+.luvr-link--warn { border-color: #fcd34d; background: #fffbeb; }
+.luvr-row--unlinked .luvr-col-fio { color: #b45309; }
+.luvr-link-summary { font-size: 13px; }
 .luvr-grid thead .luvr-sticky { z-index: 3; background: #f8fafc; }
 .luvr-grid thead th { position: sticky; top: 0; z-index: 1; background: #f8fafc; }
 .luvr-grid thead .luvr-sticky { z-index: 4; }

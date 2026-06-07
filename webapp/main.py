@@ -331,6 +331,74 @@ async def luvr_set_mark(body: LuvrMarkBody):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@app.post("/api/luvr/import-from-xlsx")
+async def luvr_import_from_xlsx():
+    from sk_reporter.luvr_store import import_luvr_from_xlsx
+
+    try:
+        return await asyncio.to_thread(import_luvr_from_xlsx)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+class LuvrExportBody(BaseModel):
+    sheet: str | None = None
+
+
+@app.post("/api/luvr/export-to-xlsx")
+async def luvr_export_to_xlsx(body: LuvrExportBody | None = None):
+    from sk_reporter.luvr_store import sync_luvr_to_xlsx
+
+    sheet = body.sheet if body else None
+    try:
+        return await asyncio.to_thread(sync_luvr_to_xlsx, sheet)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+class LuvrLinkBody(BaseModel):
+    sheet: str
+    person_idx: int = Field(ge=0)
+    person_id: str = ""
+
+
+@app.post("/api/luvr/link")
+async def luvr_set_person_link(body: LuvrLinkBody):
+    from sk_reporter.luvr_store import set_luvr_person_link
+
+    pid = body.person_id.strip() or None
+    try:
+        return await asyncio.to_thread(set_luvr_person_link, body.sheet, body.person_idx, pid)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except IndexError as e:
+        raise HTTPException(status_code=400, detail="Неверный индекс строки") from e
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/api/luvr/auto-link")
+async def luvr_auto_link():
+    from sk_reporter.luvr_store import auto_link_luvr
+
+    try:
+        return await asyncio.to_thread(auto_link_luvr, True)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @app.get("/engineer-hub", response_class=HTMLResponse)
 async def engineer_hub_page(request: Request):
     print(f"[REQ] GET /engineer-hub pid={os.getpid()} -> engineer_hub.html")

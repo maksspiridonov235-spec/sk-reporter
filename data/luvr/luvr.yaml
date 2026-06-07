@@ -1,5 +1,5 @@
 source: ЛУВР.xlsx
-source_kb: 324.0
+source_kb: 91.4
 contract: '25.0008'
 months:
 - sheet: Январь
@@ -114,6 +114,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: манджиев-и
+    link_source: auto
   - num: 2
     fio: Аюпов Альберт Рималович
     position: Вед.инженер СК
@@ -154,6 +156,8 @@ months:
     - Д
     - ''
     - ''
+    person_id: аюпов-а
+    link_source: auto
   - num: 3
     fio: Расаев Артур Тимерьянович
     position: Инженер СК
@@ -194,6 +198,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: расаев-а
+    link_source: auto
   - num: 4
     fio: Симонов Александр Алексеевич
     position: Инженер СК
@@ -234,6 +240,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: симонов-а
+    link_source: auto
   - num: 5
     fio: Громов Виктор Борисович
     position: Инженер СК
@@ -274,6 +282,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: громов-в
+    link_source: auto
   - num: 6
     fio: Лебедев Михаил Игоревич
     position: Инженер СК
@@ -314,6 +324,7 @@ months:
     - '1'
     - '1'
     - '1'
+    link_source: unmatched
   - num: 7
     fio: Ишутин Станислав Николавеич
     position: Инженер СК
@@ -354,6 +365,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 8
     fio: Пряхин Илья Николаевич
     position: Инженер СК
@@ -394,6 +406,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: пряхин-и
+    link_source: auto
   - num: 9
     fio: Никишин Олег Владимирович
     position: Инженер СК
@@ -434,6 +448,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: никишин-о
+    link_source: auto
   - num: 10
     fio: Бородин Вадим Леонидович
     position: Инженер СК
@@ -474,6 +490,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: бородин-в
+    link_source: auto
   - num: 11
     fio: Шешуков Сергей Анатольевич
     position: Инженер СК
@@ -514,6 +532,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: шешуков-с
+    link_source: auto
   - num: 12
     fio: Сивокозов Юрий Валентинович
     position: Инженер СК
@@ -554,6 +574,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: сивокозов-ю
+    link_source: auto
   - num: 13
     fio: Кетских Игорь Валерьевич
     position: Инженер СК
@@ -594,6 +616,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: кетских-и
+    link_source: auto
   - num: 14
     fio: Нафиков Айдар Фанилович
     position: Инженер СК
@@ -634,6 +658,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: нафиков-а
+    link_source: auto
   - num: 15
     fio: Трофимов Сергей Николаевич
     position: Инженер СК
@@ -674,6 +700,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: трофимов-с
+    link_source: auto
   - num: 16
     fio: Чебарев Игорь Витальевич
     position: Инженер СК
@@ -714,6 +742,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: чебарев-и
+    link_source: auto
   - num: 17
     fio: Бирюков Алексей Анатольевич
     position: Инженер СК
@@ -754,6 +784,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: бирюков-а
+    link_source: auto
   - num: 18
     fio: Поспелов Андрей Николаевич
     position: Инженер СК
@@ -794,6 +826,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 19
     fio: Степанников Андрей Викторович
     position: Инженер СК
@@ -834,6 +867,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: степанников-а
+    link_source: auto
   - num: 20
     fio: Гугнин Александр Александрович
     position: Инженер СК
@@ -874,6 +909,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: гугнин-а
+    link_source: auto
   - num: 21
     fio: Джево Сергей Александрович
     position: Инженер СК
@@ -914,6 +951,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: джево-с
+    link_source: auto
   - num: 22
     fio: Дунаев Александр Михайлович
     position: инженер СК
@@ -954,6 +993,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: дунаев-а
+    link_source: auto
   - num: 23
     fio: Глущенко Сергей Игоревич
     position: Инженер СК
@@ -994,6 +1035,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: глущенко-с
+    link_source: auto
   - num: 24
     fio: Исаев Абрахам Вахаевич
     position: Инженер СК
@@ -1034,6 +1077,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: исаев-а
+    link_source: auto
   - num: 25
     fio: Канащук Игорь Владимирович
     position: Инженер СК
@@ -1074,6 +1119,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: канащук-и
+    link_source: auto
   - num: 26
     fio: Куринный Николай Алексеевич
     position: Инженер СК
@@ -1114,6 +1161,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: куринный-н
+    link_source: auto
   - num: 27
     fio: Княжин Антон Андреевич
     position: Инженер СК
@@ -1154,6 +1203,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: княжин-а
+    link_source: auto
   - num: 28
     fio: Бадаев Валентин Борисович
     position: Инженер СК
@@ -1194,6 +1245,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: бадаев-в
+    link_source: auto
   - num: 29
     fio: Шиляев Юрий Андреевич
     position: ''
@@ -1234,6 +1287,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: шиляев-ю
+    link_source: auto
   - num: 30
     fio: Добрыгин Андрей Аркадьевич
     position: Инженер СК
@@ -1274,6 +1329,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: добрыгин-а
+    link_source: auto
   - num: 31
     fio: Носков Дмитрий Сергеевич
     position: Инженер СК
@@ -1314,6 +1371,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: носков-д
+    link_source: auto
   - num: 32
     fio: Конихин Александр Станиславович
     position: Инженер СК
@@ -1354,6 +1413,7 @@ months:
     - '1'
     - '1'
     - '1'
+    link_source: unmatched
   - num: 33
     fio: Спиридонов Максим Олегович
     position: Инженер СК
@@ -1394,6 +1454,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: спиридонов-м
+    link_source: auto
   - num: 34
     fio: Ломоносов Евгений Олегович
     position: Инженер СК
@@ -1434,6 +1496,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: ломоносов-е
+    link_source: auto
   - num: 35
     fio: Каньшин Егор Викторович
     position: Инженер СК
@@ -1474,6 +1538,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: каньшин-е
+    link_source: auto
   - num: 36
     fio: Аминев Данил Зайнуллович
     position: Инженер СК
@@ -1514,6 +1580,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: аминев-д
+    link_source: auto
   - num: 37
     fio: Новоселов Михаил Александрович
     position: Инженер СК
@@ -1554,6 +1622,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: новоселов-м
+    link_source: auto
   - num: 38
     fio: Слышкин Дмитрий Владимирович
     position: Инженер СК
@@ -1594,6 +1664,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: слышкин-д
+    link_source: auto
   - num: 39
     fio: Петров Алексей Владимирович
     position: Инженер СК
@@ -1634,6 +1706,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: петров-а
+    link_source: auto
   - num: 40
     fio: Шнайдер Елена Александровна
     position: Инженер СК
@@ -1674,6 +1748,8 @@ months:
     - '1'
     - '1'
     - ''
+    person_id: шнайдер-е
+    link_source: auto
   - num: 41
     fio: Созонова Наталья Михайловна
     position: Инженер СК
@@ -1714,6 +1790,8 @@ months:
     - '1'
     - '1'
     - ''
+    person_id: созонова-н
+    link_source: auto
   - num: 42
     fio: Федотов Евгений Эдуардович
     position: Инженер СК
@@ -1754,6 +1832,8 @@ months:
     - '1'
     - '1'
     - ''
+    person_id: федотов-е
+    link_source: auto
   - num: 43
     fio: Александров Юрий Георгиевич
     position: Инженер СК
@@ -1794,6 +1874,8 @@ months:
     - '1'
     - '1'
     - ''
+    person_id: александров-ю
+    link_source: auto
   - num: 44
     fio: Глазунова Елена Александровна
     position: Инженер СК
@@ -1834,6 +1916,8 @@ months:
     - '1'
     - '1'
     - ''
+    person_id: глазунова-е
+    link_source: auto
   - num: 45
     fio: Мингалева Ольга Николаевна
     position: Инженер СК
@@ -1874,6 +1958,8 @@ months:
     - '1'
     - '1'
     - ''
+    person_id: мингалева-о
+    link_source: auto
   - num: 46
     fio: Бородин Сергей Иванович
     position: Инженер СК
@@ -1914,6 +2000,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: бородин-с
+    link_source: auto
   - num: 47
     fio: Очкасов Юрий Николаевич
     position: Инженер СК
@@ -1954,6 +2042,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: очкасов-ю
+    link_source: auto
   - num: 48
     fio: Манджиев Игорь Александрович
     position: Вед.инженер СК
@@ -1994,6 +2084,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: манджиев-и
+    link_source: auto
   - num: 49
     fio: Аниськов Владимир Иванович
     position: Вед.инженер СК Руководитель СК
@@ -2034,6 +2126,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: аниськов-в
+    link_source: auto
 - sheet: Февраль
   year: 2026
   month: 2
@@ -2137,6 +2231,8 @@ months:
     - Д
     - '0.5'
     - ''
+    person_id: манджиев-и
+    link_source: auto
   - num: 2
     fio: Аюпов Альберт Рималович
     position: Вед.инженер СК
@@ -2174,6 +2270,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: аюпов-а
+    link_source: auto
   - num: 3
     fio: Расаев Артур Тимерьянович
     position: Инженер СК
@@ -2211,6 +2309,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: расаев-а
+    link_source: auto
   - num: 4
     fio: Симонов Александр Алексеевич
     position: Инженер СК
@@ -2248,6 +2348,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: симонов-а
+    link_source: auto
   - num: 5
     fio: Громов Виктор Борисович
     position: Инженер СК
@@ -2285,6 +2387,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: громов-в
+    link_source: auto
   - num: 6
     fio: Лебедев Михаил Игоревич
     position: Инженер СК
@@ -2322,6 +2426,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 7
     fio: Ишутин Станислав Николаевич
     position: Инженер СК
@@ -2359,6 +2464,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: ишутин-с
+    link_source: auto
   - num: 8
     fio: Пряхин Илья Николаевич
     position: Инженер СК
@@ -2396,6 +2503,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: пряхин-и
+    link_source: auto
   - num: 9
     fio: Никишин Олег Владимирович
     position: Инженер СК
@@ -2433,6 +2542,8 @@ months:
     - '1'
     - Д
     - ''
+    person_id: никишин-о
+    link_source: auto
   - num: 10
     fio: Бородин Вадим Леонидович
     position: Инженер СК
@@ -2470,6 +2581,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: бородин-в
+    link_source: auto
   - num: 11
     fio: Шешуков Сергей Анатольевич
     position: Инженер СК
@@ -2507,6 +2620,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: шешуков-с
+    link_source: auto
   - num: 12
     fio: Сивокозов Юрий Валентинович
     position: Инженер СК
@@ -2544,6 +2659,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: сивокозов-ю
+    link_source: auto
   - num: 13
     fio: Кетских Игорь Валерьевич
     position: Инженер СК
@@ -2581,6 +2698,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: кетских-и
+    link_source: auto
   - num: 14
     fio: Тимофеев Андрей Николаевич
     position: Инженер СК
@@ -2618,6 +2737,7 @@ months:
     - '1'
     - '1'
     - '1'
+    link_source: unmatched
   - num: 15
     fio: Сапельников Павел Сергеевич
     position: Инженер СК
@@ -2655,6 +2775,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: сапельников-п
+    link_source: auto
   - num: 16
     fio: Нафиков Айдар Фанилович
     position: Инженер СК
@@ -2692,6 +2814,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: нафиков-а
+    link_source: auto
   - num: 17
     fio: Трофимов Сергей Николаевич
     position: Инженер СК
@@ -2729,6 +2853,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: трофимов-с
+    link_source: auto
   - num: 18
     fio: Чебарев Игорь Витальевич
     position: Инженер СК
@@ -2766,6 +2892,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: чебарев-и
+    link_source: auto
   - num: 19
     fio: Бирюков Алексей Анатольевич
     position: Инженер СК
@@ -2803,6 +2931,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: бирюков-а
+    link_source: auto
   - num: 20
     fio: Поспелов Андрей Николаевич
     position: Инженер СК
@@ -2840,6 +2970,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 21
     fio: Степанников Андрей Викторович
     position: Инженер СК
@@ -2877,6 +3008,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: степанников-а
+    link_source: auto
   - num: 22
     fio: Гугнин Александр Александрович
     position: Инженер СК
@@ -2914,6 +3047,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: гугнин-а
+    link_source: auto
   - num: 23
     fio: Джево Сергей Александрович
     position: Инженер СК
@@ -2951,6 +3086,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: джево-с
+    link_source: auto
   - num: 24
     fio: Дунаев Александр Михайлович
     position: инженер СК
@@ -2988,6 +3125,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: дунаев-а
+    link_source: auto
   - num: 25
     fio: Глущенко Сергей Игоревич
     position: Инженер СК
@@ -3025,6 +3164,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: глущенко-с
+    link_source: auto
   - num: 26
     fio: Исаев Абрахам Вахаевич
     position: Инженер СК
@@ -3062,6 +3203,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: исаев-а
+    link_source: auto
   - num: 27
     fio: Канащук Игорь Владимирович
     position: Инженер СК
@@ -3099,6 +3242,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: канащук-и
+    link_source: auto
   - num: 28
     fio: Куринный Николай Алексеевич
     position: Инженер СК
@@ -3136,6 +3281,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: куринный-н
+    link_source: auto
   - num: 29
     fio: Княжин Антон Андреевич
     position: Инженер СК
@@ -3173,6 +3320,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: княжин-а
+    link_source: auto
   - num: 30
     fio: Бадаев Валентин Борисович
     position: Инженер СК
@@ -3210,6 +3359,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: бадаев-в
+    link_source: auto
   - num: 31
     fio: Шиляев Юрий Андреевич
     position: Инженер СК
@@ -3247,6 +3398,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: шиляев-ю
+    link_source: auto
   - num: 32
     fio: Добрыгин Андрей Аркадьевич
     position: Инженер СК
@@ -3284,6 +3437,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: добрыгин-а
+    link_source: auto
   - num: 33
     fio: Носков Дмитрий Сергеевич
     position: Инженер СК
@@ -3321,6 +3476,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: носков-д
+    link_source: auto
   - num: 34
     fio: Конихин Александр Станиславович
     position: Инженер СК
@@ -3358,6 +3515,7 @@ months:
     - '1'
     - '1'
     - Д
+    link_source: unmatched
   - num: 35
     fio: Спиридонов Максим Олегович
     position: Инженер СК
@@ -3395,6 +3553,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: спиридонов-м
+    link_source: auto
   - num: 36
     fio: Ломоносов Евгений Олегович
     position: Инженер СК
@@ -3432,6 +3592,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: ломоносов-е
+    link_source: auto
   - num: 37
     fio: Каньшин Егор Викторович
     position: Инженер СК
@@ -3469,6 +3631,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: каньшин-е
+    link_source: auto
   - num: 38
     fio: Аминев Данил Зайнуллович
     position: Инженер СК
@@ -3506,6 +3670,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: аминев-д
+    link_source: auto
   - num: 39
     fio: Новоселов Михаил Александрович
     position: Инженер СК
@@ -3543,6 +3709,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: новоселов-м
+    link_source: auto
   - num: 40
     fio: Слышкин Дмитрий Владимирович
     position: Инженер СК
@@ -3580,6 +3748,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: слышкин-д
+    link_source: auto
   - num: 41
     fio: Петров Алексей Владимирович
     position: Инженер СК
@@ -3617,6 +3787,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: петров-а
+    link_source: auto
   - num: 42
     fio: Шнайдер Елена Александровна
     position: Инженер СК
@@ -3654,6 +3826,8 @@ months:
     - '1'
     - '1'
     - ''
+    person_id: шнайдер-е
+    link_source: auto
   - num: 43
     fio: Созонова Наталья Михайловна
     position: Инженер СК
@@ -3691,6 +3865,8 @@ months:
     - '1'
     - '1'
     - ''
+    person_id: созонова-н
+    link_source: auto
   - num: 44
     fio: Федотов Евгений Эдуардович
     position: Инженер СК
@@ -3728,6 +3904,8 @@ months:
     - '1'
     - '1'
     - ''
+    person_id: федотов-е
+    link_source: auto
   - num: 45
     fio: Александров Юрий Георгиевич
     position: Инженер СК
@@ -3765,6 +3943,8 @@ months:
     - '1'
     - '1'
     - ''
+    person_id: александров-ю
+    link_source: auto
   - num: 46
     fio: Глазунова Елена Александровна
     position: Инженер СК
@@ -3802,6 +3982,8 @@ months:
     - '1'
     - '1'
     - ''
+    person_id: глазунова-е
+    link_source: auto
   - num: 47
     fio: Мингалева Ольга Николаевна
     position: Инженер СК
@@ -3839,6 +4021,8 @@ months:
     - '1'
     - '1'
     - ''
+    person_id: мингалева-о
+    link_source: auto
   - num: 48
     fio: Бородин Сергей Иванович
     position: Инженер СК
@@ -3876,6 +4060,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: бородин-с
+    link_source: auto
   - num: 49
     fio: Очкасов Юрий Николаевич
     position: Инженер СК
@@ -3913,6 +4099,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: очкасов-ю
+    link_source: auto
   - num: 50
     fio: Манджиев Игорь Александрович
     position: Вед.инженер СК
@@ -3950,6 +4138,8 @@ months:
     - ''
     - ''
     - '1'
+    person_id: манджиев-и
+    link_source: auto
   - num: 51
     fio: Аниськов Владимир Иванович
     position: Вед.инженер СК Руководитель СК
@@ -3987,6 +4177,8 @@ months:
     - '1'
     - '1'
     - Д
+    person_id: аниськов-в
+    link_source: auto
 - sheet: Март
   year: 2026
   month: 3
@@ -4099,6 +4291,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: манджиев-и
+    link_source: auto
   - num: 2
     fio: Аюпов Альберт Рималович
     position: Вед.инженер СК
@@ -4139,6 +4333,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: аюпов-а
+    link_source: auto
   - num: 3
     fio: Расаев Артур Тимерьянович
     position: Инженер СК
@@ -4179,6 +4375,8 @@ months:
     - ''
     - '1'
     - '1'
+    person_id: расаев-а
+    link_source: auto
   - num: 4
     fio: Симонов Александр Алексеевич
     position: Инженер СК
@@ -4219,6 +4417,8 @@ months:
     - '1'
     - '0.5'
     - Д
+    person_id: симонов-а
+    link_source: auto
   - num: 5
     fio: Громов Виктор Борисович
     position: Инженер СК
@@ -4259,6 +4459,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: громов-в
+    link_source: auto
   - num: 6
     fio: Лебедев Михаил Игоревич
     position: Инженер СК
@@ -4299,6 +4501,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 7
     fio: Ишутин Станислав Николаевич
     position: Инженер СК
@@ -4339,6 +4542,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: ишутин-с
+    link_source: auto
   - num: 8
     fio: Пряхин Илья Николаевич
     position: Инженер СК
@@ -4379,6 +4584,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: пряхин-и
+    link_source: auto
   - num: 9
     fio: Шемелин Игорь Владимирович
     position: Инженер СК
@@ -4419,6 +4626,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: шемелин-и
+    link_source: auto
   - num: 9
     fio: Каримов Ильдар Робертович
     position: Инженер СК
@@ -4459,6 +4668,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: каримов-и
+    link_source: auto
   - num: 11
     fio: Никишин Олег Владимирович
     position: Инженер СК
@@ -4499,6 +4710,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: никишин-о
+    link_source: auto
   - num: 12
     fio: Бородин Вадим Леонидович
     position: Инженер СК
@@ -4539,6 +4752,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: бородин-в
+    link_source: auto
   - num: 13
     fio: Шешуков Сергей Анатольевич
     position: Инженер СК
@@ -4579,6 +4794,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: шешуков-с
+    link_source: auto
   - num: 14
     fio: Сивокозов Юрий Валентинович
     position: Инженер СК
@@ -4619,6 +4836,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: сивокозов-ю
+    link_source: auto
   - num: 15
     fio: Кетских Игорь Валерьевич
     position: Инженер СК
@@ -4659,6 +4878,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: кетских-и
+    link_source: auto
   - num: 16
     fio: Тимофеев Андрей Николаевич
     position: Инженер СК
@@ -4699,6 +4920,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 17
     fio: Сапельников Павел Сергеевич
     position: Инженер СК
@@ -4739,6 +4961,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: сапельников-п
+    link_source: auto
   - num: 18
     fio: Нафиков Айдар Фанилович
     position: Инженер СК
@@ -4779,6 +5003,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: нафиков-а
+    link_source: auto
   - num: 19
     fio: Трофимов Сергей Николаевич
     position: Инженер СК
@@ -4819,6 +5045,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: трофимов-с
+    link_source: auto
   - num: 20
     fio: Чебарев Игорь Витальевич
     position: Инженер СК
@@ -4859,6 +5087,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: чебарев-и
+    link_source: auto
   - num: 21
     fio: Бирюков Алексей Анатольевич
     position: Инженер СК
@@ -4899,6 +5129,8 @@ months:
     - ''
     - ''
     - Д
+    person_id: бирюков-а
+    link_source: auto
   - num: 22
     fio: Поспелов Андрей Николаевич
     position: Инженер СК
@@ -4939,6 +5171,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 23
     fio: Степанников Андрей Викторович
     position: Инженер СК
@@ -4979,6 +5212,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: степанников-а
+    link_source: auto
   - num: 24
     fio: Гугнин Александр Александрович
     position: Инженер СК
@@ -5019,6 +5254,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: гугнин-а
+    link_source: auto
   - num: 25
     fio: Джево Сергей Александрович
     position: Инженер СК
@@ -5059,6 +5296,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: джево-с
+    link_source: auto
   - num: 26
     fio: Дунаев Александр Михайлович
     position: инженер СК
@@ -5099,6 +5338,8 @@ months:
     - Д
     - ''
     - ''
+    person_id: дунаев-а
+    link_source: auto
   - num: 27
     fio: Мальсагов Турпал-Эл аАсланович
     position: Инженер СК
@@ -5139,6 +5380,7 @@ months:
     - '1'
     - '1'
     - '1'
+    link_source: unmatched
   - num: 28
     fio: Хайбулин Айрат Асхатович
     position: Инженер СК
@@ -5179,6 +5421,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: хайбулин-а
+    link_source: auto
   - num: 29
     fio: Глущенко Сергей Игоревич
     position: Инженер СК
@@ -5219,6 +5463,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: глущенко-с
+    link_source: auto
   - num: 30
     fio: Исаев Абрахам Вахаевич
     position: Инженер СК
@@ -5259,6 +5505,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: исаев-а
+    link_source: auto
   - num: 31
     fio: Канащук Игорь Владимирович
     position: Инженер СК
@@ -5299,6 +5547,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: канащук-и
+    link_source: auto
   - num: 32
     fio: Куринный Николай Алексеевич
     position: Инженер СК
@@ -5339,6 +5589,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: куринный-н
+    link_source: auto
   - num: 33
     fio: Княжин Антон Андреевич
     position: Инженер СК
@@ -5379,6 +5631,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: княжин-а
+    link_source: auto
   - num: 34
     fio: Елисеев Владимир Сергеевич
     position: Инженер СК
@@ -5419,6 +5673,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: елисеев-в
+    link_source: auto
   - num: 35
     fio: Бадаев Валентин Борисович
     position: Инженер СК
@@ -5459,6 +5715,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: бадаев-в
+    link_source: auto
   - num: 36
     fio: Шиляев Юрий Андреевич
     position: Инженер СК
@@ -5499,6 +5757,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: шиляев-ю
+    link_source: auto
   - num: 37
     fio: Добрыгин Андрей Аркадьевич
     position: Инженер СК
@@ -5539,6 +5799,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: добрыгин-а
+    link_source: auto
   - num: 38
     fio: Хлебников Андрей Николаевич
     position: Инженер СК
@@ -5579,6 +5841,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: хлебников-а
+    link_source: auto
   - num: 39
     fio: Носков Дмитрий Сергеевич
     position: Инженер СК
@@ -5619,6 +5883,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: носков-д
+    link_source: auto
   - num: 40
     fio: Сидоров Роман Евгеньевич
     position: Инженер СК
@@ -5659,6 +5925,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: сидоров-р
+    link_source: auto
   - num: 41
     fio: Спиридонов Максим Олегович
     position: Инженер СК
@@ -5699,6 +5967,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: спиридонов-м
+    link_source: auto
   - num: 42
     fio: Ломоносов Евгений Олегович
     position: Инженер СК
@@ -5739,6 +6009,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: ломоносов-е
+    link_source: auto
   - num: 43
     fio: Каньшин Егор Викторович
     position: Инженер СК
@@ -5779,6 +6051,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: каньшин-е
+    link_source: auto
   - num: 44
     fio: Аминев Данил Зайнуллович
     position: Инженер СК
@@ -5819,6 +6093,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: аминев-д
+    link_source: auto
   - num: 45
     fio: Новоселов Михаил Александрович
     position: Инженер СК
@@ -5859,6 +6135,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: новоселов-м
+    link_source: auto
   - num: 46
     fio: Слышкин Дмитрий Владимирович
     position: Инженер СК
@@ -5899,6 +6177,8 @@ months:
     - '0.5'
     - Д
     - ''
+    person_id: слышкин-д
+    link_source: auto
   - num: 47
     fio: Петров Алексей Владимирович
     position: Инженер СК
@@ -5939,6 +6219,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: петров-а
+    link_source: auto
   - num: 48
     fio: Шнайдер Елена Александровна
     position: Инженер СК
@@ -5979,6 +6261,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: шнайдер-е
+    link_source: auto
   - num: 49
     fio: Созонова Наталья Михайловна
     position: Инженер СК
@@ -6019,6 +6303,8 @@ months:
     - ''
     - '1'
     - '1'
+    person_id: созонова-н
+    link_source: auto
   - num: 50
     fio: Федотов Евгений Эдуардович
     position: Инженер СК
@@ -6059,6 +6345,8 @@ months:
     - ''
     - '1'
     - '1'
+    person_id: федотов-е
+    link_source: auto
   - num: 51
     fio: Александров Юрий Георгиевич
     position: Инженер СК
@@ -6099,6 +6387,8 @@ months:
     - ''
     - '1'
     - '1'
+    person_id: александров-ю
+    link_source: auto
   - num: 52
     fio: Глазунова Елена Александровна
     position: Инженер СК
@@ -6139,6 +6429,8 @@ months:
     - ''
     - '1'
     - '1'
+    person_id: глазунова-е
+    link_source: auto
   - num: 53
     fio: Мингалева Ольга Николаевна
     position: Инженер СК
@@ -6179,6 +6471,8 @@ months:
     - ''
     - '1'
     - '1'
+    person_id: мингалева-о
+    link_source: auto
   - num: 54
     fio: Бородин Сергей Иванович
     position: Инженер СК
@@ -6219,6 +6513,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: бородин-с
+    link_source: auto
   - num: 55
     fio: Очкасов Юрий Николаевич
     position: Инженер СК
@@ -6259,6 +6555,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: очкасов-ю
+    link_source: auto
   - num: 56
     fio: Манджиев Игорь Александрович
     position: Вед.инженер СК
@@ -6299,6 +6597,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: манджиев-и
+    link_source: auto
   - num: 57
     fio: Аниськов Владимир Иванович
     position: Вед.инженер СК Руководитель СК
@@ -6339,6 +6639,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: аниськов-в
+    link_source: auto
 - sheet: Апрель
   year: 2026
   month: 4
@@ -6448,6 +6750,8 @@ months:
     - Д
     - '0.5'
     - ''
+    person_id: манджиев-и
+    link_source: auto
   - num: 2
     fio: Аюпов Альберт Рималович
     position: Вед.инженер СК
@@ -6487,6 +6791,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: аюпов-а
+    link_source: auto
   - num: 3
     fio: Расаев Артур Тимерьянович
     position: Инженер СК
@@ -6526,6 +6832,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: расаев-а
+    link_source: auto
   - num: 4
     fio: Симонов Александр Алексеевич
     position: Инженер СК
@@ -6565,6 +6873,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: симонов-а
+    link_source: auto
   - num: 5
     fio: Громов Виктор Борисович
     position: Инженер СК
@@ -6604,6 +6914,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: громов-в
+    link_source: auto
   - num: 6
     fio: Долов Сергей Анатольевич
     position: Инженер СК
@@ -6643,6 +6955,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: долов-с
+    link_source: auto
   - num: 7
     fio: Спиридонов Олег Вячеславович
     position: Инженер СК
@@ -6682,6 +6996,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: спиридонов-о
+    link_source: auto
   - num: 8
     fio: Ишутин Станислав Николаевич
     position: Инженер СК
@@ -6721,6 +7037,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: ишутин-с
+    link_source: auto
   - num: 9
     fio: Пряхин Илья Николаевич
     position: Инженер СК
@@ -6760,6 +7078,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: пряхин-и
+    link_source: auto
   - num: 9
     fio: Шемелин Игорь Владимирович
     position: Инженер СК
@@ -6799,6 +7119,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: шемелин-и
+    link_source: auto
   - num: 9
     fio: Каримов Ильдар Робертович
     position: Инженер СК
@@ -6838,6 +7160,8 @@ months:
     - '1'
     - '1'
     - Д
+    person_id: каримов-и
+    link_source: auto
   - num: 12
     fio: Никишин Олег Владимирович
     position: Инженер СК
@@ -6877,6 +7201,8 @@ months:
     - '1'
     - Д
     - ''
+    person_id: никишин-о
+    link_source: auto
   - num: 13
     fio: Бородин Вадим Леонидович
     position: Инженер СК
@@ -6916,6 +7242,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: бородин-в
+    link_source: auto
   - num: 14
     fio: Шешуков Сергей Анатольевич
     position: Инженер СК
@@ -6955,6 +7283,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: шешуков-с
+    link_source: auto
   - num: 15
     fio: Сивокозов Юрий Валентинович
     position: Инженер СК
@@ -6994,6 +7324,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: сивокозов-ю
+    link_source: auto
   - num: 16
     fio: Кетских Игорь Валерьевич
     position: Инженер СК
@@ -7033,6 +7365,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: кетских-и
+    link_source: auto
   - num: 17
     fio: Тимофеев Андрей Николаевич
     position: Инженер СК
@@ -7072,6 +7406,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 18
     fio: Сапельников Павел Сергеевич
     position: Инженер СК
@@ -7111,6 +7446,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: сапельников-п
+    link_source: auto
   - num: 19
     fio: Нафиков Айдар Фанилович
     position: Инженер СК
@@ -7150,6 +7487,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: нафиков-а
+    link_source: auto
   - num: 20
     fio: Трофимов Сергей Николаевич
     position: Инженер СК
@@ -7189,6 +7528,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: трофимов-с
+    link_source: auto
   - num: 21
     fio: Чебарев Игорь Витальевич
     position: Инженер СК
@@ -7228,6 +7569,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: чебарев-и
+    link_source: auto
   - num: 22
     fio: Бирюков Алексей Анатольевич
     position: Инженер СК
@@ -7267,6 +7610,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: бирюков-а
+    link_source: auto
   - num: 23
     fio: Поспелов Андрей Николаевич
     position: Инженер СК
@@ -7306,6 +7651,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 24
     fio: Степанников Андрей Викторович
     position: Инженер СК
@@ -7345,6 +7691,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: степанников-а
+    link_source: auto
   - num: 25
     fio: Гугнин Александр Александрович
     position: Инженер СК
@@ -7384,6 +7732,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: гугнин-а
+    link_source: auto
   - num: 26
     fio: Джево Сергей Александрович
     position: Инженер СК
@@ -7423,6 +7773,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: джево-с
+    link_source: auto
   - num: 27
     fio: Дунаев Александр Михайлович
     position: инженер СК
@@ -7462,6 +7814,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: дунаев-а
+    link_source: auto
   - num: 28
     fio: Мальсагов Турпал-Эл аАсланович
     position: Инженер СК
@@ -7501,6 +7855,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 29
     fio: Сидоров Михаил Андреевич
     position: ''
@@ -7540,6 +7895,7 @@ months:
     - '1'
     - '1'
     - '1'
+    link_source: unmatched
   - num: 30
     fio: Хайбулин Айрат Асхатович
     position: Инженер СК
@@ -7579,6 +7935,8 @@ months:
     - '1'
     - Д
     - ''
+    person_id: хайбулин-а
+    link_source: auto
   - num: 31
     fio: Глущенко Сергей Игоревич
     position: Инженер СК
@@ -7618,6 +7976,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: глущенко-с
+    link_source: auto
   - num: 32
     fio: Исаев Абрахам Вахаевич
     position: Инженер СК
@@ -7657,6 +8017,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: исаев-а
+    link_source: auto
   - num: 33
     fio: Канащук Игорь Владимирович
     position: Инженер СК
@@ -7696,6 +8058,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: канащук-и
+    link_source: auto
   - num: 34
     fio: Куринный Николай Алексеевич
     position: Инженер СК
@@ -7735,6 +8099,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: куринный-н
+    link_source: auto
   - num: 35
     fio: Княжин Антон Андреевич
     position: Инженер СК
@@ -7774,6 +8140,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: княжин-а
+    link_source: auto
   - num: 36
     fio: Елисеев Владимир Сергеевич
     position: Инженер СК
@@ -7813,6 +8181,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: елисеев-в
+    link_source: auto
   - num: 37
     fio: Бадаев Валентин Борисович
     position: Инженер СК
@@ -7852,6 +8222,8 @@ months:
     - '1'
     - Д
     - ''
+    person_id: бадаев-в
+    link_source: auto
   - num: 38
     fio: Шиляев Юрий Андреевич
     position: Инженер СК
@@ -7891,6 +8263,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: шиляев-ю
+    link_source: auto
   - num: 39
     fio: Добрыгин Андрей Аркадьевич
     position: Инженер СК
@@ -7930,6 +8304,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: добрыгин-а
+    link_source: auto
   - num: 40
     fio: Хлебников Андрей Николаевич
     position: Инженер СК
@@ -7969,6 +8345,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: хлебников-а
+    link_source: auto
   - num: 41
     fio: Носков Дмитрий Сергеевич
     position: Инженер СК
@@ -8008,6 +8386,8 @@ months:
     - Д
     - '1'
     - '1'
+    person_id: носков-д
+    link_source: auto
   - num: 42
     fio: Сидоров Роман Евгеньевич
     position: Инженер СК
@@ -8047,6 +8427,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: сидоров-р
+    link_source: auto
   - num: 43
     fio: Спиридонов Максим Олегович
     position: Инженер СК
@@ -8086,6 +8468,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: спиридонов-м
+    link_source: auto
   - num: 44
     fio: Ломоносов Евгений Олегович
     position: Инженер СК
@@ -8125,6 +8509,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: ломоносов-е
+    link_source: auto
   - num: 45
     fio: Каньшин Егор Викторович
     position: Инженер СК
@@ -8164,6 +8550,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: каньшин-е
+    link_source: auto
   - num: 46
     fio: Аминев Данил Зайнуллович
     position: Инженер СК
@@ -8203,6 +8591,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: аминев-д
+    link_source: auto
   - num: 47
     fio: Новоселов Михаил Александрович
     position: Инженер СК
@@ -8242,6 +8632,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: новоселов-м
+    link_source: auto
   - num: 48
     fio: Слышкин Дмитрий Владимирович
     position: Инженер СК
@@ -8281,6 +8673,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: слышкин-д
+    link_source: auto
   - num: 49
     fio: Петров Алексей Владимирович
     position: Инженер СК
@@ -8320,6 +8714,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: петров-а
+    link_source: auto
   - num: 50
     fio: Шнайдер Елена Александровна
     position: Инженер СК
@@ -8359,6 +8755,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: шнайдер-е
+    link_source: auto
   - num: 51
     fio: Созонова Наталья Михайловна
     position: Инженер СК
@@ -8398,6 +8796,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: созонова-н
+    link_source: auto
   - num: 52
     fio: Федотов Евгений Эдуардович
     position: Инженер СК
@@ -8437,6 +8837,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: федотов-е
+    link_source: auto
   - num: 53
     fio: Александров Юрий Георгиевич
     position: Инженер СК
@@ -8476,6 +8878,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: александров-ю
+    link_source: auto
   - num: 54
     fio: Глазунова Елена Александровна
     position: Инженер СК
@@ -8515,6 +8919,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: глазунова-е
+    link_source: auto
   - num: 55
     fio: Мингалева Ольга Николаевна
     position: Инженер СК
@@ -8554,6 +8960,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: мингалева-о
+    link_source: auto
   - num: 56
     fio: Бородин Сергей Иванович
     position: Инженер СК
@@ -8593,6 +9001,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: бородин-с
+    link_source: auto
   - num: 57
     fio: Очкасов Юрий Николаевич
     position: Инженер СК
@@ -8632,6 +9042,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: очкасов-ю
+    link_source: auto
   - num: 58
     fio: Манджиев Игорь Александрович
     position: Вед.инженер СК
@@ -8671,6 +9083,8 @@ months:
     - ''
     - ''
     - '1'
+    person_id: манджиев-и
+    link_source: auto
   - num: 59
     fio: Аниськов Владимир Иванович
     position: Вед.инженер СК Руководитель СК
@@ -8710,6 +9124,8 @@ months:
     - '1'
     - '1'
     - Д
+    person_id: аниськов-в
+    link_source: auto
 - sheet: Май
   year: 2026
   month: 5
@@ -8822,6 +9238,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: манджиев-и
+    link_source: auto
   - num: 2
     fio: Аюпов Альберт Рималович
     position: Вед.инженер СК
@@ -8862,6 +9280,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: аюпов-а
+    link_source: auto
   - num: 3
     fio: Расаев Артур Тимерьянович
     position: Инженер СК
@@ -8902,6 +9322,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: расаев-а
+    link_source: auto
   - num: 4
     fio: Симонов Александр Алексеевич
     position: Инженер СК
@@ -8942,6 +9364,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: симонов-а
+    link_source: auto
   - num: 5
     fio: Громов Виктор Борисович
     position: Инженер СК
@@ -8982,6 +9406,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: громов-в
+    link_source: auto
   - num: 6
     fio: Долов Сергей Анатольевич
     position: Инженер СК
@@ -9022,6 +9448,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: долов-с
+    link_source: auto
   - num: 7
     fio: Спиридонов Олег Вячеславович
     position: Инженер СК
@@ -9062,6 +9490,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: спиридонов-о
+    link_source: auto
   - num: 8
     fio: Ишутин Станислав Николаевич
     position: Инженер СК
@@ -9102,6 +9532,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: ишутин-с
+    link_source: auto
   - num: 9
     fio: Пряхин Илья Николаевич
     position: Инженер СК
@@ -9142,6 +9574,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: пряхин-и
+    link_source: auto
   - num: 10
     fio: Шемелин Игорь Владимирович
     position: Инженер СК
@@ -9182,6 +9616,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: шемелин-и
+    link_source: auto
   - num: 11
     fio: Каримов Ильдар Робертович
     position: Инженер СК
@@ -9222,6 +9658,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: каримов-и
+    link_source: auto
   - num: 12
     fio: Никишин Олег Владимирович
     position: Инженер СК
@@ -9262,6 +9700,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: никишин-о
+    link_source: auto
   - num: 13
     fio: Бородин Вадим Леонидович
     position: Инженер СК
@@ -9302,6 +9742,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: бородин-в
+    link_source: auto
   - num: 14
     fio: Шешуков Сергей Анатольевич
     position: Инженер СК
@@ -9342,6 +9784,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: шешуков-с
+    link_source: auto
   - num: 15
     fio: Сивокозов Юрий Валентинович
     position: Инженер СК
@@ -9382,6 +9826,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: сивокозов-ю
+    link_source: auto
   - num: 16
     fio: Кетских Игорь Валерьевич
     position: Инженер СК
@@ -9422,6 +9868,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: кетских-и
+    link_source: auto
   - num: 17
     fio: Тимофеев Андрей Николаевич
     position: Инженер СК
@@ -9462,6 +9910,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 18
     fio: Сапельников Павел Сергеевич
     position: Инженер СК
@@ -9502,6 +9951,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: сапельников-п
+    link_source: auto
   - num: 19
     fio: Нафиков Айдар Фанилович
     position: Инженер СК
@@ -9542,6 +9993,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: нафиков-а
+    link_source: auto
   - num: 20
     fio: Трофимов Сергей Николаевич
     position: Инженер СК
@@ -9582,6 +10035,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: трофимов-с
+    link_source: auto
   - num: 21
     fio: Чебарев Игорь Витальевич
     position: Инженер СК
@@ -9622,6 +10077,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: чебарев-и
+    link_source: auto
   - num: 22
     fio: Бирюков Алексей Анатольевич
     position: Инженер СК
@@ -9662,6 +10119,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: бирюков-а
+    link_source: auto
   - num: 23
     fio: Гугнин Александр Александрович
     position: Инженер СК
@@ -9702,6 +10161,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: гугнин-а
+    link_source: auto
   - num: 24
     fio: Джево Сергей Александрович
     position: Инженер СК
@@ -9742,6 +10203,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: джево-с
+    link_source: auto
   - num: 25
     fio: Дунаев Александр Михайлович
     position: инженер СК
@@ -9782,6 +10245,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: дунаев-а
+    link_source: auto
   - num: 26
     fio: Мальсагов Турпал-Эл аАсланович
     position: Инженер СК
@@ -9822,6 +10287,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 27
     fio: Сидоров Михаил Андреевич
     position: ''
@@ -9862,6 +10328,7 @@ months:
     - '1'
     - '1'
     - '1'
+    link_source: unmatched
   - num: 28
     fio: Хайбулин Айрат Асхатович
     position: Инженер СК
@@ -9902,6 +10369,8 @@ months:
     - ''
     - ''
     - Д
+    person_id: хайбулин-а
+    link_source: auto
   - num: 29
     fio: Глущенко Сергей Игоревич
     position: Инженер СК
@@ -9942,6 +10411,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: глущенко-с
+    link_source: auto
   - num: 30
     fio: Чадов Евгений Геннадьевич
     position: Инженер СК
@@ -9982,6 +10453,7 @@ months:
     - '1'
     - '1'
     - '1'
+    link_source: unmatched
   - num: 31
     fio: Коломейцев Олег Геннадьевич
     position: ''
@@ -10022,6 +10494,7 @@ months:
     - Д
     - '1'
     - '1'
+    link_source: unmatched
   - num: 32
     fio: Куркин Сергей Владимирович
     position: ''
@@ -10062,6 +10535,7 @@ months:
     - Д
     - '1'
     - '1'
+    link_source: unmatched
   - num: 33
     fio: Исаев Абрахам Вахаевич
     position: Инженер СК
@@ -10102,6 +10576,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: исаев-а
+    link_source: auto
   - num: 34
     fio: Канащук Игорь Владимирович
     position: Инженер СК
@@ -10142,6 +10618,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: канащук-и
+    link_source: auto
   - num: 35
     fio: Куринный Николай Алексеевич
     position: Инженер СК
@@ -10182,6 +10660,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: куринный-н
+    link_source: auto
   - num: 36
     fio: Коломейцев Павел Геннадьевич
     position: Инженер СК
@@ -10222,6 +10702,7 @@ months:
     - '1'
     - '1'
     - '1'
+    link_source: unmatched
   - num: 37
     fio: Муллагалиев Ринат Шамильевич
     position: ''
@@ -10262,6 +10743,7 @@ months:
     - '1'
     - '1'
     - '1'
+    link_source: unmatched
   - num: 38
     fio: Елисеев Владимир Сергеевич
     position: Инженер СК
@@ -10302,6 +10784,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: елисеев-в
+    link_source: auto
   - num: 39
     fio: Ларин Кирилл Евгеньевич
     position: ''
@@ -10342,6 +10826,7 @@ months:
     - '1'
     - '1'
     - '1'
+    link_source: unmatched
   - num: 40
     fio: Бадаев Валентин Борисович
     position: Инженер СК
@@ -10382,6 +10867,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: бадаев-в
+    link_source: auto
   - num: 41
     fio: Шиляев Юрий Андреевич
     position: Инженер СК
@@ -10422,6 +10909,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: шиляев-ю
+    link_source: auto
   - num: 42
     fio: Добрыгин Андрей Аркадьевич
     position: Инженер СК
@@ -10462,6 +10951,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: добрыгин-а
+    link_source: auto
   - num: 43
     fio: Хлебников Андрей Николаевич
     position: Инженер СК
@@ -10502,6 +10993,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: хлебников-а
+    link_source: auto
   - num: 44
     fio: Носков Дмитрий Сергеевич
     position: Инженер СК
@@ -10542,6 +11035,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: носков-д
+    link_source: auto
   - num: 45
     fio: Сидоров Роман Евгеньевич
     position: Инженер СК
@@ -10582,6 +11077,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: сидоров-р
+    link_source: auto
   - num: 46
     fio: Спиридонов Максим Олегович
     position: Инженер СК
@@ -10622,6 +11119,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: спиридонов-м
+    link_source: auto
   - num: 47
     fio: Ломоносов Евгений Олегович
     position: Инженер СК
@@ -10662,6 +11161,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: ломоносов-е
+    link_source: auto
   - num: 48
     fio: Каньшин Егор Викторович
     position: Инженер СК
@@ -10702,6 +11203,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: каньшин-е
+    link_source: auto
   - num: 49
     fio: Аминев Данил Зайнуллович
     position: Инженер СК
@@ -10742,6 +11245,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: аминев-д
+    link_source: auto
   - num: 50
     fio: Новоселов Михаил Александрович
     position: Инженер СК
@@ -10782,6 +11287,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: новоселов-м
+    link_source: auto
   - num: 51
     fio: Слышкин Дмитрий Владимирович
     position: Инженер СК
@@ -10822,6 +11329,8 @@ months:
     - '1'
     - '1'
     - '0.5'
+    person_id: слышкин-д
+    link_source: auto
   - num: 52
     fio: Петров Алексей Владимирович
     position: Инженер СК
@@ -10862,6 +11371,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: петров-а
+    link_source: auto
   - num: 53
     fio: Мальнов Максим Борисович
     position: Инженер СК
@@ -10902,6 +11413,7 @@ months:
     - '1'
     - ''
     - ''
+    link_source: unmatched
   - num: 54
     fio: Созонова Наталья Михайловна
     position: Инженер СК
@@ -10942,6 +11454,8 @@ months:
     - '1'
     - ''
     - ''
+    person_id: созонова-н
+    link_source: auto
   - num: 55
     fio: Федотов Евгений Эдуардович
     position: Инженер СК
@@ -10982,6 +11496,8 @@ months:
     - '1'
     - ''
     - ''
+    person_id: федотов-е
+    link_source: auto
   - num: 56
     fio: Александров Юрий Георгиевич
     position: Инженер СК
@@ -11022,6 +11538,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: александров-ю
+    link_source: auto
   - num: 57
     fio: Александрова Оксана Владимировна
     position: ''
@@ -11062,6 +11580,7 @@ months:
     - '1'
     - ''
     - ''
+    link_source: unmatched
   - num: 58
     fio: Глазунова Елена Александровна
     position: Инженер СК
@@ -11102,6 +11621,8 @@ months:
     - '1'
     - ''
     - ''
+    person_id: глазунова-е
+    link_source: auto
   - num: 59
     fio: Мингалева Ольга Николаевна
     position: Инженер СК
@@ -11142,6 +11663,8 @@ months:
     - '1'
     - ''
     - ''
+    person_id: мингалева-о
+    link_source: auto
   - num: 60
     fio: Бородин Сергей Иванович
     position: Инженер СК
@@ -11182,6 +11705,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: бородин-с
+    link_source: auto
   - num: 61
     fio: Очкасов Юрий Николаевич
     position: Инженер СК
@@ -11222,6 +11747,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: очкасов-ю
+    link_source: auto
   - num: 62
     fio: Манджиев Игорь Александрович
     position: Вед.инженер СК
@@ -11262,6 +11789,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: манджиев-и
+    link_source: auto
   - num: 63
     fio: Аниськов Владимир Иванович
     position: Вед.инженер СК Руководитель СК
@@ -11302,6 +11831,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: аниськов-в
+    link_source: auto
 - sheet: Июнь
   year: 2026
   month: 6
@@ -11378,8 +11909,8 @@ months:
     nrs: нет
     specialty: ОС/СТ
     days_present: 14
-    days_half: 0
-    days_marked: 15
+    days_half: 1
+    days_marked: 16
     marks:
     - '1'
     - '1'
@@ -11396,6 +11927,7 @@ months:
     - '1'
     - '1'
     - Д
+    - '0.5'
     - ''
     - ''
     - ''
@@ -11410,7 +11942,8 @@ months:
     - ''
     - ''
     - ''
-    - ''
+    person_id: манджиев-и
+    link_source: auto
   - num: 2
     fio: Аюпов Альберт Рималович
     position: Вед.инженер СК
@@ -11450,6 +11983,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: аюпов-а
+    link_source: auto
   - num: 3
     fio: Расаев Артур Тимерьянович
     position: Инженер СК
@@ -11489,6 +12024,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: расаев-а
+    link_source: auto
   - num: 4
     fio: Симонов Александр Алексеевич
     position: Инженер СК
@@ -11528,6 +12065,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: симонов-а
+    link_source: auto
   - num: 5
     fio: Громов Виктор Борисович
     position: Инженер СК
@@ -11567,6 +12106,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: громов-в
+    link_source: auto
   - num: 6
     fio: Долов Сергей Анатольевич
     position: Инженер СК
@@ -11606,6 +12147,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: долов-с
+    link_source: auto
   - num: 7
     fio: Спиридонов Олег Вячеславович
     position: Инженер СК
@@ -11645,6 +12188,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: спиридонов-о
+    link_source: auto
   - num: 8
     fio: Ишутин Станислав Николаевич
     position: Инженер СК
@@ -11684,6 +12229,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: ишутин-с
+    link_source: auto
   - num: 9
     fio: Пряхин Илья Николаевич
     position: Инженер СК
@@ -11723,6 +12270,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: пряхин-и
+    link_source: auto
   - num: 10
     fio: Шемелин Игорь Владимирович
     position: Инженер СК
@@ -11762,6 +12311,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: шемелин-и
+    link_source: auto
   - num: 11
     fio: Каримов Ильдар Робертович
     position: Инженер СК
@@ -11801,6 +12352,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: каримов-и
+    link_source: auto
   - num: 12
     fio: Никишин Олег Владимирович
     position: Инженер СК
@@ -11840,6 +12393,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: никишин-о
+    link_source: auto
   - num: 13
     fio: Бородин Вадим Леонидович
     position: Инженер СК
@@ -11879,6 +12434,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: бородин-в
+    link_source: auto
   - num: 14
     fio: Шешуков Сергей Анатольевич
     position: Инженер СК
@@ -11918,6 +12475,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: шешуков-с
+    link_source: auto
   - num: 15
     fio: Сивокозов Юрий Валентинович
     position: Инженер СК
@@ -11957,6 +12516,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: сивокозов-ю
+    link_source: auto
   - num: 16
     fio: Кетских Игорь Валерьевич
     position: Инженер СК
@@ -11996,6 +12557,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: кетских-и
+    link_source: auto
   - num: 17
     fio: Тимофеев Андрей Николаевич
     position: Инженер СК
@@ -12035,6 +12598,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 18
     fio: Сапельников Павел Сергеевич
     position: Инженер СК
@@ -12074,6 +12638,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: сапельников-п
+    link_source: auto
   - num: 19
     fio: Нафиков Айдар Фанилович
     position: Инженер СК
@@ -12113,6 +12679,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: нафиков-а
+    link_source: auto
   - num: 20
     fio: Трофимов Сергей Николаевич
     position: Инженер СК
@@ -12152,6 +12720,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: трофимов-с
+    link_source: auto
   - num: 21
     fio: Чебарев Игорь Витальевич
     position: Инженер СК
@@ -12191,6 +12761,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: чебарев-и
+    link_source: auto
   - num: 22
     fio: Бирюков Алексей Анатольевич
     position: Инженер СК
@@ -12230,6 +12802,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: бирюков-а
+    link_source: auto
   - num: 23
     fio: Гугнин Александр Александрович
     position: Инженер СК
@@ -12269,6 +12843,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: гугнин-а
+    link_source: auto
   - num: 24
     fio: Джево Сергей Александрович
     position: Инженер СК
@@ -12308,6 +12884,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: джево-с
+    link_source: auto
   - num: 25
     fio: Дунаев Александр Михайлович
     position: инженер СК
@@ -12347,6 +12925,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: дунаев-а
+    link_source: auto
   - num: 26
     fio: Мальсагов Турпал-Эл аАсланович
     position: Инженер СК
@@ -12386,6 +12966,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 27
     fio: Сидоров Михаил Андреевич
     position: ''
@@ -12425,6 +13006,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 28
     fio: Хайбулин Айрат Асхатович
     position: Инженер СК
@@ -12464,6 +13046,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: хайбулин-а
+    link_source: auto
   - num: 29
     fio: Глущенко Сергей Игоревич
     position: Инженер СК
@@ -12503,6 +13087,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: глущенко-с
+    link_source: auto
   - num: 30
     fio: Чадов Евгений Геннадьевич
     position: Инженер СК
@@ -12542,6 +13128,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 31
     fio: Коломейцев Олег Геннадьевич
     position: ''
@@ -12581,6 +13168,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 32
     fio: Куркин Сергей Владимирович
     position: ''
@@ -12620,6 +13208,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 33
     fio: Исаев Абрахам Вахаевич
     position: Инженер СК
@@ -12659,6 +13248,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: исаев-а
+    link_source: auto
   - num: 34
     fio: Канащук Игорь Владимирович
     position: Инженер СК
@@ -12698,6 +13289,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: канащук-и
+    link_source: auto
   - num: 35
     fio: Куринный Николай Алексеевич
     position: Инженер СК
@@ -12737,6 +13330,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: куринный-н
+    link_source: auto
   - num: 36
     fio: Коломейцев Павел Геннадьевич
     position: Инженер СК
@@ -12776,6 +13371,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 37
     fio: Муллагалиев Ринат Шамильевич
     position: ''
@@ -12815,6 +13411,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 38
     fio: Елисеев Владимир Сергеевич
     position: Инженер СК
@@ -12854,6 +13451,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: елисеев-в
+    link_source: auto
   - num: 39
     fio: Ларин Кирилл Евгеньевич
     position: ''
@@ -12893,6 +13492,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 40
     fio: Бадаев Валентин Борисович
     position: Инженер СК
@@ -12932,6 +13532,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: бадаев-в
+    link_source: auto
   - num: 41
     fio: Шиляев Юрий Андреевич
     position: Инженер СК
@@ -12971,6 +13573,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: шиляев-ю
+    link_source: auto
   - num: 42
     fio: Добрыгин Андрей Аркадьевич
     position: Инженер СК
@@ -13010,6 +13614,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: добрыгин-а
+    link_source: auto
   - num: 43
     fio: Хлебников Андрей Николаевич
     position: Инженер СК
@@ -13049,6 +13655,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: хлебников-а
+    link_source: auto
   - num: 44
     fio: Носков Дмитрий Сергеевич
     position: Инженер СК
@@ -13088,6 +13696,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: носков-д
+    link_source: auto
   - num: 45
     fio: Сидоров Роман Евгеньевич
     position: Инженер СК
@@ -13127,6 +13737,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: сидоров-р
+    link_source: auto
   - num: 46
     fio: Спиридонов Максим Олегович
     position: Инженер СК
@@ -13166,6 +13778,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: спиридонов-м
+    link_source: auto
   - num: 47
     fio: Ломоносов Евгений Олегович
     position: Инженер СК
@@ -13205,6 +13819,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: ломоносов-е
+    link_source: auto
   - num: 48
     fio: Каньшин Егор Викторович
     position: Инженер СК
@@ -13244,6 +13860,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: каньшин-е
+    link_source: auto
   - num: 49
     fio: Гроза Владислав Валерьевич
     position: Инженер СК
@@ -13283,6 +13901,7 @@ months:
     - '1'
     - '1'
     - '1'
+    link_source: unmatched
   - num: 50
     fio: Аминев Данил Зайнуллович
     position: Инженер СК
@@ -13322,6 +13941,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: аминев-д
+    link_source: auto
   - num: 51
     fio: Новоселов Михаил Александрович
     position: Инженер СК
@@ -13361,6 +13982,8 @@ months:
     - '1'
     - '1'
     - '1'
+    person_id: новоселов-м
+    link_source: auto
   - num: 52
     fio: Слышкин Дмитрий Владимирович
     position: Инженер СК
@@ -13400,6 +14023,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: слышкин-д
+    link_source: auto
   - num: 53
     fio: Петров Алексей Владимирович
     position: Инженер СК
@@ -13439,6 +14064,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: петров-а
+    link_source: auto
   - num: 54
     fio: Мальнов Максим Борисович
     position: Инженер СК
@@ -13478,6 +14105,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 55
     fio: Созонова Наталья Михайловна
     position: Инженер СК
@@ -13517,6 +14145,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: созонова-н
+    link_source: auto
   - num: 56
     fio: Федотов Евгений Эдуардович
     position: Инженер СК
@@ -13556,6 +14186,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: федотов-е
+    link_source: auto
   - num: 57
     fio: Александров Юрий Георгиевич
     position: Инженер СК
@@ -13595,6 +14227,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: александров-ю
+    link_source: auto
   - num: 58
     fio: Александрова Оксана Владимировна
     position: ''
@@ -13634,6 +14268,7 @@ months:
     - ''
     - ''
     - ''
+    link_source: unmatched
   - num: 59
     fio: Глазунова Елена Александровна
     position: Инженер СК
@@ -13673,6 +14308,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: глазунова-е
+    link_source: auto
   - num: 60
     fio: Мингалева Ольга Николаевна
     position: Инженер СК
@@ -13712,6 +14349,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: мингалева-о
+    link_source: auto
   - num: 61
     fio: Бородин Сергей Иванович
     position: Инженер СК
@@ -13751,6 +14390,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: бородин-с
+    link_source: auto
   - num: 62
     fio: Очкасов Юрий Николаевич
     position: Инженер СК
@@ -13790,6 +14431,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: очкасов-ю
+    link_source: auto
   - num: 63
     fio: Манджиев Игорь Александрович
     position: Вед.инженер СК
@@ -13829,6 +14472,8 @@ months:
     - ''
     - ''
     - ''
+    person_id: манджиев-и
+    link_source: auto
   - num: 64
     fio: Аниськов Владимир Иванович
     position: Вед.инженер СК Руководитель СК
@@ -13868,3 +14513,6 @@ months:
     - ''
     - ''
     - ''
+    person_id: аниськов-в
+    link_source: auto
+xlsx_stale: false
