@@ -1,5 +1,7 @@
 (function () {
-  const projectSelect = document.getElementById("projectSelect");
+  const profileId = document.body.dataset.profileId || "";
+  const projectTabs = document.getElementById("projectTabs");
+  const noProjectsHint = document.getElementById("noProjectsHint");
   const reportDate = document.getElementById("reportDate");
   const buildBtn = document.getElementById("buildBtn");
   const worksBody = document.getElementById("worksBody");
@@ -12,6 +14,7 @@
 
   let config = null;
   let currentWorks = [];
+  let activeProjectId = null;
 
   function todayIso() {
     const d = new Date();
@@ -25,6 +28,36 @@
 
   function projectById(id) {
     return (config?.projects || []).find((p) => p.id === id);
+  }
+
+  function configUrl() {
+    const q = profileId ? `?profile_id=${encodeURIComponent(profileId)}` : "";
+    return `/api/engineer/config${q}`;
+  }
+
+  function renderProjectTabs() {
+    projectTabs.innerHTML = "";
+    const projects = config?.projects || [];
+    noProjectsHint.hidden = projects.length > 0;
+    projectTabs.hidden = !projects.length;
+
+    projects.forEach((p, idx) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "planning-tab";
+      btn.setAttribute("role", "tab");
+      btn.dataset.projectId = p.id;
+      btn.textContent = `${p.title} (${p.works_count})`;
+      btn.title = p.id;
+      if (!activeProjectId && idx === 0) activeProjectId = p.id;
+      if (p.id === activeProjectId) btn.classList.add("is-active");
+      btn.addEventListener("click", () => {
+        activeProjectId = p.id;
+        renderProjectTabs();
+        renderWorks(activeProjectId);
+      });
+      projectTabs.appendChild(btn);
+    });
   }
 
   function renderWorks(projectId) {
@@ -55,7 +88,9 @@
     });
     workStats.textContent = shown
       ? `Показано ${shown} из ${currentWorks.length}`
-      : "Нет работ (обновите vor.json)";
+      : projectId
+        ? "Нет работ (обновите vor.json)"
+        : "";
     selectAll.checked = false;
   }
 
@@ -92,36 +127,42 @@
   }
 
   async function loadConfig() {
+    if (!profileId) {
+      setStatus("Не указан профиль инженера", true);
+      return;
+    }
     setStatus("Загрузка…");
-    const res = await fetch("/api/engineer/config");
+    const res = await fetch(configUrl());
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || res.statusText);
     }
     config = await res.json();
-    profileName.textContent = config.profile?.name || config.profile?.id || "";
+    if (profileName) {
+      profileName.textContent = config.profile?.name || config.profile?.id || "";
+    }
     templateWarn.hidden = config.template_ok;
     templateWarn.textContent = config.template_ok
       ? ""
       : "Шаблон отчёта не найден — укажите report_template в профиле инженера.";
 
-    projectSelect.innerHTML = "";
-    (config.projects || []).forEach((p) => {
-      const opt = document.createElement("option");
-      opt.value = p.id;
-      opt.textContent = `${p.title} (${p.works_count})`;
-      projectSelect.appendChild(opt);
-    });
-    if (projectSelect.options.length) {
-      renderWorks(projectSelect.value);
+    activeProjectId = null;
+    renderProjectTabs();
+    if (activeProjectId) {
+      renderWorks(activeProjectId);
       buildBtn.disabled = !config.template_ok;
       setStatus("");
     } else {
-      setStatus("Нет проектов в профиле", true);
+      setStatus("Нет закреплённых объектов", true);
+      buildBtn.disabled = true;
     }
   }
 
   async function buildReport() {
+    if (!activeProjectId) {
+      setStatus("Выберите объект", true);
+      return;
+    }
     const entries = collectEntries();
     if (!entries.length) {
       setStatus("Отметьте работы и укажите объём за сутки", true);
@@ -134,7 +175,8 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          project_id: projectSelect.value,
+          profile_id: profileId,
+          project_id: activeProjectId,
           report_date: reportDate.value || todayIso(),
           entries,
         }),
@@ -157,12 +199,13 @@
     } catch (e) {
       setStatus(e.message || "Ошибка", true);
     } finally {
-      buildBtn.disabled = !config?.template_ok;
+      buildBtn.disabled = !config?.template_ok || !activeProjectId;
     }
   }
 
-  projectSelect.addEventListener("change", () => renderWorks(projectSelect.value));
-  workFilter.addEventListener("input", () => renderWorks(projectSelect.value));
+  workFilter.addEventListener("input", () => {
+    if (activeProjectId) renderWorks(activeProjectId);
+  });
   selectAll.addEventListener("change", () => {
     worksBody.querySelectorAll(".row-check").forEach((cb) => {
       cb.checked = selectAll.checked;

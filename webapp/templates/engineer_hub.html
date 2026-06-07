@@ -11,16 +11,16 @@
 {% include "_header.html" %}
 
 <main class="home-main">
-  <p class="home-lead">Работа с инженерами: профили, bat-файлы, отчёты по ВОР</p>
-  <ul class="home-nav">
-    <li>
-      <a class="home-card" href="/engineer">
-        <span class="home-card-title">Отчёт инженера</span>
-        <span class="home-card-desc">Заполнение по ВОР, выдержки из ТК, формирование docx для проверки в SK-Reporter</span>
-      </a>
-    </li>
-  </ul>
-  <p class="planning-hint" style="margin-top: 20px;">Скоро: формирование и выдача <code>.bat</code> по профилям из <code>engineer/profiles/</code>.</p>
+  <p class="home-lead">Инженеры с назначениями на объекты — отчёты по ВОР и bat-файлы для запуска</p>
+  <p id="hubStatus" class="planning-hint"></p>
+  <ul id="engineerHubList" class="home-nav"></ul>
+  <p class="planning-hint" style="margin-top: 20px;">
+    Карточка появляется после назначения инженера на проект в разделе
+    <a href="/planning/projects">Проекты</a>. Профили и bat: <code>engineer/profiles/</code>,
+    <code>engineer/launchers/</code>.
+  </p>
 </main>
+
+<script src="/static/engineer_hub.js?v={{ git_head }}"></script>
 </body>
 </html>

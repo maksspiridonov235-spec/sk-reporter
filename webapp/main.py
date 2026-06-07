@@ -542,20 +542,43 @@ async def engineer_hub_page(request: Request):
     )
 
 
-@app.get("/engineer", response_class=HTMLResponse)
-async def engineer_page(request: Request):
-    print(f"[REQ] GET /engineer pid={os.getpid()} -> engineer.html")
+@app.get("/api/engineer-hub")
+async def api_engineer_hub():
+    from sk_reporter.engineer.hub import hub_payload
+
+    return await asyncio.to_thread(hub_payload)
+
+
+@app.get("/engineer/{profile_id}", response_class=HTMLResponse)
+async def engineer_profile_page(request: Request, profile_id: str):
+    from sk_reporter.engineer.profile import load_profile
+
+    print(f"[REQ] GET /engineer/{profile_id} pid={os.getpid()} -> engineer.html")
+    try:
+        profile = await asyncio.to_thread(load_profile, profile_id)
+    except (ValueError, FileNotFoundError) as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+    fio = profile.get("name") or profile_id
     return templates.TemplateResponse(
         "engineer.html",
         _page_context(
             request,
             breadcrumbs=[
                 {"label": "Инженер ФИО", "href": "/engineer-hub"},
-                {"label": "Отчёт инженера"},
+                {"label": fio},
             ],
             header_meta_id="profileName",
+            profile_id=profile_id,
         ),
     )
+
+
+@app.get("/engineer", response_class=HTMLResponse)
+async def engineer_page(request: Request):
+    from fastapi.responses import RedirectResponse
+
+    return RedirectResponse(url="/engineer-hub", status_code=302)
 
 
 class EngineerEntry(BaseModel):
@@ -577,15 +600,16 @@ class EngineerBuildRequest(BaseModel):
     project_id: str
     report_date: str
     entries: list[EngineerEntry]
+    profile_id: str | None = None
 
 
 @app.get("/api/engineer/config")
-async def engineer_config():
+async def engineer_config(profile_id: str | None = None):
     from sk_reporter.engineer.profile import load_profile, resolve_report_template
     from sk_reporter.engineer.vor_data import list_profile_projects
 
     try:
-        profile = load_profile()
+        profile = load_profile(profile_id)
     except (ValueError, FileNotFoundError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -595,6 +619,7 @@ async def engineer_config():
             "id": profile.get("id"),
             "name": profile.get("name"),
             "position": profile.get("position"),
+            "person_id": profile.get("person_id"),
         },
         "projects": list_profile_projects(profile),
         "template_ok": tpl is not None,
@@ -608,12 +633,13 @@ async def engineer_build(body: EngineerBuildRequest):
 
     from sk_reporter.engineer.profile import load_profile, resolve_report_template
     from sk_reporter.engineer.report_builder import ReportEntry, build_report_docx
+    from sk_reporter.engineer.vor_data import profile_project_ids
 
     if not body.entries:
         raise HTTPException(status_code=400, detail="Не выбраны работы")
 
     try:
-        profile = load_profile()
+        profile = load_profile(body.profile_id)
     except (ValueError, FileNotFoundError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -624,8 +650,9 @@ async def engineer_build(body: EngineerBuildRequest):
             detail="Шаблон отчёта не найден — задайте report_template в профиле инженера",
         )
 
-    if body.project_id not in (profile.get("projects") or []):
-        raise HTTPException(status_code=400, detail="Проект не входит в профиль")
+    allowed = profile_project_ids(profile)
+    if body.project_id not in allowed:
+        raise HTTPException(status_code=400, detail="Проект не закреплён за инженером")
 
     try:
         report_day = date_cls.fromisoformat(body.report_date)

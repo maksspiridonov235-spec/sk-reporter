@@ -7,7 +7,7 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
   <link rel="stylesheet" href="/static/app.css?v={{ git_head }}"/>
 </head>
-<body>
+<body data-profile-id="{{ profile_id }}">
 {% include "_header.html" %}
 
 <div class="layout engineer-layout">
@@ -15,8 +15,6 @@
     <div class="sidebar-track">
       <div class="sidebar">
         <div class="section-title">Параметры</div>
-        <label class="field-label" for="projectSelect">Проект</label>
-        <select id="projectSelect" class="field-input"></select>
         <label class="field-label" for="reportDate">Дата отчёта</label>
         <input type="date" id="reportDate" class="field-input"/>
         <button type="button" id="buildBtn" class="btn btn-primary" disabled>Сформировать docx</button>
@@ -27,6 +25,11 @@
   </aside>
 
   <main class="engineer-main">
+    <div id="projectTabs" class="planning-tabs engineer-project-tabs" role="tablist" aria-label="Объекты"></div>
+    <p id="noProjectsHint" class="planning-hint" hidden>
+      Нет закреплённых объектов. Назначьте инженера на проект в
+      <a href="/planning/projects">Планировании → Проекты</a>.
+    </p>
     <div class="engineer-toolbar">
       <input type="search" id="workFilter" class="field-input engineer-filter" placeholder="Поиск по работам…"/>
       <span id="workStats" class="hint-text"></span>

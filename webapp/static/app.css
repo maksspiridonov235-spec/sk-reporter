@@ -698,7 +698,14 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 .engineer-table .cell-name { min-width: 220px; max-width: 360px; }
 .engineer-table .cell-object { max-width: 140px; color: #555; }
 .field-input--sm { padding: 4px 6px; font-size: 12px; min-width: 64px; }
+.engineer-project-tabs { margin-bottom: 12px; }
 .hint-text { font-size: 12px; color: #888; }
+.home-card-meta {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 6px;
+}
 .warn-text { font-size: 12px; color: #b45309; }
 .error-text { color: #b91c1c; }
 .cell-tk { font-size: 11px; color: #1a56a0; white-space: nowrap; }

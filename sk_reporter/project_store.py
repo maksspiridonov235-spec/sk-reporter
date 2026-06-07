@@ -144,6 +144,9 @@ def set_project_engineers(project_id: str, engineer_ids: list[str]) -> dict[str,
         yaml.safe_dump(meta, allow_unicode=True, sort_keys=False),
         encoding="utf-8",
     )
+    from sk_reporter.engineer.hub import ensure_profiles_for_engineers
+
+    ensure_profiles_for_engineers(cleaned)
     result = get_project(project_id)
     if not result:
         raise RuntimeError("Не удалось прочитать проект после сохранения")

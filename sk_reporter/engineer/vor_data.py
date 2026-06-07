@@ -10,6 +10,7 @@ import yaml
 
 from sk_reporter.engineer.tk_catalog import resolve_tk_for_work
 from sk_reporter.paths import project_dir, projects_dir
+from sk_reporter.project_store import get_project
 
 
 def load_project_meta(project_id: str) -> dict[str, Any]:
@@ -86,10 +87,16 @@ def _project_ids_for_profile(profile: dict[str, Any]) -> list[str]:
     return sorted(ids)
 
 
+def profile_project_ids(profile: dict[str, Any]) -> list[str]:
+    return _project_ids_for_profile(profile)
+
+
 def list_profile_projects(profile: dict[str, Any]) -> list[dict[str, Any]]:
     result = []
     for pid in _project_ids_for_profile(profile):
-        meta = load_project_meta(pid)
+        rich = get_project(pid) or {}
+        meta = rich or load_project_meta(pid)
+        display = rich.get("object_name") or rich.get("title") or meta.get("title") or pid
         try:
             works = flatten_vor_works(pid)
         except FileNotFoundError:
@@ -97,7 +104,8 @@ def list_profile_projects(profile: dict[str, Any]) -> list[dict[str, Any]]:
         result.append(
             {
                 "id": pid,
-                "title": meta.get("title") or pid,
+                "title": display,
+                "object_name": rich.get("object_name") or meta.get("object_name") or "",
                 "works_count": len(works),
                 "works": works,
             }
