@@ -167,7 +167,7 @@ def luvr_personnel_options() -> list[dict[str, str]]:
 def luvr_projects_options() -> list[dict[str, str]]:
     from sk_reporter.project_store import list_projects_rich
 
-    return [{"id": p["id"], "title": p.get("title") or p["id"]} for p in list_projects_rich()]
+    return [{"id": p["id"], "title": p.get("object_name") or p.get("title") or p["id"]} for p in list_projects_rich()]
 
 
 def _engineer_projects_map() -> dict[str, list[str]]:
@@ -652,6 +652,12 @@ def sync_luvr_to_xlsx(sheet: str | None = None) -> dict[str, Any]:
 
 
 def write_luvr_mark_to_xlsx(sheet: str, person_idx: int, day_idx: int, mark: str) -> bool:
+    return write_luvr_marks_batch_to_xlsx(sheet, [(person_idx, day_idx, mark)])
+
+
+def write_luvr_marks_batch_to_xlsx(sheet: str, updates: list[tuple[int, int, str]]) -> bool:
+    if not updates:
+        return True
     try:
         xlsx = _luvr_xlsx()
     except FileNotFoundError:
@@ -662,11 +668,7 @@ def write_luvr_mark_to_xlsx(sheet: str, person_idx: int, day_idx: int, mark: str
     if month is None:
         return False
     people = month.get("people") or []
-    if person_idx < 0 or person_idx >= len(people):
-        return False
     days = month.get("days") or []
-    if day_idx < 0 or day_idx >= len(days):
-        return False
 
     wb = load_workbook(xlsx)
     if sheet not in wb.sheetnames:
@@ -679,20 +681,23 @@ def write_luvr_mark_to_xlsx(sheet: str, person_idx: int, day_idx: int, mark: str
         return False
 
     day_cols = _day_cols_for_month(ws, layout, month)
-    if day_idx >= len(day_cols):
-        wb.close()
-        return False
+    changed = False
+    for person_idx, day_idx, mark in updates:
+        if person_idx < 0 or person_idx >= len(people):
+            continue
+        if day_idx < 0 or day_idx >= len(day_cols):
+            continue
+        row = _person_row_by_fio_ws(ws, layout["data_row_start"], people[person_idx]["fio"])
+        if row is None:
+            continue
+        col = day_cols[day_idx]["col"]
+        new_val = _mark_to_cell_value(_norm_mark(mark))
+        cell = ws.cell(row=row, column=col)
+        if not _cell_values_equal(cell.value, new_val):
+            cell.value = new_val
+            changed = True
 
-    row = _person_row_by_fio_ws(ws, layout["data_row_start"], people[person_idx]["fio"])
-    if row is None:
-        wb.close()
-        return False
-
-    col = day_cols[day_idx]["col"]
-    new_val = _mark_to_cell_value(_norm_mark(mark))
-    cell = ws.cell(row=row, column=col)
-    if not _cell_values_equal(cell.value, new_val):
-        cell.value = new_val
+    if changed:
         wb.save(xlsx)
     wb.close()
     return True
@@ -759,6 +764,76 @@ def update_luvr_mark(sheet: str, person_idx: int, day_idx: int, mark: Any) -> di
     }
 
 
+def update_luvr_marks_batch(sheet: str, updates: list[dict[str, Any]]) -> dict[str, Any]:
+    if sheet not in _MONTH_SHEETS:
+        raise KeyError(f"Неизвестный лист: {sheet}")
+    if not updates:
+        return {"sheet": sheet, "updated": 0, "people": [], "xlsx_synced": True, "xlsx_stale": False}
+    if len(updates) > 5000:
+        raise ValueError("Слишком много ячеек за один запрос (макс. 5000)")
+
+    data = load_luvr()
+    if not data.get("months"):
+        raise FileNotFoundError("luvr.yaml пуст — сначала build_engineer_data.py --luvr")
+
+    month = next((m for m in data["months"] if m.get("sheet") == sheet), None)
+    if month is None:
+        raise KeyError(f"Лист «{sheet}» не найден в luvr.yaml")
+
+    people = month.get("people") or []
+    days = month.get("days") or []
+    day_count = len(days)
+
+    merged: dict[tuple[int, int], str] = {}
+    for raw in updates:
+        person_idx = int(raw["person_idx"])
+        day_idx = int(raw["day_idx"])
+        if person_idx < 0 or person_idx >= len(people):
+            raise IndexError(f"person_idx {person_idx} вне диапазона")
+        if day_idx < 0 or day_idx >= day_count:
+            raise IndexError(f"day_idx {day_idx} вне диапазона")
+        merged[(person_idx, day_idx)] = _norm_mark(raw.get("mark"))
+
+    xlsx_updates: list[tuple[int, int, str]] = []
+    touched_people: set[int] = set()
+
+    for (person_idx, day_idx), norm in merged.items():
+        person = people[person_idx]
+        marks = list(person.get("marks") or [])
+        while len(marks) < day_count:
+            marks.append("")
+        if marks[day_idx] == norm:
+            continue
+        marks[day_idx] = norm
+        person["marks"] = marks
+        touched_people.add(person_idx)
+        xlsx_updates.append((person_idx, day_idx, norm))
+
+    for person_idx in touched_people:
+        _recalc_person_stats(people[person_idx])
+
+    xlsx_synced = write_luvr_marks_batch_to_xlsx(sheet, xlsx_updates) if xlsx_updates else True
+    data["xlsx_stale"] = not xlsx_synced if xlsx_updates else data.get("xlsx_stale", False)
+    save_luvr(data)
+
+    people_stats = [
+        {
+            "person_idx": pi,
+            "days_present": people[pi]["days_present"],
+            "days_marked": people[pi]["days_marked"],
+        }
+        for pi in sorted(touched_people)
+    ]
+
+    return {
+        "sheet": sheet,
+        "updated": len(xlsx_updates),
+        "people": people_stats,
+        "xlsx_synced": xlsx_synced,
+        "xlsx_stale": data.get("xlsx_stale", False),
+    }
+
+
 @lru_cache(maxsize=1)
 def load_luvr() -> dict[str, Any]:
     cache = luvr_dir() / "luvr.yaml"
@@ -807,6 +882,22 @@ def luvr_planning_payload() -> dict[str, Any]:
     link_stats = luvr_link_stats(months)
     project_stats = luvr_project_stats(months)
 
+    appendix7: dict[str, Any] = {}
+    try:
+        from sk_reporter.appendix7_store import appendix7_status
+
+        appendix7 = appendix7_status()
+    except Exception:
+        appendix7 = {"template_present": False}
+
+    deployment: dict[str, Any] = {}
+    try:
+        from sk_reporter.deployment_store import deployment_status
+
+        deployment = deployment_status()
+    except Exception:
+        deployment = {"template_present": False}
+
     return {
         "folder": str(folder.relative_to(repo_root())),
         "source": data.get("source") or (xlsx_path.name if xlsx_path else None),
@@ -824,6 +915,8 @@ def luvr_planning_payload() -> dict[str, Any]:
         "projects": luvr_projects_options(),
         "link_stats": link_stats,
         "project_stats": project_stats,
+        "appendix7": appendix7,
+        "deployment": deployment,
     }
 
 

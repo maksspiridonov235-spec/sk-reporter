@@ -283,6 +283,21 @@ async def planning_set_project_engineers(project_id: str, body: ProjectEngineers
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@app.post("/api/planning/deployment/build")
+async def planning_deployment_build():
+    from sk_reporter.deployment_store import build_deployment_from_projects
+
+    try:
+        return await asyncio.to_thread(build_deployment_from_projects)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @app.get("/luvr", response_class=HTMLResponse)
 async def luvr_page(request: Request):
     print(f"[REQ] GET /luvr pid={os.getpid()} -> luvr.html")
@@ -324,6 +339,37 @@ async def luvr_set_mark(body: LuvrMarkBody):
         raise HTTPException(status_code=404, detail=str(e)) from e
     except IndexError as e:
         raise HTTPException(status_code=400, detail="Неверный индекс строки или дня") from e
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+class LuvrMarkUpdate(BaseModel):
+    person_idx: int = Field(ge=0)
+    day_idx: int = Field(ge=0)
+    mark: str = ""
+
+
+class LuvrMarksBatchBody(BaseModel):
+    sheet: str
+    updates: list[LuvrMarkUpdate] = Field(default_factory=list)
+
+
+@app.post("/api/luvr/marks-batch")
+async def luvr_set_marks_batch(body: LuvrMarksBatchBody):
+    from sk_reporter.luvr_store import update_luvr_marks_batch
+
+    payload = [{"person_idx": u.person_idx, "day_idx": u.day_idx, "mark": u.mark} for u in body.updates]
+    try:
+        return await asyncio.to_thread(update_luvr_marks_batch, body.sheet, payload)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except IndexError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
@@ -430,6 +476,58 @@ async def luvr_auto_projects():
         return await asyncio.to_thread(auto_assign_luvr_projects, True)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+class LuvrAppendix7Body(BaseModel):
+    sheet: str
+
+
+@app.get("/api/luvr/appendix7/status")
+async def luvr_appendix7_status():
+    from sk_reporter.appendix7_store import appendix7_status
+
+    return await asyncio.to_thread(appendix7_status)
+
+
+@app.post("/api/luvr/appendix7/build")
+async def luvr_appendix7_build(body: LuvrAppendix7Body):
+    from sk_reporter.appendix7_store import build_appendix7_from_luvr
+
+    try:
+        return await asyncio.to_thread(build_appendix7_from_luvr, body.sheet)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.get("/api/luvr/deployment/status")
+async def luvr_deployment_status():
+    from sk_reporter.deployment_store import deployment_status
+
+    return await asyncio.to_thread(deployment_status)
+
+
+@app.post("/api/luvr/deployment/build")
+async def luvr_deployment_build(body: LuvrAppendix7Body):
+    from sk_reporter.deployment_store import build_deployment_from_luvr
+
+    try:
+        return await asyncio.to_thread(build_deployment_from_luvr, body.sheet)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -941,6 +1039,25 @@ async def download_fixed_all():
         files,
         arcnames,
         "attachment; filename*=UTF-8''%D0%B8%D1%81%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%BD%D1%8B%D0%B5.zip",
+    )
+
+
+@app.get("/download/luvr/generated/{filename}")
+async def download_luvr_generated(filename: str):
+    from sk_reporter.appendix7_store import appendix7_output_dir
+
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Недопустимое имя файла")
+    out_dir = appendix7_output_dir().resolve()
+    path = (out_dir / filename).resolve()
+    if not str(path).startswith(str(out_dir)):
+        raise HTTPException(status_code=400, detail="Недопустимый путь")
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    return FileResponse(
+        path=str(path),
+        filename=filename,
+        media_type="application/vnd.ms-excel.sheet.macroEnabled.12",
     )
 
 

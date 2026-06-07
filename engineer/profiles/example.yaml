@@ -1,5 +1,4 @@
-id: ayupov
-person_id: аюпов-а
-# projects подтягиваются из project.yaml, где инженер назначен в Планировании
+id: example
+# person_id: … — при необходимости связать со справочником personnel.yaml
 projects: []
 report_template: data/engineer/report_template.docx

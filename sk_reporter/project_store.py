@@ -10,6 +10,7 @@ import yaml
 
 from sk_reporter.personnel_store import get_person, list_engineers
 from sk_reporter.paths import project_dir, projects_dir, repo_root
+from sk_reporter.project_title import resolve_object_name
 
 
 def _read_project_yaml(proj: Path) -> dict[str, Any]:
@@ -77,7 +78,12 @@ def engineer_project_map() -> dict[str, list[dict[str, str]]]:
     out: dict[str, list[dict[str, str]]] = {}
     for proj in list_projects_rich():
         for eid in proj.get("engineer_ids") or []:
-            out.setdefault(str(eid), []).append({"id": proj["id"], "title": proj["title"]})
+            out.setdefault(str(eid), []).append(
+                {
+                    "id": proj["id"],
+                    "title": proj.get("object_name") or proj["title"],
+                }
+            )
     return out
 
 
@@ -89,9 +95,12 @@ def get_project(project_id: str) -> dict[str, Any] | None:
     engineer_ids = meta.get("engineers") or []
     if engineer_ids and isinstance(engineer_ids[0], dict):
         engineer_ids = [e.get("id") for e in engineer_ids if e.get("id")]
+    parsed_name, title_page = resolve_object_name(proj, meta)
     return {
         "id": meta["id"],
         "title": meta.get("title") or meta["id"],
+        "object_name": parsed_name,
+        "title_page": title_page,
         "path": str(proj.relative_to(repo_root())),
         "vor_docx": meta.get("vor_docx"),
         "vor_doc": meta.get("vor_doc") or [],

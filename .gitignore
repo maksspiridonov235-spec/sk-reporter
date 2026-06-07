@@ -35,6 +35,7 @@ data/tk/*.DOC
 data/personnel/*.xlsx
 data/luvr/*.xlsx
 data/luvr/*.xlsm
+data/luvr/generated/
 !data/luvr/luvr.yaml
 !data/luvr/manifest.yaml
 !data/luvr/README.md

@@ -47,10 +47,15 @@ def list_projects() -> list[dict[str, Any]]:
 
 
 def projects_planning_payload() -> dict[str, Any]:
+    from sk_reporter.deployment_store import deployment_status
+
+    dep = deployment_status()
     return {
         "section": "projects",
         "engineers_available": list_engineers(),
         "items": list_projects(),
+        "deployment": dep,
+        "assignment_stats": dep.get("assignments") or {},
     }
 
 

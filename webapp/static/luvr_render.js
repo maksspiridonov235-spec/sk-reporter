@@ -129,11 +129,19 @@ window.LuvrPanel = (function () {
       .join("");
 
     const editHint = editable
-      ? '<p class="hint-text luvr-legend">Клик — цикл · → <span class="luvr-mark luvr-mark--full">1</span> → <span class="luvr-mark luvr-mark--half">0.5</span> · клавиши <kbd>1</kbd> / <kbd>.</kbd> / <kbd>Del</kbd></p>'
+      ? '<p class="hint-text luvr-legend">Клик / <kbd>Space</kbd> — цикл · → <span class="luvr-mark luvr-mark--full">1</span> → <span class="luvr-mark luvr-mark--half">0.5</span> · <kbd>Shift</kbd>+клик / протянуть — выделение · <kbd>Ctrl+C</kbd>/<kbd>V</kbd>/<kbd>Z</kbd> · <kbd>Ctrl+F</kbd> — поиск · стрелки / <kbd>Tab</kbd> / <kbd>Enter</kbd></p>'
       : '<p class="hint-text luvr-legend">· — нет отметки · <span class="luvr-mark luvr-mark--full">1</span> полный день · <span class="luvr-mark luvr-mark--half">0.5</span> полдня</p>';
 
-    return `<div class="luvr-grid-wrap">
-      <table class="planning-table luvr-grid">
+    const searchBar = editable
+      ? `<div class="luvr-search-bar">
+          <label class="luvr-search-label" for="luvrFioSearch">Поиск по ФИО</label>
+          <input type="search" id="luvrFioSearch" class="field-input luvr-fio-search" placeholder="Фамилия или ФИО…" autocomplete="off" spellcheck="false">
+          <span id="luvrSearchInfo" class="luvr-search-info hint-text" aria-live="polite"></span>
+        </div>`
+      : "";
+
+    return `${searchBar}<div class="luvr-grid-wrap">
+      <table class="planning-table luvr-grid" role="grid">
         <thead>
           <tr>
             <th class="luvr-sticky luvr-col-num">№</th>
@@ -343,6 +351,34 @@ window.LuvrPanel = (function () {
     return res.json();
   }
 
+  async function saveMarksBatch(sheet, updates) {
+    const res = await fetch("/api/luvr/marks-batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sheet, updates }),
+    });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        const err = await res.json();
+        detail = err.detail || detail;
+      } catch (_) {
+        /* ignore */
+      }
+      throw new Error(detail);
+    }
+    return res.json();
+  }
+
+  function parsePasteMark(v) {
+    const s = String(v ?? "").trim().replace(",", ".");
+    if (!s || s === "·" || s === ".") return "";
+    if (s === "0") return "";
+    if (s === "1") return "1";
+    if (s === "0.5" || s === ".5") return "0.5";
+    return null;
+  }
+
   function applyCellUI(td, mark) {
     td.textContent = markLabel(mark);
     td.className = `${markClass(mark)} luvr-cell`;
@@ -350,12 +386,280 @@ window.LuvrPanel = (function () {
 
   function bindGrid(container, month, sheet, statusEl, onXlsxStale) {
     const people = month.people || [];
+    const dayCount = (month.days || []).length;
+    const personCount = people.length;
     let pending = 0;
+    let compose = null;
+    let selAnchor = null;
+    let selEnd = null;
+    let dragStart = null;
+    let skipClickCycle = false;
+    const undoStack = [];
+    const UNDO_LIMIT = 50;
 
     function setStatus(text, kind) {
       if (!statusEl) return;
       statusEl.textContent = text;
       statusEl.className = `luvr-save-status${kind ? ` luvr-save-status--${kind}` : ""}`;
+    }
+
+    function cellAt(personIdx, dayIdx) {
+      return container.querySelector(
+        `td.luvr-cell[data-person-idx="${personIdx}"][data-day-idx="${dayIdx}"]`
+      );
+    }
+
+    function focusCellAt(personIdx, dayIdx) {
+      const td = cellAt(personIdx, dayIdx);
+      if (td) td.focus();
+      return td;
+    }
+
+    function normSel(a, b) {
+      return {
+        r0: Math.min(a.personIdx, b.personIdx),
+        r1: Math.max(a.personIdx, b.personIdx),
+        c0: Math.min(a.dayIdx, b.dayIdx),
+        c1: Math.max(a.dayIdx, b.dayIdx),
+      };
+    }
+
+    function paintSelection() {
+      container.querySelectorAll("td.luvr-cell--selected").forEach((cell) => {
+        cell.classList.remove("luvr-cell--selected");
+      });
+      if (!selAnchor || !selEnd) return;
+      const s = normSel(selAnchor, selEnd);
+      for (let pi = s.r0; pi <= s.r1; pi++) {
+        for (let di = s.c0; di <= s.c1; di++) {
+          const cell = cellAt(pi, di);
+          if (cell) cell.classList.add("luvr-cell--selected");
+        }
+      }
+    }
+
+    function setSelection(a, b) {
+      selAnchor = a;
+      selEnd = b;
+      paintSelection();
+    }
+
+    function selectionRange() {
+      if (!selAnchor || !selEnd) return null;
+      return normSel(selAnchor, selEnd);
+    }
+
+    function isMultiSelection() {
+      const s = selectionRange();
+      if (!s) return false;
+      return s.r0 !== s.r1 || s.c0 !== s.c1;
+    }
+
+    function collectSelectionUpdates(mark) {
+      const s = selectionRange();
+      if (!s) return [];
+      const updates = [];
+      for (let pi = s.r0; pi <= s.r1; pi++) {
+        for (let di = s.c0; di <= s.c1; di++) {
+          const prev = (people[pi].marks || [])[di] ?? "";
+          if (prev !== mark) updates.push({ person_idx: pi, day_idx: di, mark });
+        }
+      }
+      return updates;
+    }
+
+    function pushUndo(snapshot) {
+      if (!snapshot.length) return;
+      undoStack.push(snapshot);
+      if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+    }
+
+    async function commitBatch(updates, opts = {}) {
+      const recordUndo = opts.recordUndo !== false;
+      if (!updates.length) return;
+      const prev = updates.map((u) => ({
+        ...u,
+        prev: (people[u.person_idx].marks || [])[u.day_idx] ?? "",
+      }));
+
+      updates.forEach((u) => {
+        people[u.person_idx].marks = people[u.person_idx].marks || [];
+        people[u.person_idx].marks[u.day_idx] = u.mark;
+        const cell = cellAt(u.person_idx, u.day_idx);
+        if (cell) {
+          applyCellUI(cell, u.mark);
+          cell.classList.add("luvr-cell--pending");
+        }
+      });
+
+      pending += 1;
+      setStatus(`Сохранение ${updates.length} ячеек…`, "pending");
+
+      try {
+        const result = await saveMarksBatch(sheet, updates);
+        for (const ps of result.people || []) {
+          const person = people[ps.person_idx];
+          if (!person) continue;
+          person.days_present = ps.days_present;
+          person.days_marked = ps.days_marked;
+          const sumCell = container.querySelector(`td.luvr-sum[data-sum-for="${ps.person_idx}"]`);
+          if (sumCell) sumCell.textContent = String(ps.days_present);
+        }
+        prev.forEach((u) => {
+          const cell = cellAt(u.person_idx, u.day_idx);
+          if (!cell) return;
+          cell.classList.remove("luvr-cell--pending");
+          cell.classList.add("luvr-cell--saved");
+          setTimeout(() => cell.classList.remove("luvr-cell--saved"), 600);
+        });
+        if (onXlsxStale) onXlsxStale(Boolean(result.xlsx_stale));
+        if (recordUndo) {
+          pushUndo(prev.map((u) => ({ person_idx: u.person_idx, day_idx: u.day_idx, mark: u.prev })));
+        }
+        if (result.xlsx_synced) setStatus(`Сохранено ${result.updated} ячеек (yaml + Excel)`, "ok");
+        else setStatus(`Сохранено ${result.updated} ячеек (yaml)`, "ok");
+        return true;
+      } catch (e) {
+        prev.forEach((u) => {
+          people[u.person_idx].marks[u.day_idx] = u.prev;
+          const cell = cellAt(u.person_idx, u.day_idx);
+          if (cell) {
+            applyCellUI(cell, u.prev);
+            cell.classList.remove("luvr-cell--pending");
+          }
+        });
+        setStatus(`Ошибка: ${e.message}`, "error");
+        return false;
+      } finally {
+        pending -= 1;
+      }
+    }
+
+    async function undoLast() {
+      if (pending > 0) {
+        setStatus("Дождитесь сохранения…", "pending");
+        return;
+      }
+      const snapshot = undoStack.pop();
+      if (!snapshot?.length) {
+        setStatus("Нечего отменять", "ok");
+        return;
+      }
+      const ok = await commitBatch(
+        snapshot.map((u) => ({ person_idx: u.person_idx, day_idx: u.day_idx, mark: u.mark })),
+        { recordUndo: false }
+      );
+      if (!ok) undoStack.push(snapshot);
+      else setStatus(`Отменено ${snapshot.length} яч.`, "ok");
+    }
+
+    async function copySelection() {
+      const s = selectionRange();
+      if (!s) return;
+      const lines = [];
+      for (let pi = s.r0; pi <= s.r1; pi++) {
+        const row = [];
+        for (let di = s.c0; di <= s.c1; di++) {
+          row.push((people[pi].marks || [])[di] ?? "");
+        }
+        lines.push(row.join("\t"));
+      }
+      try {
+        await navigator.clipboard.writeText(lines.join("\n"));
+        setStatus("Скопировано в буфер", "ok");
+      } catch (_) {
+        setStatus("Не удалось скопировать", "error");
+      }
+    }
+
+    async function pasteClipboard(anchorPerson, anchorDay) {
+      let text = "";
+      try {
+        text = await navigator.clipboard.readText();
+      } catch (_) {
+        setStatus("Нет доступа к буферу обмена", "error");
+        return;
+      }
+      const rows = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+      while (rows.length && rows[rows.length - 1] === "") rows.pop();
+      if (!rows.length) return;
+
+      const updates = [];
+      for (let ri = 0; ri < rows.length; ri++) {
+        const cols = rows[ri].split("\t");
+        for (let ci = 0; ci < cols.length; ci++) {
+          const pi = anchorPerson + ri;
+          const di = anchorDay + ci;
+          if (pi >= personCount || di >= dayCount) continue;
+          const mark = parsePasteMark(cols[ci]);
+          if (mark === null) continue;
+          const prev = (people[pi].marks || [])[di] ?? "";
+          if (prev !== mark) updates.push({ person_idx: pi, day_idx: di, mark });
+        }
+      }
+      if (!updates.length) {
+        setStatus("Вставка: нет изменений", "ok");
+        return;
+      }
+
+      const pasteEndPi = Math.min(anchorPerson + rows.length - 1, personCount - 1);
+      const pasteEndDi = Math.min(
+        anchorDay + Math.max(...rows.map((r) => r.split("\t").length)) - 1,
+        dayCount - 1
+      );
+      await commitBatch(updates);
+      setSelection(
+        { personIdx: anchorPerson, dayIdx: anchorDay },
+        { personIdx: pasteEndPi, dayIdx: pasteEndDi }
+      );
+    }
+
+    function parseComposeText(text) {
+      const s = String(text ?? "").trim().replace(",", ".");
+      if (!s || s === "0") return "";
+      if (s === "1") return "1";
+      if (s === "0.5" || s === ".5") return "0.5";
+      return null;
+    }
+
+    function showCompose(td, text) {
+      td.textContent = text || " ";
+      td.classList.add("luvr-cell--compose");
+    }
+
+    function endCompose(commit) {
+      if (!compose) return Promise.resolve(null);
+      const { td, personIdx, dayIdx, text, prevMark } = compose;
+      compose = null;
+      td.classList.remove("luvr-cell--compose");
+      if (!commit) {
+        applyCellUI(td, prevMark);
+        return Promise.resolve(null);
+      }
+      const mark = parseComposeText(text);
+      if (mark === null) {
+        applyCellUI(td, prevMark);
+        return Promise.resolve(null);
+      }
+      return commitCell(td, personIdx, dayIdx, mark);
+    }
+
+    function navigate(fromPerson, fromDay, dPerson, dDay, wrapTab) {
+      let pi = fromPerson;
+      let di = fromDay + dDay;
+      if (wrapTab && dDay !== 0) {
+        if (di >= dayCount) {
+          di = 0;
+          pi += 1;
+        } else if (di < 0) {
+          di = dayCount - 1;
+          pi -= 1;
+        }
+      } else {
+        pi += dPerson;
+      }
+      if (pi < 0 || pi >= personCount || di < 0 || di >= dayCount) return null;
+      return focusCellAt(pi, di);
     }
 
     async function commitCell(td, personIdx, dayIdx, mark) {
@@ -385,6 +689,7 @@ window.LuvrPanel = (function () {
         td.classList.add("luvr-cell--saved");
         setTimeout(() => td.classList.remove("luvr-cell--saved"), 600);
         if (onXlsxStale) onXlsxStale(Boolean(result.xlsx_stale));
+        pushUndo([{ person_idx: personIdx, day_idx: dayIdx, mark: prev }]);
         if (result.xlsx_synced) setStatus("Сохранено в yaml и Excel", "ok");
         else setStatus("Сохранено в yaml (Excel не на диске)", "ok");
       } catch (e) {
@@ -398,29 +703,284 @@ window.LuvrPanel = (function () {
     }
 
     container.querySelectorAll("td.luvr-cell").forEach((td) => {
+      td.addEventListener("focus", () => {
+        if (compose && compose.td !== td) endCompose(true);
+      });
+    });
+
+    container.addEventListener("mousedown", (ev) => {
+      const td = ev.target.closest("td.luvr-cell");
+      if (!td || ev.button !== 0 || ev.shiftKey) return;
+      dragStart = {
+        personIdx: Number(td.dataset.personIdx),
+        dayIdx: Number(td.dataset.dayIdx),
+      };
+    });
+
+    container.addEventListener("mouseover", (ev) => {
+      if (!dragStart || !(ev.buttons & 1)) return;
+      const td = ev.target.closest("td.luvr-cell");
+      if (!td) return;
+      const personIdx = Number(td.dataset.personIdx);
+      const dayIdx = Number(td.dataset.dayIdx);
+      if (personIdx === dragStart.personIdx && dayIdx === dragStart.dayIdx) return;
+      skipClickCycle = true;
+      setSelection(dragStart, { personIdx, dayIdx });
+    });
+
+    container.addEventListener("mouseup", () => {
+      dragStart = null;
+    });
+
+    container.querySelectorAll("td.luvr-cell").forEach((td) => {
       const personIdx = Number(td.dataset.personIdx);
       const dayIdx = Number(td.dataset.dayIdx);
 
-      td.addEventListener("click", () => {
-        const cur = (people[personIdx]?.marks || [])[dayIdx] ?? "";
-        const next = cycleMark(cur);
-        commitCell(td, personIdx, dayIdx, next);
-      });
-
-      td.addEventListener("keydown", (ev) => {
-        const cur = (people[personIdx]?.marks || [])[dayIdx] ?? "";
-        let next = null;
-        if (ev.key === "1") next = "1";
-        else if (ev.key === "." || ev.key === ",") next = "0.5";
-        else if (ev.key === "Delete" || ev.key === "Backspace" || ev.key === "0") next = "";
-        else if (ev.key === " " || ev.key === "Enter") {
-          ev.preventDefault();
-          next = cycleMark(cur);
+      td.addEventListener("click", (ev) => {
+        if (compose && compose.td !== td) endCompose(true);
+        td.focus();
+        if (ev.shiftKey && selAnchor) {
+          setSelection(selAnchor, { personIdx, dayIdx });
+          return;
         }
-        if (next === null) return;
-        ev.preventDefault();
-        commitCell(td, personIdx, dayIdx, next);
+        setSelection({ personIdx, dayIdx }, { personIdx, dayIdx });
+        selAnchor = { personIdx, dayIdx };
+        if (skipClickCycle) {
+          skipClickCycle = false;
+          return;
+        }
+        const cur = (people[personIdx]?.marks || [])[dayIdx] ?? "";
+        commitCell(td, personIdx, dayIdx, cycleMark(cur));
       });
+    });
+
+    container.addEventListener("keydown", async (ev) => {
+      const td = ev.target.closest("td.luvr-cell");
+      if (!td || !container.contains(td)) return;
+
+      const personIdx = Number(td.dataset.personIdx);
+      const dayIdx = Number(td.dataset.dayIdx);
+      const cur = (people[personIdx]?.marks || [])[dayIdx] ?? "";
+
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === "f") {
+        ev.preventDefault();
+        const search = container.querySelector("#luvrFioSearch");
+        if (search) {
+          search.focus();
+          search.select();
+        }
+        return;
+      }
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === "z" && !ev.shiftKey) {
+        ev.preventDefault();
+        await endCompose(true);
+        undoLast();
+        return;
+      }
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === "c") {
+        ev.preventDefault();
+        await endCompose(true);
+        copySelection();
+        return;
+      }
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === "v") {
+        ev.preventDefault();
+        await endCompose(true);
+        const s = selectionRange();
+        const anchorPerson = s ? s.r0 : personIdx;
+        const anchorDay = s ? s.c0 : dayIdx;
+        pasteClipboard(anchorPerson, anchorDay);
+        return;
+      }
+
+      if (compose && compose.td === td) {
+        if (ev.key === "Escape") {
+          ev.preventDefault();
+          endCompose(false);
+          return;
+        }
+        if (ev.key === "Backspace") {
+          ev.preventDefault();
+          compose.text = compose.text.slice(0, -1);
+          showCompose(td, compose.text);
+          return;
+        }
+        if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+          if (/^[0-9.,]$/.test(ev.key)) {
+            ev.preventDefault();
+            compose.text += ev.key;
+            showCompose(td, compose.text);
+            return;
+          }
+        }
+        if (
+          ev.key === "Enter" ||
+          ev.key === "Tab" ||
+          ev.key === "ArrowUp" ||
+          ev.key === "ArrowDown" ||
+          ev.key === "ArrowLeft" ||
+          ev.key === "ArrowRight"
+        ) {
+          ev.preventDefault();
+          await endCompose(true);
+          if (ev.key === "Tab") navigate(personIdx, dayIdx, 0, ev.shiftKey ? -1 : 1, true);
+          else if (ev.key === "Enter") navigate(personIdx, dayIdx, ev.shiftKey ? -1 : 1, 0, false);
+          else if (ev.key === "ArrowUp") navigate(personIdx, dayIdx, -1, 0, false);
+          else if (ev.key === "ArrowDown") navigate(personIdx, dayIdx, 1, 0, false);
+          else if (ev.key === "ArrowLeft") navigate(personIdx, dayIdx, 0, -1, false);
+          else if (ev.key === "ArrowRight") navigate(personIdx, dayIdx, 0, 1, false);
+          return;
+        }
+        return;
+      }
+
+      if (ev.key === "Tab") {
+        ev.preventDefault();
+        await endCompose(true);
+        navigate(personIdx, dayIdx, 0, ev.shiftKey ? -1 : 1, true);
+        return;
+      }
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        await endCompose(true);
+        navigate(personIdx, dayIdx, ev.shiftKey ? -1 : 1, 0, false);
+        return;
+      }
+      if (ev.key === "ArrowUp") {
+        ev.preventDefault();
+        await endCompose(true);
+        navigate(personIdx, dayIdx, -1, 0, false);
+        return;
+      }
+      if (ev.key === "ArrowDown") {
+        ev.preventDefault();
+        await endCompose(true);
+        navigate(personIdx, dayIdx, 1, 0, false);
+        return;
+      }
+      if (ev.key === "ArrowLeft") {
+        ev.preventDefault();
+        await endCompose(true);
+        navigate(personIdx, dayIdx, 0, -1, false);
+        return;
+      }
+      if (ev.key === "ArrowRight") {
+        ev.preventDefault();
+        await endCompose(true);
+        navigate(personIdx, dayIdx, 0, 1, false);
+        return;
+      }
+      if (ev.key === " ") {
+        ev.preventDefault();
+        await endCompose(true);
+        commitCell(td, personIdx, dayIdx, cycleMark(cur));
+        return;
+      }
+      if (ev.key === "Delete" || ev.key === "Backspace") {
+        ev.preventDefault();
+        await endCompose(true);
+        if (isMultiSelection()) {
+          await commitBatch(collectSelectionUpdates(""));
+        } else {
+          commitCell(td, personIdx, dayIdx, "");
+        }
+        return;
+      }
+      if (ev.key === "1") {
+        ev.preventDefault();
+        await endCompose(true);
+        commitCell(td, personIdx, dayIdx, "1");
+        return;
+      }
+      if (ev.key === "0") {
+        ev.preventDefault();
+        compose = { td, personIdx, dayIdx, text: "0", prevMark: cur };
+        showCompose(td, "0");
+        return;
+      }
+      if (ev.key === "." || ev.key === ",") {
+        ev.preventDefault();
+        compose = { td, personIdx, dayIdx, text: ev.key, prevMark: cur };
+        showCompose(td, ev.key);
+        return;
+      }
+    });
+
+    bindFioSearch(container, people);
+  }
+
+  function normFioSearch(s) {
+    return String(s ?? "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function bindFioSearch(container, people) {
+    const input = container.querySelector("#luvrFioSearch");
+    const info = container.querySelector("#luvrSearchInfo");
+    if (!input) return;
+
+    let hits = [];
+    let matchIdx = 0;
+
+    function clearHits() {
+      container.querySelectorAll("tr.luvr-row--search-hit").forEach((tr) => {
+        tr.classList.remove("luvr-row--search-hit");
+      });
+    }
+
+    function focusMatch(idx) {
+      if (!hits.length) return;
+      matchIdx = ((idx % hits.length) + hits.length) % hits.length;
+      const pi = hits[matchIdx];
+      const tr = container.querySelector(`tr[data-person-idx="${pi}"]`);
+      if (tr) {
+        tr.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        const cell = container.querySelector(
+          `td.luvr-cell[data-person-idx="${pi}"][data-day-idx="0"]`
+        );
+        if (cell) cell.focus();
+      }
+      info.textContent = `${matchIdx + 1} / ${hits.length}`;
+    }
+
+    function applySearch() {
+      const q = normFioSearch(input.value);
+      clearHits();
+      hits = [];
+      matchIdx = 0;
+      if (!q) {
+        info.textContent = "";
+        return;
+      }
+      people.forEach((p, pi) => {
+        if (normFioSearch(p.fio).includes(q)) hits.push(pi);
+      });
+      hits.forEach((pi) => {
+        const tr = container.querySelector(`tr[data-person-idx="${pi}"]`);
+        if (tr) tr.classList.add("luvr-row--search-hit");
+      });
+      if (!hits.length) {
+        info.textContent = "нет совпадений";
+        return;
+      }
+      info.textContent = `${hits.length} совпад.`;
+      focusMatch(0);
+    }
+
+    input.addEventListener("input", applySearch);
+    input.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        if (hits.length) focusMatch(matchIdx + (ev.shiftKey ? -1 : 1));
+        return;
+      }
+      if (ev.key === "Escape") {
+        input.value = "";
+        applySearch();
+        input.blur();
+      }
     });
   }
 
@@ -458,7 +1018,35 @@ window.LuvrPanel = (function () {
     return res.json();
   }
 
-  function renderSyncBar(xlsxPresent, xlsxStale, linkStats, monthStats, projectStats, monthProjStats) {
+  async function apiBuildAppendix7(sheet) {
+    const res = await fetch("/api/luvr/appendix7/build", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sheet }),
+    });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        const err = await res.json();
+        detail = err.detail || detail;
+      } catch (_) {
+        /* ignore */
+      }
+      throw new Error(detail);
+    }
+    return res.json();
+  }
+
+  function renderSyncBar(
+    xlsxPresent,
+    xlsxStale,
+    linkStats,
+    monthStats,
+    projectStats,
+    monthProjStats,
+    appendix7,
+    deployment
+  ) {
     const parts = [];
     if (monthStats) {
       parts.push(
@@ -489,10 +1077,38 @@ window.LuvrPanel = (function () {
           : '<span class="luvr-sync-ok">yaml ↔ Excel</span>'
       );
     }
+    if (appendix7) {
+      if (appendix7.template_present) {
+        parts.push(
+          `<span class="luvr-link-summary">Прил.7: шаблон · ${appendix7.summary_rows || 0} строк ФИО</span>`
+        );
+      } else if (appendix7.template_error) {
+        parts.push(`<span class="luvr-sync-stale" title="${esc(appendix7.template_error)}">Прил.7: нет шаблона</span>`);
+      }
+    }
+    if (deployment) {
+      if (deployment.template_present) {
+        const ast = deployment.assignments || {};
+        const assignHint =
+          ast.assignments != null
+            ? `${ast.assignments} назнач. · расстановка → <a href="/planning/projects">Проекты</a>`
+            : `Расстановка из справочника → <a href="/planning/projects">Проекты</a>`;
+        parts.push(`<span class="luvr-link-summary">${assignHint}</span>`);
+      } else if (deployment.template_error) {
+        parts.push(
+          `<span class="luvr-sync-stale" title="${esc(deployment.template_error)}">Расстановка: нет шаблона</span>`
+        );
+      }
+    }
     const actions = [
       `<button type="button" class="btn btn-gray btn-sm" id="luvrAutoLink">Авто-связать по ФИО</button>`,
       `<button type="button" class="btn btn-gray btn-sm" id="luvrAutoProjects">Проекты из справочника</button>`,
     ];
+    if (appendix7 && appendix7.template_present) {
+      actions.push(
+        `<button type="button" class="btn btn-green btn-sm" id="luvrBuildAppendix7">Сформировать Прил.7</button>`
+      );
+    }
     if (xlsxPresent) {
       actions.push(
         `<button type="button" class="btn btn-gray btn-sm" id="luvrImportXlsx">Загрузить из Excel</button>`,
@@ -530,7 +1146,7 @@ window.LuvrPanel = (function () {
           ${state.contract ? `<p class="planning-meta">Договор: ${esc(state.contract)}</p>` : ""}
           ${cacheNote}
           ${gridNote}
-          <div id="luvrSyncBar">${renderSyncBar(state.xlsx_present, state.xlsx_stale, state.link_stats, null, state.project_stats, null)}</div>
+          <div id="luvrSyncBar">${renderSyncBar(state.xlsx_present, state.xlsx_stale, state.link_stats, null, state.project_stats, null, state.appendix7, state.deployment)}</div>
           <label class="field-label">Месяц</label>
           <select id="luvrMonth" class="field-input luvr-month-select"></select>
         </div>
@@ -552,7 +1168,9 @@ window.LuvrPanel = (function () {
             state.link_stats,
             ms,
             state.project_stats,
-            mps
+            mps,
+            state.appendix7,
+            state.deployment
           );
         bindSyncButtons();
       }
@@ -568,6 +1186,7 @@ window.LuvrPanel = (function () {
         const exportBtn = el.querySelector("#luvrExportXlsx");
         const autoLinkBtn = el.querySelector("#luvrAutoLink");
         const autoProjectsBtn = el.querySelector("#luvrAutoProjects");
+        const appendix7Btn = el.querySelector("#luvrBuildAppendix7");
         if (autoLinkBtn) {
           autoLinkBtn.onclick = async () => {
             autoLinkBtn.disabled = true;
@@ -638,6 +1257,31 @@ window.LuvrPanel = (function () {
               setGlobalStatus(`Выгрузка: ${e.message}`, "error");
             } finally {
               exportBtn.disabled = false;
+            }
+          };
+        }
+        if (appendix7Btn) {
+          appendix7Btn.onclick = async () => {
+            const sheet = sel.value;
+            appendix7Btn.disabled = true;
+            setGlobalStatus("Формирование Прил.7…", "pending");
+            try {
+              const result = await apiBuildAppendix7(sheet);
+              let msg = `Прил.7: ${result.filled_rows} строк, ${result.cells_updated} ячеек`;
+              if (result.unmatched_luvr_count) {
+                msg += ` · ${result.unmatched_luvr_count} ФИО из ЛУВР не в шаблоне`;
+              }
+              if (result.unmatched_template_count) {
+                msg += ` · ${result.unmatched_template_count} строк шаблона без данных`;
+              }
+              setGlobalStatus(msg, "ok");
+              if (result.download) {
+                window.location.href = result.download;
+              }
+            } catch (e) {
+              setGlobalStatus(`Прил.7: ${e.message}`, "error");
+            } finally {
+              appendix7Btn.disabled = false;
             }
           };
         }

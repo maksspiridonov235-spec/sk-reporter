@@ -26,11 +26,35 @@
     const el = document.getElementById("projectsList");
     const items = data.items || [];
     const engineers = data.engineers_available || [];
+    const dep = data.deployment || {};
+    const ast = dep.assignments || data.assignment_stats || {};
+    const assignLine = ast.projects_total != null
+      ? `${ast.assignments || 0} назначений · ${ast.projects_with_engineers || 0}/${ast.projects_total || 0} проектов с инженерами`
+      : "";
+
+    const depToolbar =
+      dep.template_present
+        ? `<div class="luvr-sync-bar projects-toolbar">
+            <span class="luvr-link-summary">${assignLine || "Назначьте инженеров на проекты ниже"}</span>
+            <div class="luvr-sync-actions">
+              <button type="button" class="btn btn-green btn-sm" id="planningBuildDeployment">Сформировать расстановку</button>
+            </div>
+          </div>
+          <p id="planningDeployStatus" class="luvr-save-status" aria-live="polite"></p>`
+        : dep.template_error
+          ? `<p class="warn-text">Расстановка: ${esc(dep.template_error)}. Положите xlsm в <code>data/luvr/</code>.</p>`
+          : "";
+
     if (!items.length) {
-      el.innerHTML = '<p class="hint-text">Проекты не найдены. Добавьте каталог в data/projects/</p>';
+      el.innerHTML =
+        depToolbar +
+        '<p class="hint-text">Проекты не найдены. Добавьте каталог в data/projects/</p>';
+      bindDeploymentButton(el);
       return;
     }
-    el.innerHTML = items
+    el.innerHTML =
+      depToolbar +
+      items
       .map((p) => {
         const v = p.vor || {};
         const vorLine = v.ready
@@ -57,10 +81,10 @@
           })
           .join("");
         return `<article class="planning-card" data-project-id="${esc(p.id)}">
-          <h3>${esc(p.title)}</h3>
-          <p class="planning-meta"><code>${esc(p.path)}</code>${vorMeta}</p>
+          <h3>${esc(p.object_name || p.title)}</h3>
+          <p class="planning-meta"><code>${esc(p.id)}</code>${p.title_page ? ` · титул: <code>${esc(p.title_page)}</code>` : ""}</p>
           <dl class="project-stats">
-            <div><dt>ВОР</dt><dd>${vorLine}</dd></div>
+            <div><dt>ВОР</dt><dd>${vorLine}${vorMeta}</dd></div>
             <div><dt>ТК</dt><dd>${tkLine}</dd></div>
             <div><dt>Инженеры</dt><dd class="engineer-chips">${assignedCount ? `<span class="hint-text">${assignedCount}:</span> ` : ""}${assigned}</dd></div>
           </dl>
@@ -73,6 +97,8 @@
         </article>`;
       })
       .join("");
+
+    bindDeploymentButton(el);
 
     el.querySelectorAll(".save-engineers").forEach((btn) => {
       btn.addEventListener("click", async () => {
@@ -103,6 +129,39 @@
         }
       });
     });
+  }
+
+  function bindDeploymentButton(root) {
+    const btn = root.querySelector("#planningBuildDeployment");
+    const status = root.querySelector("#planningDeployStatus");
+    if (!btn) return;
+    btn.onclick = async () => {
+      btn.disabled = true;
+      if (status) {
+        status.textContent = "Формирование расстановки…";
+        status.className = "luvr-save-status luvr-save-status--pending";
+      }
+      try {
+        const res = await fetch("/api/planning/deployment/build", { method: "POST" });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || res.statusText);
+        }
+        const result = await res.json();
+        if (status) {
+          status.textContent = `Готово: ${result.rows_written} строк, ${result.unique_people} чел., ${result.unique_objects} объектов`;
+          status.className = "luvr-save-status luvr-save-status--ok";
+        }
+        if (result.download) window.location.href = result.download;
+      } catch (e) {
+        if (status) {
+          status.textContent = e.message;
+          status.className = "luvr-save-status luvr-save-status--error";
+        }
+      } finally {
+        btn.disabled = false;
+      }
+    };
   }
 
   function renderPersonnel(data) {
@@ -165,7 +224,7 @@
         .map(
           (p) =>
             `<tr data-engineer="${p.is_engineer ? "1" : "0"}">
-              <td>${esc(p.fio)}</td>
+              <td>${esc(p.fio)}${p.id ? ` <span class="hint-text">(${esc(p.id)})</span>` : ""}</td>
               <td>${esc(p.position || "—")}</td>
               <td>${esc(p.phone || "—")}</td>
               <td class="engineer-chips">${projectCell(p.projects)}</td>

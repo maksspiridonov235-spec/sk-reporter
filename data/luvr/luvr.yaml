@@ -160,8 +160,8 @@ months:
     person_id: аюпов-а
     link_source: auto
     project_ids:
-    - SUP-WLL-K084-003-DD-00-TX_00.2
-    projects_source: auto
+    - SVA-WLL-K058-002-DD-00-AS_00.4
+    projects_source: manual
   - num: 3
     fio: Расаев Артур Тимерьянович
     position: Инженер СК
@@ -2325,8 +2325,8 @@ months:
     person_id: аюпов-а
     link_source: auto
     project_ids:
-    - SUP-WLL-K084-003-DD-00-TX_00.2
-    projects_source: auto
+    - SVA-WLL-K058-002-DD-00-AS_00.4
+    projects_source: manual
   - num: 3
     fio: Расаев Артур Тимерьянович
     position: Инженер СК
@@ -4441,8 +4441,8 @@ months:
     person_id: аюпов-а
     link_source: auto
     project_ids:
-    - SUP-WLL-K084-003-DD-00-TX_00.2
-    projects_source: auto
+    - SVA-WLL-K058-002-DD-00-AS_00.4
+    projects_source: manual
   - num: 3
     fio: Расаев Артур Тимерьянович
     position: Инженер СК
@@ -6958,8 +6958,8 @@ months:
     person_id: аюпов-а
     link_source: auto
     project_ids:
-    - SUP-WLL-K084-003-DD-00-TX_00.2
-    projects_source: auto
+    - SVA-WLL-K058-002-DD-00-AS_00.4
+    projects_source: manual
   - num: 3
     fio: Расаев Артур Тимерьянович
     position: Инженер СК
@@ -9508,8 +9508,8 @@ months:
     person_id: аюпов-а
     link_source: auto
     project_ids:
-    - SUP-WLL-K084-003-DD-00-TX_00.2
-    projects_source: auto
+    - SVA-WLL-K058-002-DD-00-AS_00.4
+    projects_source: manual
   - num: 3
     fio: Расаев Артур Тимерьянович
     position: Инженер СК
@@ -12233,7 +12233,9 @@ months:
     - ''
     person_id: манджиев-и
     link_source: auto
-    project_ids: []
+    project_ids:
+    - SUP-WLL-K084-003-DD-00-TX_00.2
+    projects_source: manual
   - num: 2
     fio: Аюпов Альберт Рималович
     position: Вед.инженер СК
@@ -12276,8 +12278,8 @@ months:
     person_id: аюпов-а
     link_source: auto
     project_ids:
-    - SUP-WLL-K084-003-DD-00-TX_00.2
-    projects_source: auto
+    - SVA-WLL-K058-002-DD-00-AS_00.4
+    projects_source: manual
   - num: 3
     fio: Расаев Артур Тимерьянович
     position: Инженер СК
@@ -13531,7 +13533,9 @@ months:
     - ''
     - ''
     link_source: unmatched
-    project_ids: []
+    project_ids:
+    - SVA-WLL-K058-002-DD-00-AS_00.4
+    projects_source: manual
   - num: 33
     fio: Исаев Абрахам Вахаевич
     position: Инженер СК
@@ -13573,7 +13577,9 @@ months:
     - ''
     person_id: исаев-а
     link_source: auto
-    project_ids: []
+    project_ids:
+    - SVA-WLL-K058-002-DD-00-AS_00.4
+    projects_source: manual
   - num: 34
     fio: Канащук Игорь Владимирович
     position: Инженер СК
@@ -13615,7 +13621,9 @@ months:
     - ''
     person_id: канащук-и
     link_source: auto
-    project_ids: []
+    project_ids:
+    - SVA-WLL-K058-002-DD-00-AS_00.4
+    projects_source: manual
   - num: 35
     fio: Куринный Николай Алексеевич
     position: Инженер СК
@@ -13657,7 +13665,9 @@ months:
     - '1'
     person_id: куринный-н
     link_source: auto
-    project_ids: []
+    project_ids:
+    - SVA-WLL-K058-002-DD-00-AS_00.4
+    projects_source: manual
   - num: 36
     fio: Коломейцев Павел Геннадьевич
     position: Инженер СК
