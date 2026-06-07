@@ -791,11 +791,19 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 .luvr-grid .luvr-col-num { left: 0; min-width: 28px; }
 .luvr-grid .luvr-col-fio { left: 28px; max-width: 160px; }
 .luvr-grid .luvr-col-link { left: 188px; min-width: 120px; max-width: 140px; padding: 2px; }
-.luvr-grid .luvr-col-pos { left: 328px; }
+.luvr-grid .luvr-col-proj { left: 328px; min-width: 100px; max-width: 120px; padding: 2px; vertical-align: top; }
+.luvr-grid .luvr-col-pos { left: 448px; }
 .luvr-person-link {
   width: 100%; max-width: 136px; font-size: 10px; padding: 2px 4px;
   border: 1px solid #cbd5e1; border-radius: 4px; background: #fff;
 }
+.luvr-person-projects {
+  width: 100%; max-width: 116px; min-height: 2.4em; font-size: 10px; padding: 2px;
+  border: 1px solid #cbd5e1; border-radius: 4px; background: #fff;
+}
+.luvr-proj--ok { border-color: #86efac; background: #f0fdf4; }
+.luvr-proj--manual { border-color: #93c5fd; background: #eff6ff; }
+.luvr-proj--empty { border-color: #e2e8f0; background: #f8fafc; color: #94a3b8; }
 .luvr-link--ok { border-color: #86efac; background: #f0fdf4; }
 .luvr-link--manual { border-color: #93c5fd; background: #eff6ff; }
 .luvr-link--warn { border-color: #fcd34d; background: #fffbeb; }

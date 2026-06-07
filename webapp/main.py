@@ -399,6 +399,42 @@ async def luvr_auto_link():
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+class LuvrProjectsBody(BaseModel):
+    sheet: str
+    person_idx: int = Field(ge=0)
+    project_ids: list[str] = Field(default_factory=list)
+
+
+@app.post("/api/luvr/projects")
+async def luvr_set_person_projects(body: LuvrProjectsBody):
+    from sk_reporter.luvr_store import set_luvr_person_projects
+
+    try:
+        return await asyncio.to_thread(
+            set_luvr_person_projects, body.sheet, body.person_idx, body.project_ids
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except IndexError as e:
+        raise HTTPException(status_code=400, detail="Неверный индекс строки") from e
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/api/luvr/auto-projects")
+async def luvr_auto_projects():
+    from sk_reporter.luvr_store import auto_assign_luvr_projects
+
+    try:
+        return await asyncio.to_thread(auto_assign_luvr_projects, True)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @app.get("/engineer-hub", response_class=HTMLResponse)
 async def engineer_hub_page(request: Request):
     print(f"[REQ] GET /engineer-hub pid={os.getpid()} -> engineer_hub.html")

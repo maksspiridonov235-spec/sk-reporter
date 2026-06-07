@@ -115,12 +115,24 @@ def set_luvr_person_link(sheet: str, person_idx: int, person_id: str | None) -> 
             person.pop("person_id", None)
             person["link_source"] = "unmatched"
 
+    if person.get("projects_source") != "manual":
+        by_engineer = _engineer_projects_map()
+        pid = person.get("person_id")
+        if pid and pid in by_engineer:
+            person["project_ids"] = list(by_engineer[pid])
+            person["projects_source"] = "auto"
+        else:
+            person["project_ids"] = []
+            person.pop("projects_source", None)
+
     save_luvr(data)
     return {
         "sheet": sheet,
         "person_idx": person_idx,
         "person_id": person.get("person_id"),
         "link_source": person.get("link_source"),
+        "project_ids": person.get("project_ids") or [],
+        "projects_source": person.get("projects_source"),
         "fio": person.get("fio"),
     }
 
@@ -150,6 +162,158 @@ def luvr_personnel_options() -> list[dict[str, str]]:
     from sk_reporter.personnel_store import load_people
 
     return [{"id": p["id"], "fio": p["fio"]} for p in load_people()]
+
+
+def luvr_projects_options() -> list[dict[str, str]]:
+    from sk_reporter.project_store import list_projects_rich
+
+    return [{"id": p["id"], "title": p.get("title") or p["id"]} for p in list_projects_rich()]
+
+
+def _engineer_projects_map() -> dict[str, list[str]]:
+    from sk_reporter.project_store import engineer_project_map
+
+    out: dict[str, list[str]] = {}
+    for person_id, projs in engineer_project_map().items():
+        out[str(person_id)] = [p["id"] for p in projs]
+    return out
+
+
+def _manual_projects_by_fio(data: dict[str, Any]) -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {}
+    for month in data.get("months") or []:
+        for person in month.get("people") or []:
+            if person.get("projects_source") == "manual" and person.get("project_ids"):
+                out[_norm_fio(person["fio"]).lower()] = [str(x) for x in person["project_ids"]]
+    return out
+
+
+def _apply_person_projects(
+    person: dict[str, Any],
+    by_engineer: dict[str, list[str]],
+    manual_projects: dict[str, list[str]],
+) -> None:
+    fio_key = _norm_fio(person["fio"]).lower()
+    if fio_key in manual_projects:
+        person["project_ids"] = list(manual_projects[fio_key])
+        person["projects_source"] = "manual"
+        return
+    if person.get("projects_source") == "manual" and person.get("project_ids"):
+        return
+    person_id = person.get("person_id")
+    if person_id and person_id in by_engineer:
+        person["project_ids"] = list(by_engineer[person_id])
+        person["projects_source"] = "auto"
+    else:
+        person["project_ids"] = []
+        person.pop("projects_source", None)
+
+
+def enrich_luvr_projects(data: dict[str, Any]) -> None:
+    by_engineer = _engineer_projects_map()
+    manual_projects = _manual_projects_by_fio(data)
+    for month in data.get("months") or []:
+        for person in month.get("people") or []:
+            _apply_person_projects(person, by_engineer, manual_projects)
+
+
+def luvr_project_stats(months: list[dict[str, Any]]) -> dict[str, int]:
+    with_projects = manual = empty = 0
+    for month in months:
+        for person in month.get("people") or []:
+            ids = person.get("project_ids") or []
+            if ids:
+                with_projects += 1
+                if person.get("projects_source") == "manual":
+                    manual += 1
+            else:
+                empty += 1
+    total = with_projects + empty
+    return {
+        "total": total,
+        "with_projects": with_projects,
+        "manual": manual,
+        "auto": with_projects - manual,
+        "empty": empty,
+    }
+
+
+def _validate_project_ids(project_ids: list[str]) -> list[str]:
+    from sk_reporter.project_store import get_project
+
+    cleaned: list[str] = []
+    for raw in project_ids:
+        pid = str(raw).strip()
+        if not pid:
+            continue
+        if get_project(pid) is None:
+            raise KeyError(f"project_id «{pid}» не найден")
+        if pid not in cleaned:
+            cleaned.append(pid)
+    return cleaned
+
+
+def set_luvr_person_projects(sheet: str, person_idx: int, project_ids: list[str]) -> dict[str, Any]:
+    if sheet not in _MONTH_SHEETS:
+        raise KeyError(f"Неизвестный лист: {sheet}")
+    data = load_luvr()
+    month = next((m for m in data.get("months") or [] if m.get("sheet") == sheet), None)
+    if month is None:
+        raise KeyError(f"Лист «{sheet}» не найден")
+    people = month.get("people") or []
+    if person_idx < 0 or person_idx >= len(people):
+        raise IndexError("person_idx вне диапазона")
+
+    person = people[person_idx]
+    cleaned = _validate_project_ids(project_ids)
+    if cleaned:
+        person["project_ids"] = cleaned
+        person["projects_source"] = "manual"
+    else:
+        person["project_ids"] = []
+        person.pop("projects_source", None)
+        by_engineer = _engineer_projects_map()
+        pid = person.get("person_id")
+        if pid and pid in by_engineer:
+            person["project_ids"] = list(by_engineer[pid])
+            person["projects_source"] = "auto"
+
+    save_luvr(data)
+    return {
+        "sheet": sheet,
+        "person_idx": person_idx,
+        "project_ids": person.get("project_ids") or [],
+        "projects_source": person.get("projects_source"),
+        "fio": person.get("fio"),
+    }
+
+
+def auto_assign_luvr_projects(save: bool = True) -> dict[str, Any]:
+    data = load_luvr()
+    if not data.get("months"):
+        raise FileNotFoundError("luvr.yaml пуст")
+    manual_projects = _manual_projects_by_fio(data)
+    by_engineer = _engineer_projects_map()
+    auto = manual = empty = 0
+    for month in data.get("months") or []:
+        for person in month.get("people") or []:
+            _apply_person_projects(person, by_engineer, manual_projects)
+            src = person.get("projects_source")
+            if src == "manual":
+                manual += 1
+            elif person.get("project_ids"):
+                auto += 1
+            else:
+                empty += 1
+    if save:
+        save_luvr(data)
+    return {
+        "ok": True,
+        "auto": auto,
+        "manual": manual,
+        "empty": empty,
+        "total": auto + manual + empty,
+    }
 
 
 def _luvr_xlsx() -> Path:
@@ -387,6 +551,7 @@ def export_luvr() -> Path:
 
     old = load_luvr()
     manual_links = _manual_links_by_fio(old)
+    manual_projects = _manual_projects_by_fio(old)
 
     payload = {
         "source": xlsx.name,
@@ -396,9 +561,11 @@ def export_luvr() -> Path:
         "months": months,
     }
     by_fio = _personnel_fio_index()
+    by_engineer = _engineer_projects_map()
     for month in payload["months"]:
         for person in month.get("people") or []:
             _apply_person_link(person, by_fio, manual_links)
+            _apply_person_projects(person, by_engineer, manual_projects)
 
     out = luvr_dir() / "luvr.yaml"
     out.write_text(yaml.safe_dump(payload, allow_unicode=True, sort_keys=False), encoding="utf-8")
@@ -631,12 +798,14 @@ def luvr_planning_payload() -> dict[str, Any]:
             pass
 
     enrich_luvr_links(data)
+    enrich_luvr_projects(data)
     months = data.get("months") or []
 
     yaml_path = luvr_dir() / "luvr.yaml"
     default_month = months[-1]["sheet"] if months else None
     xlsx_stale = bool(data.get("xlsx_stale")) if xlsx_path else False
     link_stats = luvr_link_stats(months)
+    project_stats = luvr_project_stats(months)
 
     return {
         "folder": str(folder.relative_to(repo_root())),
@@ -652,7 +821,9 @@ def luvr_planning_payload() -> dict[str, Any]:
         "xlsx_present": xlsx_path is not None,
         "xlsx_stale": xlsx_stale,
         "personnel": luvr_personnel_options(),
+        "projects": luvr_projects_options(),
         "link_stats": link_stats,
+        "project_stats": project_stats,
     }
 
 

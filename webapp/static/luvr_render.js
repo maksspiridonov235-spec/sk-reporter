@@ -60,6 +60,29 @@ window.LuvrPanel = (function () {
       <option value="">— не связан —</option>${opts}</select>`;
   }
 
+  function renderPersonProjectsSelect(pi, person, projects) {
+    const ids = person.project_ids || [];
+    const src = person.projects_source || (ids.length ? "auto" : "");
+    const cls =
+      src === "manual" ? "luvr-proj--manual" : ids.length ? "luvr-proj--ok" : "luvr-proj--empty";
+    const opts = (projects || [])
+      .map(
+        (p) =>
+          `<option value="${esc(p.id)}"${ids.includes(p.id) ? " selected" : ""}>${esc(p.title || p.id)}</option>`
+      )
+      .join("");
+    return `<select multiple class="luvr-person-projects ${cls}" data-person-idx="${pi}" title="Проекты за месяц (Ctrl+клик)">${opts || '<option disabled>— нет проектов —</option>'}</select>`;
+  }
+
+  function monthProjectStats(month) {
+    let withProjects = 0;
+    const people = month.people || [];
+    for (const p of people) {
+      if ((p.project_ids || []).length) withProjects += 1;
+    }
+    return { withProjects, total: people.length, empty: people.length - withProjects };
+  }
+
   function monthLinkStats(month) {
     let linked = 0;
     const people = month.people || [];
@@ -69,7 +92,7 @@ window.LuvrPanel = (function () {
     return { linked, total: people.length, unmatched: people.length - linked };
   }
 
-  function renderGrid(month, editable, personnel) {
+  function renderGrid(month, editable, personnel, projects) {
     const days = month.days || [];
     const people = month.people || [];
     if (!days.length || !people.length || !("marks" in people[0])) {
@@ -97,6 +120,7 @@ window.LuvrPanel = (function () {
           <td class="luvr-sticky luvr-col-num">${esc(p.num)}</td>
           <td class="luvr-sticky luvr-col-fio">${esc(p.fio)}</td>
           <td class="luvr-sticky luvr-col-link">${renderPersonLinkSelect(pi, p, personnel)}</td>
+          <td class="luvr-sticky luvr-col-proj">${renderPersonProjectsSelect(pi, p, projects)}</td>
           <td class="luvr-sticky luvr-col-pos" title="${esc(p.position)}">${esc(p.position || "—")}</td>
           ${cells}
           <td class="luvr-sum" data-sum-for="${pi}">${p.days_present ?? 0}</td>
@@ -115,6 +139,7 @@ window.LuvrPanel = (function () {
             <th class="luvr-sticky luvr-col-num">№</th>
             <th class="luvr-sticky luvr-col-fio">ФИО</th>
             <th class="luvr-sticky luvr-col-link">Справ.</th>
+            <th class="luvr-sticky luvr-col-proj">Объект</th>
             <th class="luvr-sticky luvr-col-pos">Должность</th>
             ${dayHeaders}
             <th class="luvr-sum">Σ</th>
@@ -127,8 +152,8 @@ window.LuvrPanel = (function () {
     <p id="luvrSaveStatus" class="luvr-save-status" aria-live="polite"></p>`;
   }
 
-  function renderMonthPanel(month, editable, personnel) {
-    return `<div class="luvr-month-panel">${renderGrid(month, editable, personnel)}</div>`;
+  function renderMonthPanel(month, editable, personnel, projects) {
+    return `<div class="luvr-month-panel">${renderGrid(month, editable, personnel, projects)}</div>`;
   }
 
   async function savePersonLink(sheet, personIdx, personId) {
@@ -169,6 +194,44 @@ window.LuvrPanel = (function () {
     return res.json();
   }
 
+  async function savePersonProjects(sheet, personIdx, projectIds) {
+    const res = await fetch("/api/luvr/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sheet,
+        person_idx: personIdx,
+        project_ids: projectIds,
+      }),
+    });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        const err = await res.json();
+        detail = err.detail || detail;
+      } catch (_) {
+        /* ignore */
+      }
+      throw new Error(detail);
+    }
+    return res.json();
+  }
+
+  async function apiAutoProjects() {
+    const res = await fetch("/api/luvr/auto-projects", { method: "POST" });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        const err = await res.json();
+        detail = err.detail || detail;
+      } catch (_) {
+        /* ignore */
+      }
+      throw new Error(detail);
+    }
+    return res.json();
+  }
+
   function bindPersonLinks(container, month, sheet, personnel, onLinked) {
     container.querySelectorAll("select.luvr-person-link").forEach((sel) => {
       sel.addEventListener("change", async () => {
@@ -183,6 +246,8 @@ window.LuvrPanel = (function () {
           const result = await savePersonLink(sheet, personIdx, next);
           person.person_id = result.person_id || null;
           person.link_source = result.link_source;
+          person.project_ids = result.project_ids || [];
+          person.projects_source = result.projects_source || null;
           sel.className = `luvr-person-link ${
             result.link_source === "unmatched"
               ? "luvr-link--warn"
@@ -192,9 +257,60 @@ window.LuvrPanel = (function () {
           }`;
           const row = sel.closest("tr");
           if (row) row.classList.toggle("luvr-row--unlinked", !person.person_id);
+          const projSel = row && row.querySelector("select.luvr-person-projects");
+          if (projSel) {
+            const ids = person.project_ids || [];
+            Array.from(projSel.options).forEach((o) => {
+              o.selected = ids.includes(o.value);
+            });
+            projSel.className = `luvr-person-projects ${
+              person.projects_source === "manual"
+                ? "luvr-proj--manual"
+                : ids.length
+                  ? "luvr-proj--ok"
+                  : "luvr-proj--empty"
+            }`;
+          }
           if (onLinked) onLinked();
         } catch (e) {
           sel.value = prev;
+          alert(e.message);
+        } finally {
+          sel.disabled = false;
+        }
+      });
+    });
+  }
+
+  function bindPersonProjects(container, month, sheet, onChanged) {
+    container.querySelectorAll("select.luvr-person-projects").forEach((sel) => {
+      sel.addEventListener("change", async () => {
+        const personIdx = Number(sel.dataset.personIdx);
+        const person = (month.people || [])[personIdx];
+        if (!person) return;
+        const prev = [...(person.project_ids || [])].sort().join("|");
+        const nextIds = Array.from(sel.selectedOptions)
+          .map((o) => o.value)
+          .filter(Boolean);
+        const next = [...nextIds].sort().join("|");
+        if (prev === next) return;
+        sel.disabled = true;
+        try {
+          const result = await savePersonProjects(sheet, personIdx, nextIds);
+          person.project_ids = result.project_ids || [];
+          person.projects_source = result.projects_source || null;
+          sel.className = `luvr-person-projects ${
+            result.projects_source === "manual"
+              ? "luvr-proj--manual"
+              : person.project_ids.length
+                ? "luvr-proj--ok"
+                : "luvr-proj--empty"
+          }`;
+          if (onChanged) onChanged();
+        } catch (e) {
+          Array.from(sel.options).forEach((o) => {
+            o.selected = (person.project_ids || []).includes(o.value);
+          });
           alert(e.message);
         } finally {
           sel.disabled = false;
@@ -342,7 +458,7 @@ window.LuvrPanel = (function () {
     return res.json();
   }
 
-  function renderSyncBar(xlsxPresent, xlsxStale, linkStats, monthStats) {
+  function renderSyncBar(xlsxPresent, xlsxStale, linkStats, monthStats, projectStats, monthProjStats) {
     const parts = [];
     if (monthStats) {
       parts.push(
@@ -355,6 +471,17 @@ window.LuvrPanel = (function () {
         `<span class="luvr-link-summary">Справочник: ${linkStats.linked}/${linkStats.total} строк</span>`
       );
     }
+    if (monthProjStats) {
+      parts.push(
+        `<span class="luvr-link-summary">Объекты: ${monthProjStats.withProjects}/${monthProjStats.total}${
+          monthProjStats.empty ? ` · ${monthProjStats.empty} без объекта` : ""
+        }</span>`
+      );
+    } else if (projectStats) {
+      parts.push(
+        `<span class="luvr-link-summary">Объекты: ${projectStats.with_projects}/${projectStats.total}</span>`
+      );
+    }
     if (xlsxPresent) {
       parts.push(
         xlsxStale
@@ -362,7 +489,10 @@ window.LuvrPanel = (function () {
           : '<span class="luvr-sync-ok">yaml ↔ Excel</span>'
       );
     }
-    const actions = [`<button type="button" class="btn btn-gray btn-sm" id="luvrAutoLink">Авто-связать по ФИО</button>`];
+    const actions = [
+      `<button type="button" class="btn btn-gray btn-sm" id="luvrAutoLink">Авто-связать по ФИО</button>`,
+      `<button type="button" class="btn btn-gray btn-sm" id="luvrAutoProjects">Проекты из справочника</button>`,
+    ];
     if (xlsxPresent) {
       actions.push(
         `<button type="button" class="btn btn-gray btn-sm" id="luvrImportXlsx">Загрузить из Excel</button>`,
@@ -400,7 +530,7 @@ window.LuvrPanel = (function () {
           ${state.contract ? `<p class="planning-meta">Договор: ${esc(state.contract)}</p>` : ""}
           ${cacheNote}
           ${gridNote}
-          <div id="luvrSyncBar">${renderSyncBar(state.xlsx_present, state.xlsx_stale, state.link_stats, null)}</div>
+          <div id="luvrSyncBar">${renderSyncBar(state.xlsx_present, state.xlsx_stale, state.link_stats, null, state.project_stats, null)}</div>
           <label class="field-label">Месяц</label>
           <select id="luvrMonth" class="field-input luvr-month-select"></select>
         </div>
@@ -414,7 +544,16 @@ window.LuvrPanel = (function () {
 
       function refreshSyncBar(month) {
         const ms = month ? monthLinkStats(month) : null;
-        if (syncBar) syncBar.innerHTML = renderSyncBar(state.xlsx_present, state.xlsx_stale, state.link_stats, ms);
+        const mps = month ? monthProjectStats(month) : null;
+        if (syncBar)
+          syncBar.innerHTML = renderSyncBar(
+            state.xlsx_present,
+            state.xlsx_stale,
+            state.link_stats,
+            ms,
+            state.project_stats,
+            mps
+          );
         bindSyncButtons();
       }
 
@@ -428,6 +567,7 @@ window.LuvrPanel = (function () {
         const importBtn = el.querySelector("#luvrImportXlsx");
         const exportBtn = el.querySelector("#luvrExportXlsx");
         const autoLinkBtn = el.querySelector("#luvrAutoLink");
+        const autoProjectsBtn = el.querySelector("#luvrAutoProjects");
         if (autoLinkBtn) {
           autoLinkBtn.onclick = async () => {
             autoLinkBtn.disabled = true;
@@ -444,6 +584,25 @@ window.LuvrPanel = (function () {
             } catch (e) {
               setGlobalStatus(`Авто-связка: ${e.message}`, "error");
               autoLinkBtn.disabled = false;
+            }
+          };
+        }
+        if (autoProjectsBtn) {
+          autoProjectsBtn.onclick = async () => {
+            autoProjectsBtn.disabled = true;
+            setGlobalStatus("Назначение проектов из справочника…", "pending");
+            try {
+              const result = await apiAutoProjects();
+              const res = await fetch("/api/luvr");
+              if (!res.ok) throw new Error(res.statusText);
+              window.LuvrPanel.render(el, await res.json());
+              setGlobalStatus(
+                `Проекты: ${result.auto} авто, ${result.manual} вручную, ${result.empty} без объекта`,
+                "ok"
+              );
+            } catch (e) {
+              setGlobalStatus(`Проекты: ${e.message}`, "error");
+              autoProjectsBtn.disabled = false;
             }
           };
         }
@@ -495,10 +654,11 @@ window.LuvrPanel = (function () {
       function showMonth(sheet) {
         const month = months.find((m) => m.sheet === sheet);
         if (!body || !month) return;
-        body.innerHTML = renderMonthPanel(month, editable, state.personnel || []);
+        body.innerHTML = renderMonthPanel(month, editable, state.personnel || [], state.projects || []);
         refreshSyncBar(month);
         const panel = body.querySelector(".luvr-month-panel");
         bindPersonLinks(panel || body, month, sheet, state.personnel || [], () => refreshSyncBar(month));
+        bindPersonProjects(panel || body, month, sheet, () => refreshSyncBar(month));
         if (editable) {
           const statusEl = body.querySelector("#luvrSaveStatus");
           bindGrid(panel || body, month, sheet, statusEl, (stale) => {
