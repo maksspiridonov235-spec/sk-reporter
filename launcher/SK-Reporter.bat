@@ -31,10 +31,10 @@ if errorlevel 1 (
   exit /b 1
 )
 
-python -c "import openpyxl, yaml" 2>nul
+python -c "import openpyxl, yaml, xlrd" 2>nul
 if errorlevel 1 (
-  echo [WARN] openpyxl или pyyaml не найдены — доустановка...
-  pip install --default-timeout=180 %PIP_EXTRA% "openpyxl>=3.1,<4" "pyyaml>=6.0,<7"
+  echo [WARN] openpyxl, yaml или xlrd не найдены — доустановка...
+  pip install --default-timeout=180 %PIP_EXTRA% "openpyxl>=3.1,<4" "xlrd>=2.0,<3" "pyyaml>=6.0,<7"
   if errorlevel 1 (
     echo [ERROR] Не удалось установить openpyxl/pyyaml. Нужен интернет до PyPI.
     pause

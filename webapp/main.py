@@ -38,7 +38,7 @@ except ImportError as e:
 
 _WEBAPP_DIR = Path(__file__).resolve().parent
 _HTML_TEMPLATES_DIR = _WEBAPP_DIR / "templates"
-_APP_UI_BUILD = "home+reporting+daily+planning+planning-sections+luvr+engineer-hub+engineer"
+_APP_UI_BUILD = "home+reporting+daily+prescriptions+planning+planning-sections+luvr+engineer-hub+engineer"
 
 _PLANNING_SECTIONS = {
     "projects": "Проекты",
@@ -69,9 +69,11 @@ app.mount("/static", StaticFiles(directory=_WEBAPP_DIR / "static"), name="static
 WORK_DIR = Path(tempfile.gettempdir()) / "sk_reports_work"
 UPLOAD_DIR = WORK_DIR / "uploads"
 RESULT_DIR = WORK_DIR / "results"
+PRESCRIPTIONS_UPLOAD_DIR = WORK_DIR / "prescriptions_uploads"
+PRESCRIPTIONS_RESULT_DIR = WORK_DIR / "prescriptions_results"
 ENGINEER_OUT_DIR = WORK_DIR / "engineer_out"
 
-for d in (WORK_DIR, UPLOAD_DIR, RESULT_DIR, ENGINEER_OUT_DIR):
+for d in (WORK_DIR, UPLOAD_DIR, RESULT_DIR, PRESCRIPTIONS_UPLOAD_DIR, PRESCRIPTIONS_RESULT_DIR, ENGINEER_OUT_DIR):
     d.mkdir(exist_ok=True)
 
 TEMPLATES_DIR = templates_dir()
@@ -79,7 +81,7 @@ if not TEMPLATES_DIR.exists():
     raise RuntimeError(f"Папка с болванками не найдена: {TEMPLATES_DIR}")
 print(f"[INFO] Templates dir: {TEMPLATES_DIR} ({len(list(TEMPLATES_DIR.glob('*.docx')))} шаблонов)")
 
-for _tpl in ("home.html", "reporting.html", "daily.html", "planning.html", "planning_section.html", "luvr.html", "engineer_hub.html", "engineer.html"):
+for _tpl in ("home.html", "reporting.html", "daily.html", "prescriptions.html", "planning.html", "planning_section.html", "luvr.html", "engineer_hub.html", "engineer.html"):
     _tpl_path = _HTML_TEMPLATES_DIR / _tpl
     if not _tpl_path.is_file():
         raise RuntimeError(f"HTML-шаблон не найден: {_tpl_path} — выполните git pull и перезапустите сервер")
@@ -166,6 +168,7 @@ async def health():
     main_py = Path(__file__).resolve()
     main_mtime = main_py.stat().st_mtime
     has_daily = any(getattr(r, "path", None) == "/daily" for r in app.routes)
+    has_prescriptions = any(getattr(r, "path", None) == "/prescriptions" for r in app.routes)
     has_reporting = any(getattr(r, "path", None) == "/reporting" for r in app.routes)
     has_planning = any(getattr(r, "path", None) == "/planning" for r in app.routes)
     has_engineer = any(getattr(r, "path", None) == "/engineer" for r in app.routes)
@@ -174,6 +177,7 @@ async def health():
         disk_git != _git_head
         or main_mtime > _PROCESS_START_TS
         or not has_daily
+        or not has_prescriptions
         or not has_reporting
         or not has_planning
         or not has_engineer
@@ -184,6 +188,7 @@ async def health():
         "stale_process": stale,
         "app_ui_build": _APP_UI_BUILD,
         "has_daily_route": has_daily,
+        "has_prescriptions_route": has_prescriptions,
         "has_reporting_route": has_reporting,
         "has_planning_route": has_planning,
         "has_engineer_hub_route": has_engineer_hub,
@@ -224,6 +229,21 @@ async def daily_reports(request: Request):
             breadcrumbs=[
                 {"label": "Отчётность", "href": "/reporting"},
                 {"label": "Ежедневные отчёты"},
+            ],
+        ),
+    )
+
+
+@app.get("/prescriptions", response_class=HTMLResponse)
+async def prescriptions_page(request: Request):
+    print(f"[REQ] GET /prescriptions pid={os.getpid()} -> prescriptions.html")
+    return templates.TemplateResponse(
+        "prescriptions.html",
+        _page_context(
+            request,
+            breadcrumbs=[
+                {"label": "Отчётность", "href": "/reporting"},
+                {"label": "Предписания"},
             ],
         ),
     )
@@ -709,6 +729,175 @@ async def upload_reports(files: list[UploadFile] = File(...)):
             shutil.copyfileobj(f.file, out)
         saved.append(f.filename)
     return {"uploaded": saved, "count": len(saved)}
+
+
+_PRESCRIPTION_SUFFIXES = {".xlsx", ".xlsm", ".xls"}
+
+
+@app.post("/upload/prescriptions")
+async def upload_prescriptions(files: list[UploadFile] = File(...)):
+    saved = []
+    for f in files:
+        if not f.filename:
+            continue
+        suffix = Path(f.filename).suffix.lower()
+        if suffix not in _PRESCRIPTION_SUFFIXES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Недопустимый формат: {f.filename} (нужен .xlsx или .xls)",
+            )
+        dest = PRESCRIPTIONS_UPLOAD_DIR / f.filename
+        with open(dest, "wb") as out:
+            shutil.copyfileobj(f.file, out)
+        saved.append(f.filename)
+    return {"uploaded": saved, "count": len(saved)}
+
+
+@app.get("/files/prescriptions")
+async def list_prescription_uploads():
+    files = [
+        f.name for f in PRESCRIPTIONS_UPLOAD_DIR.iterdir()
+        if f.suffix.lower() in _PRESCRIPTION_SUFFIXES
+    ]
+    return {"files": sorted(files)}
+
+
+@app.get("/prescriptions/results")
+async def list_prescription_results():
+    files = [
+        f.name for f in PRESCRIPTIONS_RESULT_DIR.iterdir()
+        if f.suffix.lower() in _PRESCRIPTION_SUFFIXES
+    ]
+    return {"files": sorted(files)}
+
+
+def _checked_prescription_name(upload_filename: str) -> str:
+    stem = Path(upload_filename).stem
+    suffix = Path(upload_filename).suffix.lower() or ".xlsx"
+    return f"{stem}_проверен{suffix}"
+
+
+@app.post("/check/prescriptions/stream")
+async def check_prescriptions_stream():
+    from sk_reporter.prescriptions import check_prescription_file, write_checked_copy
+
+    async def event_generator():
+        files = sorted(
+            f for f in PRESCRIPTIONS_UPLOAD_DIR.iterdir()
+            if f.suffix.lower() in _PRESCRIPTION_SUFFIXES
+        )
+        if not files:
+            yield _sse({"type": "error", "msg": "Excel-файлы не загружены"})
+            yield _sse({"type": "done", "summary": {"total": 0, "ok": 0, "warnings": 0, "errors": 0}})
+            return
+
+        ok_count = 0
+        warn_count = 0
+        err_count = 0
+
+        yield _sse({
+            "type": "start",
+            "msg": f"Проверяю {len(files)} файл(ов)…",
+            "total": len(files),
+        })
+
+        for file_path in files:
+            filename = file_path.name
+            try:
+                yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: проверяю…"})
+                await asyncio.sleep(0)
+                result = await asyncio.to_thread(check_prescription_file, file_path)
+                issues = result.get("issues") or []
+                has_errors = any(i.get("level") == "error" for i in issues)
+                has_warnings = any(i.get("level") == "warn" for i in issues)
+                if has_errors:
+                    err_count += 1
+                elif has_warnings:
+                    warn_count += 1
+                else:
+                    ok_count += 1
+
+                out_name = _checked_prescription_name(filename)
+                out_path = PRESCRIPTIONS_RESULT_DIR / out_name
+                await asyncio.to_thread(write_checked_copy, file_path, out_path, result)
+
+                status = "⚠ ошибки" if has_errors else ("◐ замечания" if has_warnings else "✓ OK")
+                yield _sse({
+                    "type": "report",
+                    "filename": out_name,
+                    "msg": f"{filename}: {status}",
+                    "hasErrors": has_errors,
+                    "hasWarnings": has_warnings,
+                    "result": result,
+                    "download": f"/download/prescriptions/{out_name}",
+                })
+                await asyncio.sleep(0)
+            except Exception as e:
+                err_count += 1
+                yield _sse({"type": "error", "msg": f"Ошибка {filename}: {e}"})
+
+        yield _sse({
+            "type": "done",
+            "summary": {
+                "total": len(files),
+                "ok": ok_count,
+                "warnings": warn_count,
+                "errors": err_count,
+            },
+        })
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.get("/download/prescriptions/all.zip")
+async def download_prescriptions_all():
+    files = sorted(
+        f for f in PRESCRIPTIONS_RESULT_DIR.iterdir()
+        if f.suffix.lower() in _PRESCRIPTION_SUFFIXES
+    )
+    if not files:
+        raise HTTPException(status_code=404, detail="Нет проверенных файлов")
+    return _zip_download_response(
+        files,
+        None,
+        "attachment; filename*=UTF-8''%D0%BF%D1%80%D0%B5%D0%B4%D0%BF%D0%B8%D1%81%D0%B0%D0%BD%D0%B8%D1%8F.zip",
+    )
+
+
+@app.get("/download/prescriptions/{filename}")
+async def download_prescription(filename: str):
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Недопустимое имя файла")
+    path = (PRESCRIPTIONS_RESULT_DIR / filename).resolve()
+    if not str(path).startswith(str(PRESCRIPTIONS_RESULT_DIR.resolve())):
+        raise HTTPException(status_code=400, detail="Недопустимый путь")
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    media = (
+        "application/vnd.ms-excel"
+        if path.suffix.lower() == ".xls"
+        else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    return FileResponse(path=str(path), filename=filename, media_type=media)
+
+
+@app.delete("/clear/prescriptions/uploads")
+async def clear_prescriptions_uploads():
+    shutil.rmtree(PRESCRIPTIONS_UPLOAD_DIR)
+    PRESCRIPTIONS_UPLOAD_DIR.mkdir()
+    return {"ok": True}
+
+
+@app.delete("/clear/prescriptions/all")
+async def clear_prescriptions_all():
+    for d in (PRESCRIPTIONS_UPLOAD_DIR, PRESCRIPTIONS_RESULT_DIR):
+        shutil.rmtree(d)
+        d.mkdir()
+    return {"ok": True}
 
 
 @app.get("/api/build")

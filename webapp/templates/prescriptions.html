@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Предписания — SK-Reporter</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
+  <link rel="stylesheet" href="/static/app.css?v={{ git_head }}"/>
+</head>
+<body>
+{% include "_header.html" %}
+
+<div class="layout">
+
+  <div class="sidebar-shell">
+  <div class="sidebar-track">
+  <div class="sidebar">
+
+    <div class="sidebar-block-help" id="prescriptionsBlock">
+      <div class="section-header-row section-header-row--solo">
+        <button type="button" class="help-trigger" id="helpPrescriptionsBtn" aria-expanded="false" aria-controls="helpPrescriptionsPopover" aria-label="Справка">Справка</button>
+      </div>
+      <div class="upload-zone" onclick="document.getElementById('inp-prescriptions').click()">
+        <input type="file" id="inp-prescriptions" multiple accept=".xlsx,.xlsm,.xls" onchange="uploadPrescriptions(this)"/>
+        <span>Перетащите или нажмите<br>для загрузки .xlsx / .xls</span>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <button class="btn btn-green" id="btnCheckPrescriptions" onclick="checkPrescriptions()">Проверить</button>
+
+    <hr class="divider"/>
+
+    <button class="btn btn-gray" onclick="downloadPrescriptionsZip()">Скачать проверенные (ZIP)</button>
+
+    <hr class="divider"/>
+
+    <div class="btn-row">
+      <button class="btn btn-gray" onclick="clearPrescriptions()">Очистить загрузку</button>
+      <button class="btn btn-red" onclick="resetPrescriptions()">Сбросить всё</button>
+    </div>
+
+  </div>
+  </div>
+  </div>
+
+  <div class="main-shell" id="mainShell">
+    <div class="main" id="mainPanel">
+    <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="activity-panel" id="activityPanel">
+      <div class="activity-panel-scroll" id="activityPanelScroll">
+      <div class="activity-panel-inner" id="activityPanelInner">
+      <div class="empty-hint" id="emptyHint">
+        <span class="empty-hint-icon" aria-hidden="true">📋</span>
+        <span class="empty-hint-title">Проверка предписаний</span>
+        <span class="empty-hint-lead">Загрузите Excel слева и нажмите «Проверить». Результаты — в ленте и справа.</span>
+        <ol class="empty-hint-steps">
+          <li>Загрузите один или несколько файлов .xlsx / .xls.</li>
+          <li>Нажмите «Проверить» — проверяются колонки и строки таблицы.</li>
+          <li>Скачайте проверенные копии с колонкой «Проверка SK».</li>
+        </ol>
+      </div>
+      </div>
+      </div>
+      <div class="help-guide-backdrop" id="helpPrescriptionsBackdrop" aria-hidden="true"></div>
+      <div class="help-guide-panel" id="helpPrescriptionsPopover" role="dialog" aria-labelledby="helpPrescriptionsTitle" aria-modal="true">
+        <div class="help-guide-header">
+          <div>
+            <strong id="helpPrescriptionsTitle">Справка: предписания</strong>
+            <p class="help-guide-hint">Проверка Excel без AI — структура таблицы и обязательные поля в строках.</p>
+          </div>
+          <button type="button" class="help-guide-close" id="helpPrescriptionsClose" aria-label="Закрыть">×</button>
+        </div>
+        <p class="help-lead">Ожидается таблица с колонками: <strong>номер</strong>, <strong>дата</strong>, <strong>нарушение</strong> (обязательные); желательно также объект, срок устранения, ответственный.</p>
+        <p class="help-lead">После проверки создаётся копия файла с колонкой «Проверка SK» — замечания по строкам или «OK».</p>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <div class="results-shell">
+    <div class="results-resize-handle" id="resultsResizeHandle" title="Потяните — изменить ширину" aria-hidden="true"></div>
+    <div class="results-panel" id="resultsPanel">
+      <div class="results-track">
+        <div class="results-inner">
+          <div class="result-section-title">Проверенные файлы</div>
+          <div id="checkedFiles"><div class="no-results">Пока нет</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+  <script src="/static/prescriptions.js?v={{ git_head }}"></script>
+</body>
+</html>

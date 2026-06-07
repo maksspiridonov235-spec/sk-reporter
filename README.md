@@ -1,9 +1,10 @@
 # SK-Reporter
 
-Объединение ежедневных отчётов строительного контроля.
+Веб-приложение для **строительного контроля**: ежедневные отчёты (.docx), планирование (ЛУВР), отчёт инженера по ВОР, проверка предписаний (Excel).
 
 - Запуск: **[docs/RUN_SERVER.md](docs/RUN_SERVER.md)** (Windows: [ярлык SK-Reporter.bat](docs/RUN_SERVER.md#офисный-пк-ярлык-sk-reporterbat))
 - Для сотрудников: **[docs/ДЛЯ_СОТРУДНИКОВ.md](docs/ДЛЯ_СОТРУДНИКОВ.md)**
+- Для разработки / AI: **[AGENTS.md](AGENTS.md)**, **[docs/memory.md](docs/memory.md)**
 
 ## Быстрый старт
 
@@ -19,31 +20,65 @@ python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
 
 Браузер: http://localhost:8000
 
-## Структура
+## Структура репозитория
+
+Папка на диске **`sk-reporter/`** — весь проект. Внутри **`sk_reporter/`** (с подчёркиванием) — Python-пакет с логикой: в имени модуля нельзя дефис, поэтому так и задумано, это не дубликат.
 
 ```
-sk-reporter/
-├── pyproject.toml            # зависимости и пакет sk_reporter
-├── sk_reporter/              # ядро: docx, компании, AI-агенты
-│   ├── companies.py
-│   ├── docx_processing.py
-│   ├── template_layout.py
-│   ├── paths.py
-│   └── agent/
-├── data/templates/           # болванки .docx (в git)
-├── webapp/                   # FastAPI: только HTTP и UI
-│   ├── main.py
-│   ├── static/
-│   └── templates/
-├── scripts/setup.sh          # первичная настройка (macOS/Linux)
-├── scripts/setup.ps1         # первичная настройка (Windows)
-├── launcher/SK-Reporter.bat  # ярлык для офисного ПC
-# рабочие файлы — temp sk_reports_work/ (uploads, results), не в репо
+sk-reporter/                         ← корень репозитория (git, docs, данные)
+│
+├── webapp/                          ← сайт: то, что открывается в браузере
+│   ├── main.py                      ← FastAPI-сервер, маршруты /api/*
+│   ├── templates/                   ← HTML (главная, planning, daily, …)
+│   └── static/                      ← JS, CSS
+│
+├── sk_reporter/                     ← «мозги» на Python (import sk_reporter.*)
+│   ├── agent/                       ← Ollama: проверка описаний в docx
+│   ├── docx_processing.py           ← подготовка и сборка ежедневных отчётов
+│   ├── companies.py                 ← список подрядчиков и болванок
+│   ├── luvr_store.py                ← ЛУВР (yaml ↔ xlsx)
+│   ├── planning_data.py             ← API данных для раздела «Планирование»
+│   ├── deployment_store.py          ← расстановка из xlsm
+│   ├── appendix7_store.py           ← Приложение 7
+│   ├── prescriptions/               ← проверка Excel предписаний
+│   └── engineer/                    ← код «Инженер ФИО» (ВОР, сборка docx)
+│
+├── data/                            ← данные офиса (часть в git, часть локально)
+│   ├── templates/                   ← болванки подрядчиков (.docx)
+│   ├── projects/                    ← проекты, ВОР, назначения инженеров
+│   ├── personnel/                   ← справочник сотрудников
+│   ├── luvr/                        ← ЛУВР, luvr.yaml, шаблоны xlsm
+│   └── tk/                          ← каталог технологических карт
+│
+├── engineer/                        ← конфиг инженеров (не Python-код!)
+│   ├── profiles/                    ← yaml-профили (ФИО, person_id)
+│   └── launchers/                   ← .bat для запуска с рабочего стола
+│
+├── scripts/                         ← утилиты из терминала (setup, сборка yaml)
+├── launcher/SK-Reporter.bat           ← запуск сервера на офисном Windows-ПК
+├── docs/                            ← инструкции, memory.md, контекст продукта
+└── pyproject.toml                   ← зависимости; pip install -e .
 ```
 
-## Сценарий
+**Рабочие файлы пользователей** (загруженные отчёты, результаты) — во временной папке `sk_reports_work/` или системном temp (`…/sk_reports_work/uploads/`), **не в репозитории**.
 
-1. Загрузить отчёты → выбрать дату → **Подготовить** → **Сформировать**
+### Что за что на главной странице
+
+| Раздел в UI | Маршруты | Код | Данные |
+|-------------|----------|-----|--------|
+| **Планирование** | `/planning`, `/luvr` | `sk_reporter/luvr_store.py`, `planning_data.py`, … | `data/luvr/`, `data/projects/`, `data/personnel/` |
+| **Отчётность** | `/reporting` → `/daily`, `/prescriptions` | `sk_reporter/agent/`, `docx_processing.py`, `prescriptions/` | `data/templates/`, temp uploads |
+| **Инженер ФИО** | `/engineer-hub` → `/engineer/{id}` | `sk_reporter/engineer/` | `engineer/profiles/`, `data/projects/` |
+
+### Частые вопросы
+
+- **`engineer/` в корне** и **`sk_reporter/engineer/`** — разное: в корне yaml и bat для людей, в пакете — Python.
+- **`scripts/`** — не второй проект, а редкие команды (`setup.sh`, `build_engineer_data.py --luvr`).
+- **Тяжёлые xlsx/xlsm** — класть в `data/luvr/` (или `data/prescriptions/`), не в корень репо и не коммитить без необходимости (см. `.gitignore`).
+
+## Сценарий: ежедневные отчёты
+
+1. Отчётность → Ежедневные отчёты → загрузить .docx → дата и руководитель → **Проверить и сформировать**
 2. Скачать готовые файлы справа или ZIP
 
 Шаблоны болванок — в `data/templates/`, в UI не загружаются.

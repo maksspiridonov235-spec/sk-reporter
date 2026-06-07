@@ -16,9 +16,9 @@
 
 | Путь | Назначение |
 |------|------------|
-| `webapp/` | FastAPI + UI: `/`, `/planning`, `/reporting`, `/daily`, `/engineer-hub`, `/engineer` |
+| `webapp/` | FastAPI + UI: `/`, `/planning`, `/reporting`, `/daily`, `/prescriptions`, `/engineer-hub`, `/engineer` |
 | `sk_reporter/` | docx, компании, агенты Ollama, `luvr_store.py`, `planning_data.py` |
-| `sk_reporter/leader_switch.py` | смена руководителя в отчётах (rule-based) |
+| `sk_reporter/prescriptions/` | проверка Excel предписаний (не docx / check_agent) |
 | `data/luvr/` | **ЛУВР**, luvr.yaml, шаблоны Прил.7 и расстановки (`manifest.yaml`) |
 | `data/templates/` | Болванки подрядчиков |
 | `data/projects/`, `data/tk/`, `data/personnel/` | Планирование |
