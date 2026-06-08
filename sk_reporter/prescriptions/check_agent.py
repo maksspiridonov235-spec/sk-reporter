@@ -14,7 +14,12 @@ from typing import Any
 
 from openpyxl import load_workbook
 
-from sk_reporter.prescriptions.techexpert_client import lookup_normative, parse_normative_reference
+from sk_reporter.prescriptions.techexpert_client import (
+    _short_doc_title,
+    _title_from_reference,
+    lookup_normative,
+    parse_normative_reference,
+)
 
 MODEL = "gemma4:31b-cloud"
 FORM_SHEET = "Форма заполнения предписания"
@@ -56,10 +61,10 @@ SYSTEM_PROMPT = """Ты — ведущий инженер строительно
 7. Структура B18 (рекомендуемая): [факт контроля и объект] → [что выявлено, где] → [что выполнить и до какого момента].
 
 ЖЁСТКИЕ ПРАВИЛА B19 (нормативный документ):
-1. Полное наименование документа бери ТОЛЬКО из блока «Найденный документ» / фрагмента нормативки. НЕ выдумывай название, дату и номер — система подставит официальное наименование из источника.
-2. Пункты/подпункты из B19 инженера НЕ МЕНЯЙ. Если инженер указал п. 44 — оставь п. 44.
-3. Заменяй сам документ (другой ГОСТ/приказ/номер) только если инженер явно ошибся — обязательно объясни в отчёте почему.
-4. В «ИСПРАВЛЕННЫЕ ПОЛЯ» для B19 достаточно краткой ссылки инженера + пункты; полное название добавит система.
+1. НЕ придумывай и НЕ разворачивай название документа — в B19 система подставит краткий title из источника (например «Приказ Ростехнадзора от 11.12.2020 N 519»).
+2. В «ИСПРАВЛЕННЫЕ ПОЛЯ» для B19 скопируй ссылку инженера как есть (или только пункты).
+3. Пункты инженера НЕ МЕНЯЙ (п. 44 остаётся п. 44).
+4. Длинное «Об утверждении ФНП…» в B19 не пиши — это не title.
 
 АЛГОРИТМ:
 1. Выпиши объективные факты из B18.
@@ -103,7 +108,7 @@ SYSTEM_PROMPT = """Ты — ведущий инженер строительно
 [полный профессиональный текст B18 — все объективные факты, без воды и оценочных суждений]
 
 Нормативный документ:
-[полный текст B19 — полное наименование НД и пункты инженера]"""
+[краткая ссылка инженера и пункты — без выдуманного развёрнутого названия]"""
 
 
 def _cell_str(value: Any) -> str:
@@ -242,10 +247,10 @@ def _missing_b18_facts(original: str, rewritten: str) -> list[str]:
     return missing
 
 
-def _usable_doc_title(title: str, engineer_norm: str) -> bool:
-    """Наименование из Техэксперт/интернета пригодно для B19 (не эхо запроса)."""
+def _usable_short_title(title: str, engineer_norm: str) -> bool:
+    """Краткий title из выдачи пригоден для B19."""
     t = (title or "").strip()
-    if len(t) < 35:
+    if len(t) < 12:
         return False
     ref = parse_normative_reference(engineer_norm)
     if ref.number and ref.number not in t:
@@ -253,32 +258,47 @@ def _usable_doc_title(title: str, engineer_norm: str) -> bool:
     low = t.lower()
     if ref.search_query and low == ref.search_query.lower():
         return False
-    if len(t.split()) <= 5 and ref.number in t and "приказ" in low:
+    if re.search(r"Об утверждении|Зарегистрировано в Минюсте", t, flags=re.IGNORECASE):
         return False
     return bool(
         re.search(
-            r"(?:приказ|постановлен|гост|сп|снип|правил|федеральн)",
+            r"(?:приказ|постановлен|гост|сп|снип|n\s*\d|№\s*\d)",
             t,
             flags=re.IGNORECASE,
         )
     )
 
 
+def _b19_title_from_lookup(
+    engineer_norm: str, normative_lookup: dict[str, Any]
+) -> str:
+    """Краткий title из источника (как в выдаче Техэксперт)."""
+    ref = parse_normative_reference(engineer_norm)
+    for raw in (
+        normative_lookup.get("list_title"),
+        normative_lookup.get("doc_title"),
+    ):
+        short = _short_doc_title(str(raw or ""), ref)
+        if short and _usable_short_title(short, engineer_norm):
+            return short.rstrip(" .,")
+    built = _title_from_reference(ref)
+    return built.rstrip(" .,") if built else ""
+
+
 def _compose_b19(
     engineer_norm: str,
     normative_lookup: dict[str, Any],
-    model_norm: str,
 ) -> str:
-    """B19: официальное наименование из источника + пункты инженера."""
+    """B19: краткий title из источника + пункты инженера (модель не источник названия)."""
     pts = _normative_points(engineer_norm)
     pts_tail = ", ".join(f"п. {p}" for p in pts) if pts else ""
-    doc_title = (normative_lookup.get("doc_title") or "").strip()
 
-    if normative_lookup.get("ok") and _usable_doc_title(doc_title, engineer_norm):
-        base = doc_title.rstrip(" .,")
-        return f"{base}, {pts_tail}." if pts_tail else f"{base}."
+    if normative_lookup.get("ok"):
+        base = _b19_title_from_lookup(engineer_norm, normative_lookup)
+        if base:
+            return f"{base}, {pts_tail}." if pts_tail else f"{base}."
 
-    return (model_norm or engineer_norm).strip()
+    return engineer_norm.strip()
 
 
 def _normative_source_info(lookup: dict[str, Any]) -> dict[str, str]:
@@ -463,8 +483,6 @@ def _guard_engineer_text(
     orig_content = fields.get("content") or ""
     orig_norm = fields.get("normative") or ""
     new_content = out.get("content") or ""
-    model_norm = out.get("normative") or ""
-
     if orig_content and new_content and _text_changed(orig_content, new_content):
         missing = _missing_b18_facts(orig_content, new_content)
         if missing:
@@ -486,30 +504,25 @@ def _guard_engineer_text(
             out["content"] = orig_content
 
     if orig_norm:
-        composed = _compose_b19(orig_norm, lookup, model_norm)
+        composed = _compose_b19(orig_norm, lookup)
         src_label = {
             "techexpert": "Техэксперт",
             "internet": "интернет",
         }.get(lookup.get("source") or "", "источник")
-        if _usable_doc_title(lookup.get("doc_title") or "", orig_norm):
-            if _text_changed(orig_norm, composed):
-                events.append(
-                    {
-                        "field": "normative",
-                        "level": "info",
-                        "code": "normative_title_from_source",
-                        "message": (
-                            f"B19: полное наименование взято из {src_label} "
-                            f"({(lookup.get('doc_title') or '')[:80]}…); "
-                            f"пункты инженера сохранены."
-                        ),
-                    }
-                )
-            out["normative"] = composed
-        elif model_norm:
-            out["normative"] = model_norm
-        else:
-            out["normative"] = orig_norm
+        title_used = _b19_title_from_lookup(orig_norm, lookup)
+        if title_used and _text_changed(orig_norm, composed):
+            events.append(
+                {
+                    "field": "normative",
+                    "level": "info",
+                    "code": "normative_title_from_source",
+                    "message": (
+                        f"B19: краткий title из {src_label} "
+                        f"({title_used}); пункты инженера сохранены."
+                    ),
+                }
+            )
+        out["normative"] = composed
 
         new_norm = out.get("normative") or ""
         orig_pts = _normative_points(orig_norm)
@@ -836,7 +849,7 @@ def check_prescription(filepath: str | Path) -> dict:
 ВАЖНО:
 - B18: полностью перепиши профессиональным языком СК — конкретно, без воды; сохрани объективные факты (стыки, диаметры, методы, сроки, клеймо).
 - Убери оценочный и эмоциональный тон («большое количество брака», обвинения бригаде); клеймо «Л» — только как идентификатор исполнителя на конкретных стыках.
-- B19: пункты инженера не меняй; полное наименование подставит система из найденного документа.
+- B19: не разворачивай название; пункты инженера не меняй — краткий title подставит система.
 - Заполни «ВОПРОСЫ ИНЖЕНЕРУ», «ЧЕРНОВИК ПИСЬМА» и «ОТЧЁТ О ПРАВКАХ» (в т.ч. блок «Стиль и тон» для B18).
 
 Ответ строго в формате из инструкции."""

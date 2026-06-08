@@ -22,6 +22,7 @@ from sk_reporter.prescriptions.techexpert_client import (
     _extract_points_excerpt,
     _html_to_text,
     _score_document_header,
+    _short_doc_title,
     parse_normative_reference,
 )
 
@@ -260,11 +261,16 @@ def lookup_normative_web(normative_text: str) -> NormativeLookupResult:
     if not excerpt:
         excerpt = best_plain[:_MAX_EXCERPT]
 
+    short = _short_doc_title(best_title, reference) or _short_doc_title(
+        _extract_doc_title(best_plain, reference.search_query), reference
+    )
+
     return NormativeLookupResult(
         ok=True,
         reference=reference,
         excerpt=excerpt,
-        doc_title=best_title,
+        doc_title=short,
+        list_title=best_title,
         source_url=best_url,
         auth_ok=True,
         source="internet",

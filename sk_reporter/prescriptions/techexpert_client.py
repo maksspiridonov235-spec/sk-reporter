@@ -63,6 +63,7 @@ class NormativeLookupResult:
     reference: NormativeReference
     excerpt: str = ""
     doc_title: str = ""
+    list_title: str = ""
     source_url: str = ""
     error: str = ""
     auth_ok: bool = False
@@ -382,6 +383,52 @@ def _extract_doc_title(full_text: str, fallback: str) -> str:
     return fallback
 
 
+def _title_from_reference(reference: NormativeReference) -> str:
+    """Краткий заголовок вида «Приказ … от … N …» из разбора B19."""
+    if not reference.number:
+        return ""
+    kind = reference.doc_kind or "Приказ"
+    issuer = reference.issuer or ""
+    date = reference.date or ""
+    if issuer and date:
+        return f"{kind} {issuer} от {date} N {reference.number}"
+    if date:
+        return f"{kind} от {date} N {reference.number}"
+    return f"{kind} N {reference.number}"
+
+
+def _short_doc_title(title: str, reference: NormativeReference | None = None) -> str:
+    """
+    Краткое наименование для B19 — как title в выдаче Техэксперт.
+    Длинный заголовок («Об утверждении ФНП…») обрезается до «Приказ … от … N …».
+    """
+    t = re.sub(r"\s+", " ", (title or "").strip())
+    if not t:
+        return _title_from_reference(reference) if reference else ""
+
+    if len(t) <= 100 and not re.search(
+        r"Об утверждении|Зарегистрировано|Федеральных норм и правил",
+        t,
+        flags=re.IGNORECASE,
+    ):
+        return t
+
+    m = re.match(
+        r"((?:Приказ|Постановление|ГОСТ|СП|СНиП|Федеральный закон)\s+.+?\s+"
+        r"от\s+\d{1,2}[./]\d{1,2}[./]\d{2,4}\s+(?:N|№|No\.?)\s*[\w./-]+)",
+        t,
+        flags=re.IGNORECASE,
+    )
+    if m:
+        return m.group(1).strip()
+
+    if reference:
+        built = _title_from_reference(reference)
+        if built and reference.number in t:
+            return built
+    return t[:100].strip()
+
+
 def _parse_ifind_items(html: str) -> list[tuple[str, str, str]]:
     """Элементы выдачи поиска: (nd, заголовок, href)."""
     items: list[tuple[str, str, str]] = []
@@ -550,10 +597,10 @@ def _pick_document_candidate(
     candidates: list[tuple[str, str, str]],
     reference: NormativeReference,
     queries: list[str] | None = None,
-) -> tuple[str, str]:
-    """Выбрать nd и href из выдачи поиска."""
+) -> tuple[str, str, str]:
+    """Выбрать nd, href и краткий title из выдачи поиска."""
     if not candidates:
-        return "", ""
+        return "", "", ""
 
     queries = queries or _build_search_queries(reference)
     ranked: list[tuple[int, str, str, str]] = []
@@ -575,6 +622,7 @@ def _pick_document_candidate(
 
     best_nd = ""
     best_href = ""
+    best_list_title = ""
     best_score = -1
     for title_score, nd, title, href in top:
         plain, _url, api_err = _fetch_document_plain(client, nd, href)
@@ -585,9 +633,10 @@ def _pick_document_candidate(
             best_score = header_score
             best_nd = nd
             best_href = href
+            best_list_title = title
 
     if best_nd:
-        return best_nd, best_href
+        return best_nd, best_href, best_list_title
 
     for nd, title, href in candidates:
         if _title_is_query_echo(title, queries):
@@ -595,8 +644,8 @@ def _pick_document_candidate(
         if reference.number and reference.number in title:
             plain, _url, api_err = _fetch_document_plain(client, nd, href)
             if not api_err and _is_valid_document_plain(plain, reference):
-                return nd, href
-    return "", ""
+                return nd, href, title
+    return "", "", ""
 
 
 class TechExpertClient:
@@ -891,7 +940,9 @@ class TechExpertClient:
                 auth_ok=True,
             )
 
-        nd, href = _pick_document_candidate(self, candidates, reference, queries)
+        nd, href, list_title = _pick_document_candidate(
+            self, candidates, reference, queries
+        )
         if not nd:
             sample = "; ".join(title[:60] for _nd, title, _h in candidates[:3])
             return NormativeLookupResult(
@@ -906,7 +957,12 @@ class TechExpertClient:
 
         plain, doc_url, fetch_err = _fetch_document_plain(self, nd, href)
         return self._result_from_plain(
-            reference, plain, doc_url, fetch_err, auth_ok=True
+            reference,
+            plain,
+            doc_url,
+            fetch_err,
+            auth_ok=True,
+            list_title=list_title,
         )
 
     def _result_from_plain(
@@ -917,6 +973,7 @@ class TechExpertClient:
         fetch_err: str,
         *,
         auth_ok: bool,
+        list_title: str = "",
     ) -> NormativeLookupResult:
         if fetch_err:
             return NormativeLookupResult(
@@ -937,13 +994,16 @@ class TechExpertClient:
                 auth_ok=auth_ok,
                 source_url=doc_url,
             )
-        title = _extract_doc_title(plain, reference.search_query)
+        short = _short_doc_title(list_title, reference) or _short_doc_title(
+            _extract_doc_title(plain, reference.search_query), reference
+        )
         excerpt = _extract_points_excerpt(plain, reference.points) or plain[:_MAX_EXCERPT]
         return NormativeLookupResult(
             ok=True,
             reference=reference,
             excerpt=excerpt,
-            doc_title=title,
+            doc_title=short,
+            list_title=list_title or short,
             source_url=doc_url,
             auth_ok=auth_ok,
         )
@@ -1028,7 +1088,9 @@ class TechExpertClient:
                         auth_ok=True,
                     )
 
-                nd, href = _pick_document_candidate(self, candidates, reference, queries)
+                nd, href, list_title = _pick_document_candidate(
+                    self, candidates, reference, queries
+                )
                 if not nd:
                     browser.close()
                     sample = "; ".join(t[:60] for _n, t, _h in candidates[:3])
@@ -1054,12 +1116,22 @@ class TechExpertClient:
                     plain, doc_url, fetch_err = _fetch_document_plain(self, nd, href)
                     browser.close()
                     return self._result_from_plain(
-                        reference, plain, doc_url, fetch_err, auth_ok=True
+                        reference,
+                        plain,
+                        doc_url,
+                        fetch_err,
+                        auth_ok=True,
+                        list_title=list_title,
                     )
 
                 browser.close()
                 return self._result_from_plain(
-                    reference, plain, doc_url, "", auth_ok=True
+                    reference,
+                    plain,
+                    doc_url,
+                    "",
+                    auth_ok=True,
+                    list_title=list_title,
                 )
             except Exception as e:
                 browser.close()
@@ -1124,6 +1196,7 @@ def _normative_result_to_dict(result: NormativeLookupResult) -> dict[str, Any]:
         },
         "excerpt": result.excerpt,
         "doc_title": result.doc_title,
+        "list_title": result.list_title,
         "source_url": result.source_url,
         "error": result.error,
         "auth_ok": result.auth_ok,
