@@ -1,23 +1,29 @@
-# Безопасный git pull на офисном ПК.
-# Болванки docx и project.yaml/luvr/personnel правятся на месте — обычный pull блокируется.
-# Стратегия: backup локальных data → reset --hard origin/main → restore → skip-worktree.
-#
-# Использование (из корня репо):
-#   .\scripts\git-pull-office.ps1            # обновить код, сохранить локальные data
-#   .\scripts\git-pull-office.ps1 -MarkOnly  # только skip-worktree
-#   .\scripts\git-pull-office.ps1 -ShowLocal # список skip-worktree
+# Офисный ПК: обновить код с GitHub, сохранить локальные data (болванки, yaml).
+#   .\scripts\git-pull-office.ps1
+#   .\scripts\git-pull-office.ps1 -MarkOnly
 param(
     [switch]$MarkOnly,
-    [switch]$ShowLocal,
     [switch]$Quiet
 )
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
+git config core.quotepath false 2>$null | Out-Null
 
 function Write-Info([string]$Msg) {
     if (-not $Quiet) { Write-Host $Msg }
+}
+
+function Clear-AllSkipWorktree {
+    $n = 0
+    git -c core.quotepath=false ls-files -v | ForEach-Object {
+        if ($_ -match '^[sS]\s+(.+)$') {
+            git update-index --no-skip-worktree -- $Matches[1].Trim()
+            if ($LASTEXITCODE -eq 0) { $script:n++ }
+        }
+    }
+    if ($n -gt 0) { Write-Info "[INFO] Снято skip-worktree: $n файлов." }
 }
 
 function Test-GitTracked([string]$RelativePath) {
@@ -26,7 +32,6 @@ function Test-GitTracked([string]$RelativePath) {
 }
 
 function Get-OfficeLocalTrackedFiles() {
-    # Через диск, не через вывод git ls-files — иначе PowerShell ломает кириллицу в путях.
     $files = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 
     $templatesDir = Join-Path $Root "data\templates"
@@ -54,43 +59,19 @@ function Get-OfficeLocalTrackedFiles() {
             [void]$files.Add($rel)
         }
     }
-
     return @($files)
-}
-
-function Clear-OfficeLocalSkipWorktree {
-    $files = Get-OfficeLocalTrackedFiles
-    foreach ($path in $files) {
-        git update-index --no-skip-worktree -- $path 2>$null | Out-Null
-    }
 }
 
 function Enable-OfficeLocalSkipWorktree {
     $files = Get-OfficeLocalTrackedFiles
-    if ($files.Count -eq 0) {
-        Write-Info "[INFO] Нет tracked-файлов для skip-worktree."
-        return
-    }
     foreach ($path in $files) {
-        git update-index --skip-worktree -- $path
-        if ($LASTEXITCODE -ne 0) {
-            Write-Warning "Не удалось skip-worktree: $path"
-        }
+        git update-index --skip-worktree -- $path 2>$null | Out-Null
     }
-    Write-Info "[INFO] skip-worktree: $($files.Count) файлов."
-}
-
-function Show-OfficeLocalSkipWorktree {
-    git -c core.quotepath=false ls-files -v | ForEach-Object {
-        if ($_ -match '^[sS]\s+(.+)$') { $Matches[1] }
-    }
+    Write-Info "[INFO] skip-worktree включён: $($files.Count) файлов."
 }
 
 function Backup-OfficeLocalFiles {
-    param(
-        [string[]]$Files,
-        [string]$BackupDir
-    )
+    param([string[]]$Files, [string]$BackupDir)
     New-Item -ItemType Directory -Force -Path $BackupDir | Out-Null
     $manifest = New-Object System.Collections.Generic.List[string]
     $i = 0
@@ -98,14 +79,16 @@ function Backup-OfficeLocalFiles {
         $src = Join-Path $Root ($rel -replace "/", [IO.Path]::DirectorySeparatorChar)
         if (-not (Test-Path -LiteralPath $src)) { continue }
         $destName = ("{0:D4}__{1}" -f $i, ($rel -replace '[\\/:*?"<>|]', '_'))
-        $dest = Join-Path $BackupDir $destName
-        Copy-Item -LiteralPath $src -Destination $dest -Force
+        Copy-Item -LiteralPath $src -Destination (Join-Path $BackupDir $destName) -Force
         $manifest.Add("$destName`t$rel")
         $i++
     }
-    $manifestPath = Join-Path $BackupDir "manifest.tsv"
-    [IO.File]::WriteAllLines($manifestPath, $manifest, [Text.UTF8Encoding]::new($false))
-    return $manifest.Count
+    [IO.File]::WriteAllLines(
+        (Join-Path $BackupDir "manifest.tsv"),
+        $manifest,
+        [Text.UTF8Encoding]::new($false)
+    )
+    return $i
 }
 
 function Restore-OfficeLocalFiles {
@@ -117,71 +100,43 @@ function Restore-OfficeLocalFiles {
         if (-not $line.Trim()) { continue }
         $parts = $line -split "`t", 2
         if ($parts.Count -lt 2) { continue }
-        $destName, $rel = $parts[0], $parts[1]
-        $src = Join-Path $BackupDir $destName
-        $dest = Join-Path $Root ($rel -replace "/", [IO.Path]::DirectorySeparatorChar)
-        $destDir = Split-Path -LiteralPath $dest -Parent
-        if (-not (Test-Path -LiteralPath $destDir)) {
-            New-Item -ItemType Directory -Force -Path $destDir | Out-Null
-        }
-        Copy-Item -LiteralPath $src -Destination $dest -Force
+        $dest = Join-Path $Root ($parts[1] -replace "/", [IO.Path]::DirectorySeparatorChar)
+        $dir = Split-Path -LiteralPath $dest -Parent
+        if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+        Copy-Item -LiteralPath (Join-Path $BackupDir $parts[0]) -Destination $dest -Force
         $restored++
     }
     return $restored
 }
 
-if ($ShowLocal) {
-    Write-Host "Файлы с skip-worktree:"
-    Show-OfficeLocalSkipWorktree
-    exit 0
-}
-
-# Кириллица в git status на Windows
-git config core.quotepath false 2>$null | Out-Null
-
-Clear-OfficeLocalSkipWorktree
-Enable-OfficeLocalSkipWorktree
+Clear-AllSkipWorktree
 
 if ($MarkOnly) {
-    Write-Info "[INFO] Готово. Для обновления кода: .\scripts\git-pull-office.ps1"
-    exit 0
-}
-
-Write-Info "[INFO] git fetch origin..."
-git fetch origin
-if ($LASTEXITCODE -ne 0) {
-    Write-Warning "[WARN] git fetch не удался."
-    exit 1
-}
-
-$branch = (git rev-parse --abbrev-ref HEAD).Trim()
-if ($branch -ne "main") {
-    Write-Warning "[WARN] Ветка $branch, не main — обновление пропущено."
+    Enable-OfficeLocalSkipWorktree
+    Write-Info "[INFO] Готово."
     exit 0
 }
 
 $localFiles = Get-OfficeLocalTrackedFiles
-Clear-OfficeLocalSkipWorktree
-
 $backupDir = Join-Path $env:TEMP ("sk-reporter-pull-{0}" -f (Get-Date -Format "yyyyMMddHHmmss"))
 $backedUp = Backup-OfficeLocalFiles -Files $localFiles -BackupDir $backupDir
-Write-Info "[INFO] Резервная копия локальных data: $backedUp файлов."
+Write-Info "[INFO] Backup data: $backedUp файлов."
+
+Clear-AllSkipWorktree
+
+Write-Info "[INFO] git fetch origin..."
+git fetch origin
+if ($LASTEXITCODE -ne 0) { exit 1 }
 
 Write-Info "[INFO] git reset --hard origin/main..."
 git reset --hard origin/main
 if ($LASTEXITCODE -ne 0) {
-    Write-Warning "[WARN] reset не удался."
+    Write-Warning "[WARN] reset не удался. См. docs/RUN_SERVER.md"
     exit 1
 }
 
-$restored = Restore-OfficeLocalFiles -BackupDir $backupDir
-Write-Info "[INFO] Восстановлено локальных data: $restored файлов."
-
-try {
-    Remove-Item -LiteralPath $backupDir -Recurse -Force -ErrorAction SilentlyContinue
-} catch { }
+Restore-OfficeLocalFiles -BackupDir $backupDir | Out-Null
+Remove-Item -LiteralPath $backupDir -Recurse -Force -ErrorAction SilentlyContinue
 
 Enable-OfficeLocalSkipWorktree
-
-$head = (git rev-parse --short HEAD).Trim()
-Write-Info "[INFO] Код обновлён: $head"
+Write-Info "[INFO] Код: $(git rev-parse --short HEAD)"
