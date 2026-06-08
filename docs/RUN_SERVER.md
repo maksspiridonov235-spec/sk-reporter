@@ -159,6 +159,53 @@ curl http://127.0.0.1:8000/diagnose/reports
 
 ---
 
+## Офисный ПК: git pull без «грязного дерева»
+
+На сервере **ежедневно меняются** файлы, которые лежат в git:
+
+| Путь | Почему «modified» |
+|------|-------------------|
+| `data/templates/*.docx` | сборка отчётов переименовывает/трогает болванки |
+| `data/projects/*/project.yaml` | назначения инженеров в «Проекты» |
+| `data/luvr/luvr.yaml` | отметки ЛУВР на сайте |
+| `data/personnel/personnel.yaml` | справочник персонала |
+
+Cursor/VS Code и `git pull` блокируются, пока эти изменения не убраны — **это нормально для офиса**, данные нужны на месте.
+
+**Решение:** скрипт `scripts/git-pull-office.ps1` ставит на них **`skip-worktree`** (git не считает рабочее дерево грязным; файлы на диске не трогаются).
+
+**Один раз после clone или если pull снова блокируется:**
+
+```powershell
+cd C:\Users\Anton\Desktop\sk-reporter
+.\scripts\git-pull-office.ps1
+```
+
+Только пометить, без pull:
+
+```powershell
+.\scripts\git-pull-office.ps1 -MarkOnly
+git pull --ff-only
+```
+
+**SK-Reporter.bat** при каждом запуске вызывает этот скрипт (тихий pull).
+
+**Ручной обход (если скрипта ещё нет в clone):**
+
+```powershell
+git ls-files "data/templates/*.docx" | ForEach-Object { git update-index --skip-worktree $_ }
+git ls-files "data/projects/*/project.yaml" | ForEach-Object { git update-index --skip-worktree $_ }
+git ls-files "data/luvr/luvr.yaml" | ForEach-Object { git update-index --skip-worktree $_ }
+git ls-files "data/personnel/personnel.yaml" | ForEach-Object { git update-index --skip-worktree $_ }
+git pull --ff-only
+```
+
+После pull — перезапуск bat. Локальные назначения и болванки **сохраняются**.
+
+На **Mac (разработка)** skip-worktree **не включать** — иначе не увидите изменения в `git status`.
+
+---
+
 ## Предписания: доступ к Техэксперт
 
 Проверка предписаний (`/prescriptions`) ищет нормативный документ из ячейки **B19** в **Техэксперт** (или в интернете при fallback) и сверяет фрагмент с текстом замечания (**B18**). В исправленный Excel в **B19** записывается **краткий заголовок** из выдачи TE (например «Приказ Ростехнадзора от 11.12.2020 N 519») и пункты инженера — не развёрнутое название из текста документа и не текст модели.

@@ -44,6 +44,15 @@ if errorlevel 1 (
 
 for /f %%i in ('git -C "%REPO_ROOT%" rev-parse --short HEAD 2^>nul') do set GIT_HEAD=%%i
 if not defined GIT_HEAD set GIT_HEAD=unknown
+
+REM Офис: pull не блокируется болванками docx и project.yaml (skip-worktree)
+powershell -NoProfile -ExecutionPolicy Bypass -File "%REPO_ROOT%\scripts\git-pull-office.ps1" -Quiet 2>nul
+if errorlevel 1 (
+  echo [WARN] git pull не выполнен — работаем на текущем коде ^(!GIT_HEAD!^)
+) else (
+  for /f %%i in ('git -C "%REPO_ROOT%" rev-parse --short HEAD 2^>nul') do set GIT_HEAD=%%i
+)
+
 echo [INFO] SK-Reporter git: !GIT_HEAD!
 echo [INFO] После git pull перезапустите этот bat и Ctrl+F5 в браузере.
 

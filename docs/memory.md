@@ -50,9 +50,11 @@
 
 **На чём остановились (следующий шаг):**
 
-1. На офисном ПК: `git pull` → **перезапуск bat** → проверить предписание с приказом 519 (B19 = короткий title + п. 44).
+1. На офисном ПК: `git pull` через **`scripts/git-pull-office.ps1`** (или bat сам тянет код) → перезапуск bat → проверить предписание с приказом 519.
 2. При `toomanyusers` — закрыть лишние сессии TE или временно полагаться на интернет-fallback.
-3. По результатам офиса — точечные правки (если TE отдаёт title иначе, чем ожидает `_short_doc_title`).
+3. По результатам офиса — точечные правки TE/B19.
+
+**Git на офисном ПК (2026-06-08):** pull блокировался из‑за `data/templates/*.docx` и `project.yaml`. Fix: `scripts/git-pull-office.ps1` + auto в `SK-Reporter.bat` — `skip-worktree` на локальные данные. См. [`RUN_SERVER.md`](RUN_SERVER.md).
 
 **Не смешивать** с docx-агентами (`sk_reporter/check_agent.py`); temp uploads — тот же `UPLOAD_DIR`.
 

@@ -100,3 +100,6 @@ Write-Host "  python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000"
 Write-Host ""
 Write-Host "Или ярлык: launcher\SK-Reporter.bat"
 Write-Host ""
+Write-Host "Офис: пометка локальных данных (болванки, project.yaml) для git pull..."
+& "$PSScriptRoot\git-pull-office.ps1" -MarkOnly
+Write-Host ""
