@@ -172,35 +172,28 @@ curl http://127.0.0.1:8000/diagnose/reports
 
 Cursor/VS Code и `git pull` блокируются, пока эти изменения не убраны — **это нормально для офиса**, данные нужны на месте.
 
-**Решение:** скрипт `scripts/git-pull-office.ps1` ставит на них **`skip-worktree`** (git не считает рабочее дерево грязным; файлы на диске не трогаются).
+**Решение:** скрипт `scripts/git-pull-office.ps1`:
+1. Резервная копия локальных data (болванки, yaml).
+2. `git reset --hard origin/main` — код с GitHub без merge-конфликтов.
+3. Восстановление data с диска + **`skip-worktree`**.
 
-**Один раз после clone или если pull снова блокируется:**
+**Не использовать** в PowerShell пайп `git ls-files … | ForEach-Object { git update-index … $_ }` для docx с кириллицей — пути ломаются (`Ignoring path "data/templates/320/223/…"`). Только скрипт или:
 
 ```powershell
-cd C:\Users\Anton\Desktop\sk-reporter
 .\scripts\git-pull-office.ps1
 ```
 
-Только пометить, без pull:
+**Один раз, если скрипта ещё нет в clone** (ручной обход — только для project.yaml, docx лучше через скрипт после pull):
 
 ```powershell
-.\scripts\git-pull-office.ps1 -MarkOnly
+cd C:\Users\Anton\Desktop\sk-reporter
+git fetch origin
+git stash push -m "office" -- data/projects/SVA-WLL-K058-002-DD-00-AS_00.4/project.yaml data/projects/SUP-WLL-K084-003-DD-00-TX_00.2/project.yaml
 git pull --ff-only
+git stash pop
 ```
 
-**SK-Reporter.bat** при каждом запуске вызывает этот скрипт (тихий pull).
-
-**Ручной обход (если скрипта ещё нет в clone):**
-
-```powershell
-git ls-files "data/templates/*.docx" | ForEach-Object { git update-index --skip-worktree $_ }
-git ls-files "data/projects/*/project.yaml" | ForEach-Object { git update-index --skip-worktree $_ }
-git ls-files "data/luvr/luvr.yaml" | ForEach-Object { git update-index --skip-worktree $_ }
-git ls-files "data/personnel/personnel.yaml" | ForEach-Object { git update-index --skip-worktree $_ }
-git pull --ff-only
-```
-
-После pull — перезапуск bat. Локальные назначения и болванки **сохраняются**.
+После появления скрипта в репо — только `.\scripts\git-pull-office.ps1`.
 
 На **Mac (разработка)** skip-worktree **не включать** — иначе не увидите изменения в `git status`.
 

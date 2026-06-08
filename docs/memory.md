@@ -54,7 +54,7 @@
 2. При `toomanyusers` — закрыть лишние сессии TE или временно полагаться на интернет-fallback.
 3. По результатам офиса — точечные правки TE/B19.
 
-**Git на офисном ПК (2026-06-08):** pull блокировался из‑за `data/templates/*.docx` и `project.yaml`. Fix: `scripts/git-pull-office.ps1` + auto в `SK-Reporter.bat` — `skip-worktree` на локальные данные. См. [`RUN_SERVER.md`](RUN_SERVER.md).
+**Git на офисном ПК (2026-06-08):** pull блокировался из‑за `data/templates/*.docx` и `project.yaml`. Fix: `scripts/git-pull-office.ps1` — backup data → `reset --hard origin/main` → restore + skip-worktree; в bat при старте. Не пайпить `git ls-files` docx через PowerShell (кириллица). См. [`RUN_SERVER.md`](RUN_SERVER.md).
 
 **Не смешивать** с docx-агентами (`sk_reporter/check_agent.py`); temp uploads — тот же `UPLOAD_DIR`.
 
