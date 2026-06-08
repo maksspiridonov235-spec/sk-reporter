@@ -72,7 +72,7 @@ function setCardStatus(statusId, msg, state) {
   if (txt && msg != null) txt.textContent = msg;
 }
 
-function finalizeOpCard(card, statusId, stats, details, options) {
+function finalizeOpCard(card, statusId, stats, details, fileCards, options) {
   options = options || {};
   const liveEl = document.getElementById(statusId);
   if (liveEl) liveEl.remove();
@@ -87,8 +87,10 @@ function finalizeOpCard(card, statusId, stats, details, options) {
   ).join('');
   body.appendChild(statsContainer);
 
-  if (details && details.length) {
-    const detailId = 'det_' + Date.now();
+  const hasFileCards = Array.isArray(fileCards) && fileCards.length > 0;
+  const hasDetails = (details && details.length) || hasFileCards;
+  if (hasDetails) {
+    const detailId = 'det_' + Date.now() + '_' + Math.random().toString(36).slice(2);
     const toggleBtn = document.createElement('button');
     toggleBtn.className = 'detail-toggle';
     toggleBtn.type = 'button';
@@ -104,18 +106,107 @@ function finalizeOpCard(card, statusId, stats, details, options) {
     const detailBlock = document.createElement('div');
     detailBlock.className = 'detail-block log-timeline' + (options.expandDetails ? ' open' : '');
     detailBlock.id = detailId;
-    details.forEach(d => {
-      const row = document.createElement('div');
-      row.className = 'detail-row' + (d.wrap ? ' wrap' : '');
-      row.innerHTML = `
-        <span class="detail-icon">${d.icon || ''}</span>
-        <span class="detail-name wrap">${escHtml(d.name)}</span>
-        ${d.badge ? `<span class="detail-badge ${d.badgeClass || ''}">${escHtml(d.badge)}</span>` : ''}
-      `;
-      detailBlock.appendChild(row);
-    });
+
+    if (details && details.length) {
+      details.forEach(d => {
+        const row = document.createElement('div');
+        row.className = 'detail-row' + (d.wrap ? ' wrap' : '');
+        row.innerHTML = `
+          <span class="detail-icon">${d.icon || ''}</span>
+          <span class="detail-name wrap">${escHtml(d.name)}</span>
+          ${d.badge ? `<span class="detail-badge ${d.badgeClass || ''}">${escHtml(d.badge)}</span>` : ''}
+        `;
+        detailBlock.appendChild(row);
+      });
+    }
+
+    if (hasFileCards) {
+      fileCards.forEach(fc => detailBlock.appendChild(fc));
+    }
+
     body.appendChild(detailBlock);
   }
+}
+
+function toggleReportBody(id, btn) {
+  const el = document.getElementById(id);
+  const open = el.style.display === 'block';
+  el.style.display = open ? 'none' : 'block';
+  btn.textContent = open ? 'Показать отчёт ▼' : 'Скрыть отчёт ▲';
+}
+
+function buildPrescriptionFileCard(filename, meta) {
+  const {
+    hasErrors, hasWarnings, reportText, downloadUrl,
+    normativeSource, questions, draftLetter, issues,
+  } = meta;
+  const bodyId = 'rb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+  const badgeHtml = hasErrors
+    ? '<span class="badge badge-err">⚠ Ошибки</span>'
+    : (hasWarnings
+      ? '<span class="badge badge-warn">◐ Замечания</span>'
+      : '<span class="badge badge-ok">✓ OK</span>');
+
+  let sourceHtml = '';
+  if (normativeSource && normativeSource.label) {
+    const srcClass = normativeSource.source === 'techexpert'
+      ? 'source-te'
+      : (normativeSource.source === 'internet' ? 'source-net' : 'source-unknown');
+    const status = normativeSource.status === 'получен' ? '' : ` (${normativeSource.status})`;
+    sourceHtml = `<div class="prescription-meta-row">`
+      + `<span class="prescription-source-chip ${srcClass}">Нормативка: ${escHtml(normativeSource.label)}${escHtml(status)}</span>`
+      + `</div>`;
+  }
+
+  let questionsHtml = '';
+  if (questions && questions.length) {
+    questionsHtml = `<div class="prescription-questions-block">`
+      + `<div class="prescription-block-title">Вопросы инженеру (для письма)</div>`
+      + `<ol class="prescription-questions">${questions.map(q => `<li>${escHtml(q)}</li>`).join('')}</ol>`
+      + `</div>`;
+  }
+
+  let letterHtml = '';
+  if (draftLetter) {
+    letterHtml = `<div class="prescription-letter-block">`
+      + `<div class="prescription-block-title">Черновик письма</div>`
+      + `<div class="prescription-letter-text">${escHtml(draftLetter)}</div>`
+      + `</div>`;
+  }
+
+  const warnLines = (issues || [])
+    .filter(i => i.level === 'warn' || i.level === 'error')
+    .map(i => i.message || i);
+  const issuesHtml = warnLines.length
+    ? `<ul class="prescription-issues">${warnLines.map(l => `<li>${escHtml(l)}</li>`).join('')}</ul>`
+    : '';
+
+  const bodyHtml = reportText
+    ? `<div class="report-body" id="${bodyId}">${escHtml(reportText)}</div>`
+    : '';
+  const toggleHtml = reportText
+    ? `<button class="detail-toggle" type="button" onclick="toggleReportBody('${bodyId}', this)" style="margin-top:6px">Полный отчёт ▼</button>`
+    : '';
+  const dlHtml = downloadUrl
+    ? `<a href="${downloadUrl}" download>Скачать _проверен</a>`
+    : '';
+  const el = document.createElement('div');
+  el.className = 'file-card ' + (hasErrors ? 'file-card-warn' : (hasWarnings ? 'file-card-warn' : 'file-card-ok'));
+  el.style.marginTop = '8px';
+  el.innerHTML = `
+    <div class="file-card-head">
+      <span class="file-card-name" title="${escHtml(filename)}">${escHtml(filename)}</span>
+      ${badgeHtml}
+    </div>
+    ${sourceHtml}
+    ${questionsHtml}
+    ${letterHtml}
+    ${issuesHtml}
+    ${toggleHtml}
+    ${bodyHtml}
+    ${dlHtml ? `<div class="file-card-actions">${dlHtml}</div>` : ''}
+  `;
+  return el;
 }
 
 async function apiFetch(url, options, statusId) {
@@ -179,7 +270,7 @@ async function uploadPrescriptions(input) {
     const data = await apiFetch('/upload/prescriptions', { method: 'POST', body: fd }, statusId);
     finalizeOpCard(card, statusId, [
       { label: `Загружено: ${data.count}`, color: 'green' },
-    ], buildUploadDetails(data.uploaded), { expandDetails: true, detailLabel: 'Файлы' });
+    ], buildUploadDetails(data.uploaded), null, { expandDetails: true, detailLabel: 'Файлы' });
   } catch (_) {}
   input.value = '';
 }
@@ -189,7 +280,7 @@ async function clearPrescriptions() {
   setCardStatus(statusId, 'Удаляю файлы…');
   try {
     await apiFetch('/clear/prescriptions/uploads', { method: 'DELETE' }, statusId);
-    finalizeOpCard(card, statusId, [{ label: 'Загрузка очищена', color: 'blue' }], null);
+    finalizeOpCard(card, statusId, [{ label: 'Загрузка очищена', color: 'blue' }], null, null);
   } catch (_) {}
 }
 
@@ -199,7 +290,7 @@ async function resetPrescriptions() {
   try {
     await apiFetch('/clear/prescriptions/all', { method: 'DELETE' }, statusId);
     document.getElementById('checkedFiles').innerHTML = '<div class="no-results">Пока нет</div>';
-    finalizeOpCard(card, statusId, [{ label: 'Сброшено', color: 'blue' }], null);
+    finalizeOpCard(card, statusId, [{ label: 'Сброшено', color: 'blue' }], null, null);
   } catch (_) {}
 }
 
@@ -209,11 +300,11 @@ async function checkPrescriptions() {
 
   const { card, statusId } = createOpCard(
     'Проверка предписаний',
-    'Структура таблицы и обязательные поля в строках'
+    'B18 — замечание, B19 — нормативка; отчёт по каждому файлу'
   );
   setCardStatus(statusId, 'Запускаю проверку…');
 
-  const details = [];
+  const fileCards = [];
   let okCount = 0;
   let warnCount = 0;
   let errCount = 0;
@@ -221,7 +312,7 @@ async function checkPrescriptions() {
   const resp = await fetch('/check/prescriptions/stream', { method: 'POST' });
   if (!resp.ok) {
     setCardStatus(statusId, 'Ошибка запуска', 'error');
-    finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], null, { errorState: true });
+    finalizeOpCard(card, statusId, [{ label: 'Ошибка', color: 'red' }], null, null, { errorState: true });
     return;
   }
 
@@ -246,19 +337,39 @@ async function checkPrescriptions() {
         setCardStatus(statusId, ev.msg);
       } else if (ev.type === 'report') {
         const hasErr = ev.hasErrors;
-        if (hasErr) errCount++; else if (ev.hasWarnings) warnCount++; else okCount++;
-        details.push({
-          icon: hasErr ? '⚠' : (ev.hasWarnings ? '◐' : '✓'),
-          name: ev.msg || ev.filename,
-          wrap: true,
-          badge: hasErr ? 'ошибки' : (ev.hasWarnings ? 'замечания' : 'OK'),
-          badgeClass: hasErr ? 'db-err' : (ev.hasWarnings ? 'db-warn' : 'db-ok'),
-        });
+        const hasWarn = ev.hasWarnings;
+        if (hasErr) errCount++;
+        else if (hasWarn) warnCount++;
+        else okCount++;
+
+        const issues = (ev.result && ev.result.issues) || [];
+        const reportText = (ev.result && (ev.result.review_display || ev.result.report)) || '';
+
+        fileCards.push(
+          buildPrescriptionFileCard(ev.filename || ev.msg, {
+            hasErrors: hasErr,
+            hasWarnings: hasWarn,
+            reportText,
+            downloadUrl: ev.download,
+            normativeSource: ev.result && ev.result.normative_source,
+            questions: (ev.result && ev.result.engineer_questions) || [],
+            draftLetter: (ev.result && ev.result.draft_letter) || '',
+            issues,
+          })
+        );
         if (ev.download) addCheckedFile(ev.filename, ev.download);
         setCardStatus(statusId, ev.msg);
       } else if (ev.type === 'error') {
         errCount++;
-        details.push({ icon: '✕', name: ev.msg, wrap: true, badge: 'ошибка', badgeClass: 'db-err' });
+        fileCards.push(
+          buildPrescriptionFileCard(ev.msg || 'Ошибка', {
+            hasErrors: true,
+            hasWarnings: false,
+            reportText: ev.msg || '',
+            downloadUrl: null,
+            issues: [{ level: 'error', message: ev.msg }],
+          })
+        );
       } else if (ev.type === 'done') {
         if (bar) bar.style.width = '100%';
         setCardStatus(statusId, 'Проверка завершена', 'done');
@@ -266,7 +377,7 @@ async function checkPrescriptions() {
           { label: `OK: ${okCount}`, color: 'green' },
           { label: `Замечания: ${warnCount}`, color: 'amber' },
           { label: `Ошибки: ${errCount}`, color: 'red' },
-        ], details, { expandDetails: true, detailLabel: 'По файлам' });
+        ], null, fileCards, { expandDetails: true, detailLabel: 'Отчёты по файлам' });
         await refreshCheckedList();
       }
     }

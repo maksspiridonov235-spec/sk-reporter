@@ -26,7 +26,7 @@
 
 **Не начато в коде** (на момент фиксации в memory) — только постановка задачи.
 
-**Обновление 2026-06-08:** карточка и `/prescriptions` **сделаны** — загрузка xlsx/xls, SSE-проверка, копия с колонкой «Проверка SK», ZIP. Модуль `sk_reporter/prescriptions/check.py`. Правила проверки — базовые (номер, дата, нарушение, объект, срок); **уточнять по эталонному шаблону** когда будет образец Excel.
+**Обновление 2026-06-08:** карточка и `/prescriptions` — загрузка xlsx/xls, SSE, ZIP. Проверка: `sk_reporter/prescriptions/check_agent.py` — лист «Форма заполнения предписания», **B18** и **B19**. Перед Ollama: **Техэксперт** (`techexpert_client.py`, env `TE_EXPERT_*`), при недоступности — **интернет** (`normative_web_fallback.py`, `TE_EXPERT_INTERNET_FALLBACK=1` по умолчанию): прямые URL rulaws.ru / legalacts.ru + DuckDuckGo. TE API: `ifind_list`, запросы без «№» и «от дата». Учётные данные TE — только env, **не в git**.
 
 ---
 

@@ -779,7 +779,7 @@ def _checked_prescription_name(upload_filename: str) -> str:
 
 @app.post("/check/prescriptions/stream")
 async def check_prescriptions_stream():
-    from sk_reporter.prescriptions import check_prescription_file, write_checked_copy
+    from sk_reporter.prescriptions import check_prescription, write_checked_copy
 
     async def event_generator():
         files = sorted(
@@ -806,10 +806,14 @@ async def check_prescriptions_stream():
             try:
                 yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: проверяю…"})
                 await asyncio.sleep(0)
-                result = await asyncio.to_thread(check_prescription_file, file_path)
+                result = await asyncio.to_thread(check_prescription, file_path)
                 issues = result.get("issues") or []
-                has_errors = any(i.get("level") == "error" for i in issues)
-                has_warnings = any(i.get("level") == "warn" for i in issues)
+                has_errors = bool(result.get("has_errors")) or any(
+                    i.get("level") == "error" for i in issues
+                )
+                has_warnings = bool(result.get("has_warnings")) or any(
+                    i.get("level") == "warn" for i in issues
+                )
                 if has_errors:
                     err_count += 1
                 elif has_warnings:

@@ -54,11 +54,11 @@
       <div class="empty-hint" id="emptyHint">
         <span class="empty-hint-icon" aria-hidden="true">📋</span>
         <span class="empty-hint-title">Проверка предписаний</span>
-        <span class="empty-hint-lead">Загрузите Excel слева и нажмите «Проверить». Результаты — в ленте и справа.</span>
+        <span class="empty-hint-lead">Загрузите Excel слева и нажмите «Проверить». Система сверит замечание с нормативкой из Техэксперт.</span>
         <ol class="empty-hint-steps">
           <li>Загрузите один или несколько файлов .xlsx / .xls.</li>
-          <li>Нажмите «Проверить» — проверяются колонки и строки таблицы.</li>
-          <li>Скачайте проверенные копии с колонкой «Проверка SK».</li>
+          <li>Нажмите «Проверить» — читаются B18 и B19, текст НД ищется в Техэксперт.</li>
+          <li>Скачайте копии <code>_проверен.xlsx</code> с исправленными полями.</li>
         </ol>
       </div>
       </div>
@@ -68,12 +68,14 @@
         <div class="help-guide-header">
           <div>
             <strong id="helpPrescriptionsTitle">Справка: предписания</strong>
-            <p class="help-guide-hint">Проверка Excel без AI — структура таблицы и обязательные поля в строках.</p>
+            <p class="help-guide-hint">Сверка замечания с нормативной базой Техэксперт + язык инженера СК.</p>
           </div>
           <button type="button" class="help-guide-close" id="helpPrescriptionsClose" aria-label="Закрыть">×</button>
         </div>
-        <p class="help-lead">Ожидается таблица с колонками: <strong>номер</strong>, <strong>дата</strong>, <strong>нарушение</strong> (обязательные); желательно также объект, срок устранения, ответственный.</p>
-        <p class="help-lead">После проверки создаётся копия файла с колонкой «Проверка SK» — замечания по строкам или «OK».</p>
+        <p class="help-lead">Проверяются ячейки <strong>B18</strong> (содержание замечания) и <strong>B19</strong> (нормативный документ) на листе «Форма заполнения предписания».</p>
+        <p class="help-lead">По B19 система ищет документ в <strong>Техэксперт</strong>, сверяет текст замечания с пунктами НД и решает, что исправлять — формулировку нарушения или ссылку.</p>
+        <p class="help-lead">Нормативка: сначала Техэксперт (<code>TE_EXPERT_*</code>), при недоступности — поиск в открытом интернете (по умолчанию включён). См. <code>docs/RUN_SERVER.md</code>.</p>
+        <p class="help-lead">После проверки — отчёт: <strong>источник нормативки</strong> (Техэксперт или интернет), <strong>вопросы инженеру</strong> и черновик письма, правки B18/B19.</p>
       </div>
     </div>
     </div>

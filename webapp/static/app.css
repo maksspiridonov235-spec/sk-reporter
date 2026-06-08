@@ -504,6 +504,7 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
   font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 12px;
 }
 .badge-ok  { background: #d1fae5; color: #065f46; }
+.badge-warn { background: #fef3c7; color: #92400e; }
 .badge-err { background: #fee2e2; color: #991b1b; }
 .file-card-actions {
   display: flex; align-items: center; gap: 8px; margin-top: 8px;
@@ -513,6 +514,52 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
   padding: 3px 10px; border: 1px solid #1a56a0; border-radius: 4px;
 }
 .file-card-actions a:hover { background: #1a56a0; color: #fff; }
+.prescription-issues {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.45;
+}
+.prescription-issues li { margin: 2px 0; }
+.prescription-meta-row { margin-top: 8px; }
+.prescription-source-chip {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.prescription-source-chip.source-te { background: #dbeafe; color: #1e40af; }
+.prescription-source-chip.source-net { background: #e0e7ff; color: #3730a3; }
+.prescription-source-chip.source-unknown { background: #f3f4f6; color: #4b5563; }
+.prescription-block-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  margin: 10px 0 4px;
+}
+.prescription-questions-block,
+.prescription-letter-block {
+  margin-top: 6px;
+}
+.prescription-questions {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.45;
+}
+.prescription-letter-text {
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.5;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+}
 .report-body {
   display: none;
   font-size: 12px;

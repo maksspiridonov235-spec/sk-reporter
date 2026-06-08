@@ -159,6 +159,48 @@ curl http://127.0.0.1:8000/diagnose/reports
 
 ---
 
+## Предписания: доступ к Техэксперт
+
+Проверка предписаний (`/prescriptions`) ищет нормативный документ из ячейки B19 в **Техэксперт** и сверяет его с текстом замечания (B18).
+
+Перед запуском сервера задайте переменные окружения (пароль **не** хранить в репозитории):
+
+| Переменная | Пример | Назначение |
+|------------|--------|------------|
+| `TE_EXPERT_BASE_URL` | `http://248960.te-cloud.ru` | Адрес облачного сервера |
+| `TE_EXPERT_CATALOG` | `/docs` | Виртуальный каталог (по умолчанию `/docs`) |
+| `TE_EXPERT_LOGIN` | *(логин)* | Учётная запись Техэксперт |
+| `TE_EXPERT_PASSWORD` | *(пароль)* | Пароль |
+| `TE_EXPERT_USE_BROWSER` | `0` | `0` — HTTP API (рекомендуется), `1` — запасной Playwright |
+| `TE_EXPERT_INTERNET_FALLBACK` | `1` | `1` — искать НД в интернете, если Техэксперт недоступен; `0` — только Техэксперт |
+
+**Windows (PowerShell, перед bat):**
+
+```powershell
+$env:TE_EXPERT_BASE_URL = "http://248960.te-cloud.ru"
+$env:TE_EXPERT_LOGIN = "ваш_логин"
+$env:TE_EXPERT_PASSWORD = "ваш_пароль"
+```
+
+**macOS / Linux:**
+
+```bash
+export TE_EXPERT_BASE_URL="http://248960.te-cloud.ru"
+export TE_EXPERT_LOGIN="ваш_логин"
+export TE_EXPERT_PASSWORD="ваш_пароль"
+```
+
+Для te-cloud достаточно HTTP API; Playwright нужен только как запасной вариант (`TE_EXPERT_USE_BROWSER=1`):
+
+```bash
+pip install "sk-reporter[browser]"
+playwright install chromium
+```
+
+Если вход в Техэксперт не проходит — проверьте логин/пароль в браузере на том же URL. В отчёте проверки будет предупреждение «нормативка не сверена онлайн».
+
+---
+
 ## Ошибки
 
 | Ошибка | Причина |
