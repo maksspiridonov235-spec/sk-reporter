@@ -58,6 +58,13 @@ function Get-OfficeLocalTrackedFiles() {
     return @($files)
 }
 
+function Clear-OfficeLocalSkipWorktree {
+    $files = Get-OfficeLocalTrackedFiles
+    foreach ($path in $files) {
+        git update-index --no-skip-worktree -- $path 2>$null | Out-Null
+    }
+}
+
 function Enable-OfficeLocalSkipWorktree {
     $files = Get-OfficeLocalTrackedFiles
     if ($files.Count -eq 0) {
@@ -132,6 +139,7 @@ if ($ShowLocal) {
 # Кириллица в git status на Windows
 git config core.quotepath false 2>$null | Out-Null
 
+Clear-OfficeLocalSkipWorktree
 Enable-OfficeLocalSkipWorktree
 
 if ($MarkOnly) {
@@ -153,6 +161,8 @@ if ($branch -ne "main") {
 }
 
 $localFiles = Get-OfficeLocalTrackedFiles
+Clear-OfficeLocalSkipWorktree
+
 $backupDir = Join-Path $env:TEMP ("sk-reporter-pull-{0}" -f (Get-Date -Format "yyyyMMddHHmmss"))
 $backedUp = Backup-OfficeLocalFiles -Files $localFiles -BackupDir $backupDir
 Write-Info "[INFO] Резервная копия локальных data: $backedUp файлов."
