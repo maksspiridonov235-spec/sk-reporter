@@ -1,12 +1,14 @@
 """
 Агент инъекции: берёт оригинальный docx + исправленный текст от check_agent
-и вставляет его в ячейки-заголовки секции СК:
-«Описание действий», «Участок, ПК», «Ссылка».
+и вставляет новую строку под заголовками секции СК
+(«Описание действий», «Участок, ПК», «Ссылка»).
+Текст инженера в существующих строках не трогается.
 """
 
 import re
 import shutil
 import tempfile
+from copy import deepcopy
 from pathlib import Path
 
 from docx import Document
@@ -65,8 +67,46 @@ def _cell_header_label(cell) -> str:
     return text.split("\n")[0].strip() if text else ""
 
 
+def _unique_row_cells(row):
+    seen = set()
+    cells = []
+    for cell in row.cells:
+        tid = id(cell._tc)
+        if tid in seen:
+            continue
+        seen.add(tid)
+        cells.append(cell)
+    return cells
+
+
+def _column_role_indices(header_row) -> dict[str, int]:
+    unique = _unique_row_cells(header_row)
+    roles: dict[str, int] = {"description": 0}
+    for i, cell in enumerate(unique):
+        label = _cell_header_label(cell)
+        if label.startswith("Участок"):
+            roles["location"] = i
+        elif label == "Ссылка":
+            roles["reference"] = i
+    return roles
+
+
+def _find_sk_section_header_row(doc: Document):
+    """Таблица, индекс строки заголовков и индексы колонок description/location/reference."""
+    for ti, table in enumerate(doc.tables):
+        for ri, row in enumerate(table.rows):
+            if row.cells[0].text.strip() != "Описание действий":
+                continue
+            if ri > 0:
+                prev = table.rows[ri - 1].cells[0].text.strip().upper()
+                if "СТРОИТЕЛЬНОГО КОНТРОЛЯ" not in prev:
+                    continue
+            return table, ri, _column_role_indices(row)
+    return None, None, None
+
+
 def _find_sk_section_header_cells(doc: Document):
-    """Ячейки-заголовки строки секции СК: описание, участок, ссылка."""
+    """Ячейки-заголовки строки секции СК (для report_builder и совместимости)."""
     for ti, table in enumerate(doc.tables):
         for ri, row in enumerate(table.rows):
             if row.cells[0].text.strip() != "Описание действий":
@@ -90,6 +130,24 @@ def _find_sk_section_header_cells(doc: Document):
     return None, None
 
 
+def _insert_row_after(table, row_index: int, template_row_index: int):
+    new_tr = deepcopy(table.rows[template_row_index]._tr)
+    table._tbl.insert(row_index + 1, new_tr)
+    return table.rows[row_index + 1]
+
+
+def _cells_for_roles(row, role_indices: dict[str, int]) -> dict:
+    unique = _unique_row_cells(row)
+    cells = {"description": unique[role_indices["description"]]}
+    loc_i = role_indices.get("location")
+    if loc_i is not None and loc_i < len(unique):
+        cells["location"] = unique[loc_i]
+    ref_i = role_indices.get("reference")
+    if ref_i is not None and ref_i < len(unique):
+        cells["reference"] = unique[ref_i]
+    return cells
+
+
 def _write_lines_to_cell(cell, lines: list):
     """Заменяет содержимое ячейки, сохраняя первый параграф-заголовок."""
     if not lines:
@@ -97,6 +155,18 @@ def _write_lines_to_cell(cell, lines: list):
     tc = cell._tc
     paras = tc.findall(qn("w:p"))
     for p in paras[1:]:
+        tc.remove(p)
+    for line in lines:
+        if line.strip():
+            cell.add_paragraph(line)
+
+
+def _write_lines_to_cell_data(cell, lines: list):
+    """Полностью заменяет содержимое ячейки данными (без сохранения заголовка)."""
+    if not lines:
+        return
+    tc = cell._tc
+    for p in tc.findall(qn("w:p")):
         tc.remove(p)
     for line in lines:
         if line.strip():
@@ -121,29 +191,36 @@ def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -
             shutil.copy2(filepath, tmp_path)
 
             doc = Document(str(tmp_path))
-            header_cells, coords = _find_sk_section_header_cells(doc)
-            if not header_cells or "description" not in header_cells:
+            table, header_ri, role_indices = _find_sk_section_header_row(doc)
+            if table is None or header_ri is None:
                 return {
                     "ok": False,
                     "error": "Не найдена строка заголовков секции СК в документе",
                     "docx_path": None,
                 }
 
-            print(f"[INJECT_AGENT] Found SK header row at {coords}")
+            template_ri = header_ri + 1 if header_ri + 1 < len(table.rows) else header_ri
+            new_row = _insert_row_after(table, header_ri, template_ri)
+            data_cells = _cells_for_roles(new_row, role_indices)
+            print(
+                f"[INJECT_AGENT] Inserted data row after header at table={id(table._tbl)}, "
+                f"header_ri={header_ri}, template_ri={template_ri}"
+            )
+
             desc_lines = list(part1_lines)
             if part2_lines:
                 if desc_lines:
                     desc_lines.append("")
                 desc_lines.extend(part2_lines)
-            _write_lines_to_cell(header_cells["description"], desc_lines)
-            print("[INJECT_AGENT] Wrote parts 1+2 to 'Описание действий' cell")
+            _write_lines_to_cell_data(data_cells["description"], desc_lines)
+            print("[INJECT_AGENT] Wrote parts 1+2 to new row, 'Описание действий' column")
 
-            if part3_lines and "location" in header_cells:
-                _write_lines_to_cell(header_cells["location"], part3_lines)
-                print("[INJECT_AGENT] Wrote part 3 to 'Участок, ПК' cell")
-            if part4_lines and "reference" in header_cells:
-                _write_lines_to_cell(header_cells["reference"], part4_lines)
-                print("[INJECT_AGENT] Wrote part 4 to 'Ссылка' cell")
+            if part3_lines and "location" in data_cells:
+                _write_lines_to_cell_data(data_cells["location"], part3_lines)
+                print("[INJECT_AGENT] Wrote part 3 to new row, 'Участок, ПК' column")
+            if part4_lines and "reference" in data_cells:
+                _write_lines_to_cell_data(data_cells["reference"], part4_lines)
+                print("[INJECT_AGENT] Wrote part 4 to new row, 'Ссылка' column")
 
             dest = Path(filepath).resolve()
             doc.save(str(dest))
