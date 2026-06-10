@@ -1,7 +1,8 @@
 """
 Агент инъекции: берёт оригинальный docx + исправленный текст от check_agent
-и вставляет новую строку под заголовками секции СК
-(«Описание действий», «Участок, ПК», «Ссылка»).
+и вставляет две строки под заголовками секции СК
+(«Описание действий», «Участок, ПК», «Ссылка»):
+первая — ЧАСТЬ 1 + 3 + 4, вторая — ЧАСТЬ 2.
 Текст инженера в существующих строках не трогается.
 """
 
@@ -141,6 +142,10 @@ def _find_sk_section_header_cells(doc: Document):
     return None, None
 
 
+def _tr_index(table, tr) -> int:
+    return _table_trs(table).index(tr)
+
+
 def _insert_row_after(table, row_index: int, template_row_index: int) -> _Row:
     """Вставляет копию template_row сразу после row_index (через addnext, не tbl.insert)."""
     trs = _table_trs(table)
@@ -176,8 +181,6 @@ def _write_lines_to_cell(cell, lines: list):
 
 def _write_lines_to_cell_data(cell, lines: list):
     """Полностью заменяет содержимое ячейки данными (без сохранения заголовка)."""
-    if not lines:
-        return
     tc = cell._tc
     for p in tc.findall(qn("w:p")):
         tc.remove(p)
@@ -215,8 +218,7 @@ def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -
             trs = _table_trs(table)
             template_ri = header_ri + 1 if header_ri + 1 < len(trs) else header_ri
             header_label_before = _row_at(table, header_ri).cells[0].text.strip()
-            new_row = _insert_row_after(table, header_ri, template_ri)
-            data_cells = _cells_for_roles(new_row, role_indices)
+            row_part1 = _insert_row_after(table, header_ri, template_ri)
             header_label_after = _row_at(table, header_ri).cells[0].text.strip()
             if header_label_before != header_label_after:
                 return {
@@ -225,24 +227,35 @@ def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -
                     "docx_path": None,
                 }
             print(
-                f"[INJECT_AGENT] Inserted data row after header tr[{header_ri}], "
+                f"[INJECT_AGENT] Inserted row 1 (parts 1,3,4) after header tr[{header_ri}], "
                 f"template tr[{template_ri}], header preserved={header_label_after!r}"
             )
 
-            desc_lines = list(part1_lines)
-            if part2_lines:
-                if desc_lines:
-                    desc_lines.append("")
-                desc_lines.extend(part2_lines)
-            _write_lines_to_cell_data(data_cells["description"], desc_lines)
-            print("[INJECT_AGENT] Wrote parts 1+2 to new row, 'Описание действий' column")
+            cells1 = _cells_for_roles(row_part1, role_indices)
+            _write_lines_to_cell_data(cells1["description"], part1_lines)
+            print("[INJECT_AGENT] Wrote part 1 to row 1, 'Описание действий' column")
 
-            if part3_lines and "location" in data_cells:
-                _write_lines_to_cell_data(data_cells["location"], part3_lines)
-                print("[INJECT_AGENT] Wrote part 3 to new row, 'Участок, ПК' column")
-            if part4_lines and "reference" in data_cells:
-                _write_lines_to_cell_data(data_cells["reference"], part4_lines)
-                print("[INJECT_AGENT] Wrote part 4 to new row, 'Ссылка' column")
+            if part3_lines and "location" in cells1:
+                _write_lines_to_cell_data(cells1["location"], part3_lines)
+                print("[INJECT_AGENT] Wrote part 3 to row 1, 'Участок, ПК' column")
+            if part4_lines and "reference" in cells1:
+                _write_lines_to_cell_data(cells1["reference"], part4_lines)
+                print("[INJECT_AGENT] Wrote part 4 to row 1, 'Ссылка' column")
+
+            if part2_lines:
+                row1_ri = _tr_index(table, row_part1._tr)
+                template_after_row1 = template_ri + 1
+                row_part2 = _insert_row_after(table, row1_ri, template_after_row1)
+                cells2 = _cells_for_roles(row_part2, role_indices)
+                _write_lines_to_cell_data(cells2["description"], part2_lines)
+                if "location" in cells2:
+                    _write_lines_to_cell_data(cells2["location"], [])
+                if "reference" in cells2:
+                    _write_lines_to_cell_data(cells2["reference"], [])
+                print(
+                    f"[INJECT_AGENT] Inserted row 2 (part 2) after tr[{row1_ri}], "
+                    "wrote to 'Описание действий' column"
+                )
 
             dest = Path(filepath).resolve()
             doc.save(str(dest))
