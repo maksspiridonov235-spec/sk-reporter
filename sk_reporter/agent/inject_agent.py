@@ -13,6 +13,7 @@ from pathlib import Path
 
 from docx import Document
 from docx.oxml.ns import qn
+from docx.table import _Row
 
 MODEL = "gemma4:31b-cloud"
 
@@ -79,6 +80,14 @@ def _unique_row_cells(row):
     return cells
 
 
+def _table_trs(table) -> list:
+    return table._tbl.findall(qn("w:tr"))
+
+
+def _row_at(table, tr_index: int) -> _Row:
+    return _Row(_table_trs(table)[tr_index], table)
+
+
 def _column_role_indices(header_row) -> dict[str, int]:
     unique = _unique_row_cells(header_row)
     roles: dict[str, int] = {"description": 0}
@@ -92,13 +101,15 @@ def _column_role_indices(header_row) -> dict[str, int]:
 
 
 def _find_sk_section_header_row(doc: Document):
-    """Таблица, индекс строки заголовков и индексы колонок description/location/reference."""
-    for ti, table in enumerate(doc.tables):
-        for ri, row in enumerate(table.rows):
+    """Таблица, индекс <w:tr> заголовков и индексы колонок description/location/reference."""
+    for table in doc.tables:
+        trs = _table_trs(table)
+        for ri, tr in enumerate(trs):
+            row = _Row(tr, table)
             if row.cells[0].text.strip() != "Описание действий":
                 continue
             if ri > 0:
-                prev = table.rows[ri - 1].cells[0].text.strip().upper()
+                prev = _Row(trs[ri - 1], table).cells[0].text.strip().upper()
                 if "СТРОИТЕЛЬНОГО КОНТРОЛЯ" not in prev:
                     continue
             return table, ri, _column_role_indices(row)
@@ -130,10 +141,12 @@ def _find_sk_section_header_cells(doc: Document):
     return None, None
 
 
-def _insert_row_after(table, row_index: int, template_row_index: int):
-    new_tr = deepcopy(table.rows[template_row_index]._tr)
-    table._tbl.insert(row_index + 1, new_tr)
-    return table.rows[row_index + 1]
+def _insert_row_after(table, row_index: int, template_row_index: int) -> _Row:
+    """Вставляет копию template_row сразу после row_index (через addnext, не tbl.insert)."""
+    trs = _table_trs(table)
+    new_tr = deepcopy(trs[template_row_index])
+    trs[row_index].addnext(new_tr)
+    return _Row(new_tr, table)
 
 
 def _cells_for_roles(row, role_indices: dict[str, int]) -> dict:
@@ -199,12 +212,21 @@ def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -
                     "docx_path": None,
                 }
 
-            template_ri = header_ri + 1 if header_ri + 1 < len(table.rows) else header_ri
+            trs = _table_trs(table)
+            template_ri = header_ri + 1 if header_ri + 1 < len(trs) else header_ri
+            header_label_before = _row_at(table, header_ri).cells[0].text.strip()
             new_row = _insert_row_after(table, header_ri, template_ri)
             data_cells = _cells_for_roles(new_row, role_indices)
+            header_label_after = _row_at(table, header_ri).cells[0].text.strip()
+            if header_label_before != header_label_after:
+                return {
+                    "ok": False,
+                    "error": "Строка заголовков изменилась при вставке — операция отменена",
+                    "docx_path": None,
+                }
             print(
-                f"[INJECT_AGENT] Inserted data row after header at table={id(table._tbl)}, "
-                f"header_ri={header_ri}, template_ri={template_ri}"
+                f"[INJECT_AGENT] Inserted data row after header tr[{header_ri}], "
+                f"template tr[{template_ri}], header preserved={header_label_after!r}"
             )
 
             desc_lines = list(part1_lines)
