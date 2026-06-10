@@ -746,35 +746,64 @@ async function runBolvankaDateUpdate(dateVal) {
   }
 }
 
-async function prepareReports() {
+const PREPARE_BTN_LABEL = 'Проверить и сформировать';
+
+function setPrepareBusy(busy, label) {
   const btn = document.getElementById('btnPrepare');
-  if (!btn) return;
-  const btnLabel = 'Проверить и сформировать';
-  let dateVal;
-  try {
-    dateVal = getMacroReportDate();
-  } catch (e) {
-    alert(e.message);
-    return;
-  }
-  const leader = getSelectedLeader();
-  btn.disabled = true;
-  btn.textContent = 'Проверяю...';
-  await runCheck();
-  btn.textContent = 'Подготавливаю...';
-  const leaderResult = await switchLeader(leader);
-  if (leaderResult.total === 0) {
-    alert('Нет загруженных отчётов (.docx). Сначала загрузите файлы.');
-    btn.disabled = false;
-    btn.textContent = btnLabel;
-    return;
-  }
-  if (leaderResult.okCount === 0) {
-    alert('Не удалось сменить руководителя ни в одном файле. Подготовка отменена.');
-    btn.disabled = false;
-    btn.textContent = btnLabel;
-    return;
-  }
+  const labelEl = document.getElementById('btnPrepareLabel');
+  const dropdown = document.getElementById('prepareDropdown');
+  if (btn) btn.disabled = !!busy;
+  if (labelEl) labelEl.textContent = label || PREPARE_BTN_LABEL;
+  if (dropdown) dropdown.classList.toggle('is-busy', !!busy);
+  if (busy) closePrepareDropdown();
+}
+
+function openPrepareDropdown() {
+  const dropdown = document.getElementById('prepareDropdown');
+  const btn = document.getElementById('btnPrepare');
+  if (!dropdown || !btn || btn.disabled) return;
+  dropdown.classList.add('is-open');
+  btn.setAttribute('aria-expanded', 'true');
+}
+
+function closePrepareDropdown() {
+  const dropdown = document.getElementById('prepareDropdown');
+  const btn = document.getElementById('btnPrepare');
+  if (!dropdown) return;
+  dropdown.classList.remove('is-open');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+function initPrepareDropdown() {
+  const dropdown = document.getElementById('prepareDropdown');
+  const menu = document.getElementById('prepareDropdownMenu');
+  const btn = document.getElementById('btnPrepare');
+  if (!dropdown || !menu || !btn) return;
+
+  dropdown.classList.add('is-open');
+  btn.setAttribute('aria-expanded', 'true');
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (btn.disabled) return;
+    dropdown.classList.toggle('is-open');
+    btn.setAttribute('aria-expanded', dropdown.classList.contains('is-open') ? 'true' : 'false');
+  });
+
+  menu.querySelectorAll('[data-action]').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const action = item.getAttribute('data-action');
+      if (action) runPrepareAction(action);
+    });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closePrepareDropdown();
+  });
+}
+
+async function runMacroPrepare(dateVal) {
   const { card, statusId, progressId } = createOpCard('Подготовка отчётов');
   setCardProgress(statusId, progressId, 0, 0, 'Правки внутри загруженных файлов…');
   try {
@@ -799,10 +828,73 @@ async function prepareReports() {
       { icon: '✗', name: e.message, wrap: true, badge: 'Ошибка', badgeClass: 'db-err' },
     ], null, { expandDetails: true });
   }
+}
+
+async function runPrepareAction(action) {
+  const btn = document.getElementById('btnPrepare');
+  if (!btn || btn.disabled) return;
+  closePrepareDropdown();
+
+  if (action === 'full') {
+    await prepareReports();
+    return;
+  }
+
+  setPrepareBusy(true, 'Выполняю…');
+  try {
+    if (action === 'check') {
+      await runCheck();
+    } else if (action === 'leader') {
+      await switchLeader(getSelectedLeader());
+    } else if (action === 'prepare') {
+      const dateVal = getMacroReportDate();
+      await runMacroPrepare(dateVal);
+    } else if (action === 'templates') {
+      const dateVal = getMacroReportDate();
+      await runBolvankaDateUpdate(dateVal);
+    } else if (action === 'merge') {
+      await mergeAll();
+    } else if (action === 'rename') {
+      const dateVal = getMacroReportDate();
+      await runRenameResults(dateVal);
+      refreshResults();
+    }
+  } catch (e) {
+    alert(e.message);
+  } finally {
+    setPrepareBusy(false);
+  }
+}
+
+async function prepareReports() {
+  const btn = document.getElementById('btnPrepare');
+  if (!btn) return;
+  let dateVal;
+  try {
+    dateVal = getMacroReportDate();
+  } catch (e) {
+    alert(e.message);
+    return;
+  }
+  const leader = getSelectedLeader();
+  setPrepareBusy(true, 'Проверяю...');
+  await runCheck();
+  setPrepareBusy(true, 'Подготавливаю...');
+  const leaderResult = await switchLeader(leader);
+  if (leaderResult.total === 0) {
+    alert('Нет загруженных отчётов (.docx). Сначала загрузите файлы.');
+    setPrepareBusy(false);
+    return;
+  }
+  if (leaderResult.okCount === 0) {
+    alert('Не удалось сменить руководителя ни в одном файле. Подготовка отменена.');
+    setPrepareBusy(false);
+    return;
+  }
+  await runMacroPrepare(dateVal);
   await runBolvankaDateUpdate(dateVal);
   await mergeAll(dateVal);
-  btn.disabled = false;
-  btn.textContent = btnLabel;
+  setPrepareBusy(false);
 }
 
 async function runRenameResults(dateVal) {
@@ -1031,11 +1123,13 @@ async function seedUploadedReportsCard() {
   } catch (_) {}
 }
 
+initPrepareDropdown();
 seedUploadedReportsCard();
 refreshResults();
 // Global handlers for inline onclick attributes
 window.uploadReports = uploadReports;
 window.prepareReports = prepareReports;
+window.runPrepareAction = runPrepareAction;
 window.mergeAll = mergeAll;
 window.downloadAll = downloadAll;
 window.clearReports = clearReports;

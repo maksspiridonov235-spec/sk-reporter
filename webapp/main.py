@@ -48,6 +48,14 @@ _PLANNING_SECTIONS = {
 }
 
 
+def _asset_ver(static_name: str) -> str:
+    try:
+        mtime = int((_WEBAPP_DIR / "static" / static_name).stat().st_mtime)
+        return f"{_read_git_head()}-{mtime}"
+    except OSError:
+        return _read_git_head()
+
+
 def _read_git_head() -> str:
     try:
         return subprocess.check_output(
@@ -155,6 +163,7 @@ def _page_context(request: Request, breadcrumbs: list[dict] | None = None, **ext
         "request": request,
         "agent_enabled": AGENT_ENABLED,
         "git_head": _git_head,
+        "asset_ver": _asset_ver,
         "breadcrumbs": breadcrumbs or [],
     }
     ctx.update(extra)
