@@ -38,7 +38,7 @@ except ImportError as e:
 
 _WEBAPP_DIR = Path(__file__).resolve().parent
 _HTML_TEMPLATES_DIR = _WEBAPP_DIR / "templates"
-_APP_UI_BUILD = "home+reporting+daily+prescriptions+planning+planning-sections+luvr+engineer-hub+engineer"
+_APP_UI_BUILD = "home+reporting+daily+weekly+weekly-photos+prescriptions+planning+planning-sections+luvr+engineer-hub+engineer"
 
 _PLANNING_SECTIONS = {
     "projects": "Проекты",
@@ -89,7 +89,7 @@ if not TEMPLATES_DIR.exists():
     raise RuntimeError(f"Папка с болванками не найдена: {TEMPLATES_DIR}")
 print(f"[INFO] Templates dir: {TEMPLATES_DIR} ({len(list(TEMPLATES_DIR.glob('*.docx')))} шаблонов)")
 
-for _tpl in ("home.html", "reporting.html", "daily.html", "prescriptions.html", "planning.html", "planning_section.html", "luvr.html", "engineer_hub.html", "engineer.html"):
+for _tpl in ("home.html", "reporting.html", "daily.html", "weekly.html", "weekly_photos.html", "prescriptions.html", "planning.html", "planning_section.html", "luvr.html", "engineer_hub.html", "engineer.html"):
     _tpl_path = _HTML_TEMPLATES_DIR / _tpl
     if not _tpl_path.is_file():
         raise RuntimeError(f"HTML-шаблон не найден: {_tpl_path} — выполните git pull и перезапустите сервер")
@@ -238,6 +238,36 @@ async def daily_reports(request: Request):
             breadcrumbs=[
                 {"label": "Отчётность", "href": "/reporting"},
                 {"label": "Ежедневные отчёты"},
+            ],
+        ),
+    )
+
+
+@app.get("/weekly", response_class=HTMLResponse)
+async def weekly_reports(request: Request):
+    print(f"[REQ] GET /weekly pid={os.getpid()} -> weekly.html")
+    return templates.TemplateResponse(
+        "weekly.html",
+        _page_context(
+            request,
+            breadcrumbs=[
+                {"label": "Отчётность", "href": "/reporting"},
+                {"label": "Еженедельные отчёты"},
+            ],
+        ),
+    )
+
+
+@app.get("/weekly-photos", response_class=HTMLResponse)
+async def weekly_photos_reports(request: Request):
+    print(f"[REQ] GET /weekly-photos pid={os.getpid()} -> weekly_photos.html")
+    return templates.TemplateResponse(
+        "weekly_photos.html",
+        _page_context(
+            request,
+            breadcrumbs=[
+                {"label": "Отчётность", "href": "/reporting"},
+                {"label": "Еженедельные фотоотчёты"},
             ],
         ),
     )
