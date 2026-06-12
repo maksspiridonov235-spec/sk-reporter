@@ -12,6 +12,15 @@ if not exist "%REPO_ROOT%\venv\Scripts\activate.bat" (
 
 call "%REPO_ROOT%\venv\Scripts\activate.bat"
 
+REM Техэксперт: data\local\te_expert.env (скопировать с te_expert.env.example)
+set "TE_ENV=%REPO_ROOT%\data\local\te_expert.env"
+if exist "%TE_ENV%" (
+  echo [INFO] Загрузка TE_EXPERT из data\local\te_expert.env
+  for /f "usebackq eol=# tokens=1,* delims==" %%a in ("%TE_ENV%") do (
+    if not "%%a"=="" set "%%a=%%b"
+  )
+)
+
 REM Корпоративный прокси/SSL: set SK_REPORTER_PIP_TRUSTED=1 перед запуском bat
 set "PIP_EXTRA="
 if "%SK_REPORTER_PIP_TRUSTED%"=="1" (

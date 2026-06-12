@@ -39,3 +39,6 @@ data/luvr/generated/
 !data/luvr/luvr.yaml
 !data/luvr/manifest.yaml
 !data/luvr/README.md
+
+# Локальные секреты (офис / dev)
+data/local/te_expert.env

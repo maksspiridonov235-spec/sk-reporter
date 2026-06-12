@@ -15,12 +15,15 @@ import json
 import os
 import sys
 
+from sk_reporter.prescriptions.te_env import load_te_expert_env, te_expert_config_status
 from sk_reporter.prescriptions.techexpert_client import (
     TechExpertClient,
     _build_search_queries,
     lookup_normative,
     parse_normative_reference,
 )
+
+load_te_expert_env()
 
 SAMPLE = (
     "Приказ Ростехнадзора от 11.12.2020 N 519 "
@@ -35,8 +38,13 @@ def main() -> int:
     print("parsed:", json.dumps(ref.__dict__, ensure_ascii=False, indent=2))
     print("queries:", _build_search_queries(ref))
 
+    cfg = te_expert_config_status()
+    print("config:", json.dumps(cfg, ensure_ascii=False, indent=2))
     if not os.environ.get("TE_EXPERT_LOGIN") or not os.environ.get("TE_EXPERT_PASSWORD"):
-        print("\nОШИБКА: задайте TE_EXPERT_LOGIN и TE_EXPERT_PASSWORD")
+        print(
+            "\nОШИБКА: задайте TE_EXPERT_LOGIN и TE_EXPERT_PASSWORD "
+            "или создайте data/local/te_expert.env"
+        )
         return 1
 
     client = TechExpertClient()

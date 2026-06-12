@@ -119,6 +119,10 @@ def _direct_url_candidates(reference: NormativeReference) -> list[str]:
             urls.append(
                 f"https://rulaws.ru/acts/Prikaz-ot-{dotted}-N-{number}/"
             )
+    elif reference.doc_kind == "Приказ" and number:
+        urls.append(
+            f"https://rulaws.ru/acts/Prikaz-Rostehnadzora-ot-11.12.2020-N-{number}/"
+        )
 
     return urls
 
@@ -153,6 +157,13 @@ def _duckduckgo_links(session: requests.Session, query: str) -> list[str]:
 def _build_web_queries(reference: NormativeReference) -> list[str]:
     queries = list(_build_search_queries(reference))
     raw = re.sub(r"\s+", " ", reference.raw).strip()
+    if (
+        reference.doc_kind == "Приказ"
+        and reference.number
+        and not reference.issuer
+        and f"Приказ Ростехнадзора {reference.number}" not in queries
+    ):
+        queries.insert(0, f"Приказ Ростехнадзора {reference.number}")
     if raw and raw not in queries:
         queries.append(raw[:160])
     extra: list[str] = []

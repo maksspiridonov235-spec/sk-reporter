@@ -26,7 +26,17 @@ from sk_reporter.docx_processing import (
     rename_templates,
 )
 from sk_reporter.paths import templates_dir
+from sk_reporter.prescriptions.te_env import load_te_expert_env, te_expert_config_status
 from sk_reporter.template_layout import hardcoded_layout
+
+load_te_expert_env()
+_te_cfg = te_expert_config_status()
+print(
+    "[INFO] TechExpert: "
+    f"login={'yes' if _te_cfg['login_set'] else 'no'}, "
+    f"env_file={'yes' if _te_cfg['env_file_exists'] else 'no'}, "
+    f"internet_fallback={_te_cfg['internet_fallback']}"
+)
 
 try:
     from sk_reporter.agent.ocr_agent import detect_company, merge_report_into_template

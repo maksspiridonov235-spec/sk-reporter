@@ -27,6 +27,10 @@ from urllib.parse import urljoin, urlparse
 
 import requests
 
+from sk_reporter.prescriptions.te_env import load_te_expert_env
+
+load_te_expert_env()
+
 _DEFAULT_BASE = "http://248960.te-cloud.ru"
 _DEFAULT_CATALOG = "/docs"
 _MAX_EXCERPT = 12_000
@@ -227,6 +231,9 @@ def _build_search_queries(reference: NormativeReference) -> list[str]:
         queries.append(f"{issuer} {number}")
         if kind:
             queries.append(f"{kind.lower()} {number} {issuer}")
+    elif kind == "приказ" and number:
+        queries.append(f"Ростехнадзор {number}")
+        queries.append(f"приказ Ростехнадзора {number}")
     if number:
         queries.append(number)
     if not queries and reference.raw:
@@ -315,6 +322,14 @@ def parse_normative_reference(text: str) -> NormativeReference:
         flags=re.IGNORECASE,
     )
     number = number_m.group(1).rstrip(".,;") if number_m else ""
+    if not number and re.search(r"\bприказ\b", raw, flags=re.IGNORECASE):
+        plain_num = re.search(
+            r"\bприказ\b[^0-9\n]{0,40}(\d{1,5})\b",
+            raw,
+            flags=re.IGNORECASE,
+        )
+        if plain_num:
+            number = plain_num.group(1)
 
     date_m = re.search(
         r"(\d{1,2}[./]\d{1,2}[./]\d{2,4}|\d{1,2}\s+[а-яА-Я]+\s+\d{4})",
@@ -1154,6 +1169,12 @@ class TechExpertClient:
         if result.ok:
             return result
 
+        if self._missing_credentials_error():
+            return result
+
+        if not self.use_browser:
+            return result
+
         # Запасной канал: строка поиска на главной → ссылка → документ в center
         ui_result = self._search_browser(reference)
         return ui_result if ui_result.ok else result
@@ -1171,6 +1192,10 @@ def lookup_normative(normative_text: str) -> dict[str, Any]:
         )
 
         if internet_fallback_enabled():
+            print(
+                f"[TECHEXPERT] internet fallback after TE error: "
+                f"{(te_error or '')[:160]}"
+            )
             web = lookup_normative_web(normative_text)
             if web.ok:
                 out = _normative_result_to_dict(web)
