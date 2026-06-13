@@ -144,11 +144,25 @@ function buildPrescriptionTextBlock(title, text) {
     + `</div>`;
 }
 
+function buildPrescriptionCompareBlocks(label, engineerText, agentText, finalText) {
+  const engineer = (engineerText || '').trim();
+  const agent = (agentText || '').trim();
+  const final = (finalText || '').trim();
+  if (!engineer && !agent && !final) return '';
+  let html = buildPrescriptionTextBlock(`${label} — исходник инженера`, engineer)
+    + buildPrescriptionTextBlock(`${label} — переработка агента`, agent || '(без переработки)');
+  if (final && final !== agent && final !== engineer) {
+    html += buildPrescriptionTextBlock(`${label} — записано в файл`, final);
+  }
+  return html;
+}
+
 function buildPrescriptionFileCard(filename, meta) {
   const {
     hasErrors, hasWarnings, reportText, downloadUrl,
     normativeSource, questions, draftLetter, issues,
     engineerContent, agentContent, finalContent,
+    engineerNormative, agentNormative, finalNormative,
   } = meta;
   const bodyId = 'rb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
   const badgeHtml = hasErrors
@@ -191,14 +205,8 @@ function buildPrescriptionFileCard(filename, meta) {
     ? `<ul class="prescription-issues">${warnLines.map(l => `<li>${escHtml(l)}</li>`).join('')}</ul>`
     : '';
 
-  let b18Html = '';
-  if (engineerContent || agentContent) {
-    b18Html = buildPrescriptionTextBlock('B18 — исходник инженера', engineerContent)
-      + buildPrescriptionTextBlock('B18 — переработка агента', agentContent || '(без переработки)');
-    if (finalContent && finalContent !== agentContent && finalContent !== engineerContent) {
-      b18Html += buildPrescriptionTextBlock('B18 — записано в файл', finalContent);
-    }
-  }
+  let b18Html = buildPrescriptionCompareBlocks('B18', engineerContent, agentContent, finalContent);
+  let b19Html = buildPrescriptionCompareBlocks('B19', engineerNormative, agentNormative, finalNormative);
 
   const bodyHtml = reportText
     ? `<div class="report-body" id="${bodyId}">${escHtml(reportText)}</div>`
@@ -219,6 +227,7 @@ function buildPrescriptionFileCard(filename, meta) {
     </div>
     ${sourceHtml}
     ${b18Html}
+    ${b19Html}
     ${questionsHtml}
     ${letterHtml}
     ${issuesHtml}
@@ -382,6 +391,9 @@ async function checkPrescriptions() {
             engineerContent: fields.content || '',
             agentContent: modelCorrected.content || '',
             finalContent: corrected.content || '',
+            engineerNormative: fields.normative || '',
+            agentNormative: modelCorrected.normative || '',
+            finalNormative: corrected.normative || '',
           })
         );
         if (ev.download) addCheckedFile(ev.filename, ev.download);

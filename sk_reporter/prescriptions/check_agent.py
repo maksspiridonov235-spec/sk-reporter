@@ -563,24 +563,53 @@ def _report_has_issues(report_text: str) -> bool:
     return "⚠" in block
 
 
-def _log_b18_texts(
+def _log_prescription_fields(
     filename: str,
     fields: dict[str, str],
     model_corrected: dict[str, str],
     final_corrected: dict[str, str],
 ) -> None:
-    """Пишет в консоль сервера исходник B18 и переработку агента."""
-    engineer = (fields.get("content") or "").strip() or "(пусто)"
-    agent = (model_corrected.get("content") or "").strip() or "(без переработки)"
-    final = (final_corrected.get("content") or "").strip() or "(пусто)"
+    """Пишет в консоль исходник инженера и переработку агента для B18 и B19."""
+    pairs = (
+        ("B18", "content", "замечание"),
+        ("B19", "normative", "нормативка"),
+    )
+    for label, key, title in pairs:
+        engineer = (fields.get(key) or "").strip()
+        agent = (model_corrected.get(key) or "").strip()
+        final = (final_corrected.get(key) or "").strip()
+        if not engineer and not agent and not final:
+            continue
+        print(f"[PRESCRIPTION_CHECK] --- {filename} {label} инженер ({title}) ---")
+        print(engineer or "(пусто)")
+        print(f"[PRESCRIPTION_CHECK] --- {filename} {label} агент ({title}) ---")
+        print(agent or "(без переработки)")
+        if final and final != agent and final != engineer:
+            print(f"[PRESCRIPTION_CHECK] --- {filename} {label} в файл ({title}) ---")
+            print(final)
 
-    print(f"[PRESCRIPTION_CHECK] --- {filename} B18 инженер ---")
-    print(engineer)
-    print(f"[PRESCRIPTION_CHECK] --- {filename} B18 агент ---")
-    print(agent)
-    if final != agent and final != engineer:
-        print(f"[PRESCRIPTION_CHECK] --- {filename} B18 в файл ---")
-        print(final)
+
+def _field_compare_lines(
+    field_label: str,
+    orig: str,
+    agent: str,
+    final: str,
+) -> list[str] | None:
+    orig = (orig or "").strip()
+    agent = (agent or "").strip()
+    final = (final or "").strip()
+    if not orig and not agent and not final:
+        return None
+    lines = [
+        f"### Исходник инженера ({field_label})",
+        orig or "(пусто)",
+        "",
+        f"### Переработка агента ({field_label})",
+        agent or "(без переработки)",
+    ]
+    if final and final not in {orig, agent}:
+        lines.extend(["", f"### Записано в файл ({field_label})", final])
+    return lines
 
 
 def _build_review_display(
@@ -622,23 +651,16 @@ def _build_review_display(
     orig_content = (fields.get("content") or "").strip()
     agent_content = (model_corrected.get("content") or "").strip()
     final_content = (final_corrected.get("content") or "").strip()
-    if orig_content or agent_content:
-        b18_lines = [
-            "### Исходник инженера (B18)",
-            orig_content or "(пусто)",
-            "",
-            "### Переработка агента (B18)",
-            agent_content or "(без переработки)",
-        ]
-        if final_content and final_content not in {orig_content, agent_content}:
-            b18_lines.extend(
-                [
-                    "",
-                    "### Записано в файл (B18)",
-                    final_content,
-                ]
-            )
+    b18_lines = _field_compare_lines("B18", orig_content, agent_content, final_content)
+    if b18_lines:
         parts.append("## СОДЕРЖАНИЕ ЗАМЕЧАНИЯ (B18)\n" + "\n".join(b18_lines))
+
+    orig_norm = (fields.get("normative") or "").strip()
+    agent_norm = (model_corrected.get("normative") or "").strip()
+    final_norm = (final_corrected.get("normative") or "").strip()
+    b19_lines = _field_compare_lines("B19", orig_norm, agent_norm, final_norm)
+    if b19_lines:
+        parts.append("## НОРМАТИВНЫЙ ДОКУМЕНТ (B19)\n" + "\n".join(b19_lines))
 
     resume = _extract_report_section(report_text, "РЕЗЮМЕ ПРОВЕРКИ")
     changes = _extract_report_section(report_text, "ОТЧЁТ О ПРАВКАХ")
@@ -980,7 +1002,7 @@ def check_prescription(filepath: str | Path) -> dict:
         f"(te={'ok' if normative_lookup.get('ok') else 'fail'}, "
         f"issues={len(issues)})"
     )
-    _log_b18_texts(filename, fields, model_corrected, corrected)
+    _log_prescription_fields(filename, fields, model_corrected, corrected)
     return result
 
 
