@@ -49,6 +49,11 @@ if not _te_cfg["env_file_exists"]:
             "[WARN] TechExpert: логин/пароль найдены только в te_expert.env.example. "
             "Скопируйте файл: te_expert.env.example -> te_expert.env"
         )
+elif _te_cfg.get("env_bootstrapped_from_example"):
+    print(
+        "[INFO] TechExpert: создан data/local/te_expert.env "
+        "из te_expert.env.example"
+    )
 elif not _te_cfg.get("configured"):
     print(
         "[WARN] TechExpert: в data/local/te_expert.env задайте "

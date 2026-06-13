@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 
 from sk_reporter.paths import repo_root
@@ -93,6 +94,18 @@ def parse_te_expert_env_file(path: Path | None = None) -> dict[str, str]:
     return _read_env_file(path or _ENV_PATH)
 
 
+def bootstrap_te_expert_env_from_example() -> bool:
+    """Если правили только .example — один раз копируем его в te_expert.env."""
+    if _ENV_PATH.is_file() or not _EXAMPLE_PATH.is_file():
+        return False
+    example_values = _read_env_file(_EXAMPLE_PATH)
+    if not example_values.get("TE_EXPERT_LOGIN") or not example_values.get("TE_EXPERT_PASSWORD"):
+        return False
+    _ENV_PATH.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(_EXAMPLE_PATH, _ENV_PATH)
+    return True
+
+
 def load_te_expert_env(force: bool = False) -> bool:
     """Подставляет TE_EXPERT_* из data/local/te_expert.env (файл важнее env)."""
     if not _ENV_PATH.is_file():
@@ -108,6 +121,7 @@ def load_te_expert_env(force: bool = False) -> bool:
 
 
 def te_expert_config_status() -> dict[str, object]:
+    bootstrapped = bootstrap_te_expert_env_from_example()
     file_values = parse_te_expert_env_file()
     load_te_expert_env()
 
@@ -128,6 +142,7 @@ def te_expert_config_status() -> dict[str, object]:
     return {
         "env_file": str(_ENV_PATH),
         "env_file_exists": _ENV_PATH.is_file(),
+        "env_bootstrapped_from_example": bootstrapped,
         "example_file": str(_EXAMPLE_PATH),
         "example_file_exists": example_exists,
         "edited_example_only": edited_example_only,
