@@ -690,10 +690,19 @@ class TechExpertClient:
 
     def _missing_credentials_error(self) -> str:
         if not self.login or not self.password:
-            return (
-                "Не заданы TE_EXPERT_LOGIN и TE_EXPERT_PASSWORD "
-                "(учётные данные Техэксперт)"
+            from sk_reporter.prescriptions.te_env import te_expert_env_path
+
+            env_path = te_expert_env_path()
+            hint = (
+                f"Создайте {env_path} (скопируйте te_expert.env.example) "
+                "и укажите TE_EXPERT_LOGIN / TE_EXPERT_PASSWORD"
             )
+            if env_path.is_file():
+                hint = (
+                    f"Проверьте TE_EXPERT_LOGIN и TE_EXPERT_PASSWORD в {env_path} "
+                    "(нужен te_expert.env, не .example)"
+                )
+            return f"Не заданы TE_EXPERT_LOGIN и TE_EXPERT_PASSWORD. {hint}"
         return ""
 
     def _login_http(self) -> tuple[bool, str]:

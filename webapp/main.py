@@ -34,9 +34,21 @@ _te_cfg = te_expert_config_status()
 print(
     "[INFO] TechExpert: "
     f"login={'yes' if _te_cfg['login_set'] else 'no'}, "
+    f"password={'yes' if _te_cfg['password_set'] else 'no'}, "
     f"env_file={'yes' if _te_cfg['env_file_exists'] else 'no'}, "
+    f"path={_te_cfg['env_file']}, "
     f"internet_fallback={_te_cfg['internet_fallback']}"
 )
+if not _te_cfg["env_file_exists"]:
+    print(
+        "[WARN] TechExpert: создайте data/local/te_expert.env "
+        "(скопируйте data/local/te_expert.env.example) — файл не в git"
+    )
+elif not _te_cfg.get("configured"):
+    print(
+        "[WARN] TechExpert: в data/local/te_expert.env задайте "
+        "TE_EXPERT_LOGIN и TE_EXPERT_PASSWORD (не te_expert.env.example)"
+    )
 
 try:
     from sk_reporter.agent.ocr_agent import detect_company, merge_report_into_template
