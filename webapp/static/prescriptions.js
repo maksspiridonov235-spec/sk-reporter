@@ -135,10 +135,20 @@ function toggleReportBody(id, btn) {
   btn.textContent = open ? 'Показать отчёт ▼' : 'Скрыть отчёт ▲';
 }
 
+function buildPrescriptionTextBlock(title, text) {
+  const body = (text || '').trim();
+  if (!body) return '';
+  return `<div class="prescription-text-block">`
+    + `<div class="prescription-block-title">${escHtml(title)}</div>`
+    + `<div class="prescription-text-body">${escHtml(body)}</div>`
+    + `</div>`;
+}
+
 function buildPrescriptionFileCard(filename, meta) {
   const {
     hasErrors, hasWarnings, reportText, downloadUrl,
     normativeSource, questions, draftLetter, issues,
+    engineerContent, agentContent, finalContent,
   } = meta;
   const bodyId = 'rb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
   const badgeHtml = hasErrors
@@ -181,6 +191,15 @@ function buildPrescriptionFileCard(filename, meta) {
     ? `<ul class="prescription-issues">${warnLines.map(l => `<li>${escHtml(l)}</li>`).join('')}</ul>`
     : '';
 
+  let b18Html = '';
+  if (engineerContent || agentContent) {
+    b18Html = buildPrescriptionTextBlock('B18 — исходник инженера', engineerContent)
+      + buildPrescriptionTextBlock('B18 — переработка агента', agentContent || '(без переработки)');
+    if (finalContent && finalContent !== agentContent && finalContent !== engineerContent) {
+      b18Html += buildPrescriptionTextBlock('B18 — записано в файл', finalContent);
+    }
+  }
+
   const bodyHtml = reportText
     ? `<div class="report-body" id="${bodyId}">${escHtml(reportText)}</div>`
     : '';
@@ -199,6 +218,7 @@ function buildPrescriptionFileCard(filename, meta) {
       ${badgeHtml}
     </div>
     ${sourceHtml}
+    ${b18Html}
     ${questionsHtml}
     ${letterHtml}
     ${issuesHtml}
@@ -345,16 +365,23 @@ async function checkPrescriptions() {
         const issues = (ev.result && ev.result.issues) || [];
         const reportText = (ev.result && (ev.result.review_display || ev.result.report)) || '';
 
+        const result = ev.result || {};
+        const fields = result.fields || {};
+        const modelCorrected = result.model_corrected || {};
+        const corrected = result.corrected || {};
         fileCards.push(
           buildPrescriptionFileCard(ev.filename || ev.msg, {
             hasErrors: hasErr,
             hasWarnings: hasWarn,
             reportText,
             downloadUrl: ev.download,
-            normativeSource: ev.result && ev.result.normative_source,
-            questions: (ev.result && ev.result.engineer_questions) || [],
-            draftLetter: (ev.result && ev.result.draft_letter) || '',
+            normativeSource: result.normative_source,
+            questions: result.engineer_questions || [],
+            draftLetter: result.draft_letter || '',
             issues,
+            engineerContent: fields.content || '',
+            agentContent: modelCorrected.content || '',
+            finalContent: corrected.content || '',
           })
         );
         if (ev.download) addCheckedFile(ev.filename, ev.download);

@@ -563,6 +563,26 @@ def _report_has_issues(report_text: str) -> bool:
     return "⚠" in block
 
 
+def _log_b18_texts(
+    filename: str,
+    fields: dict[str, str],
+    model_corrected: dict[str, str],
+    final_corrected: dict[str, str],
+) -> None:
+    """Пишет в консоль сервера исходник B18 и переработку агента."""
+    engineer = (fields.get("content") or "").strip() or "(пусто)"
+    agent = (model_corrected.get("content") or "").strip() or "(без переработки)"
+    final = (final_corrected.get("content") or "").strip() or "(пусто)"
+
+    print(f"[PRESCRIPTION_CHECK] --- {filename} B18 инженер ---")
+    print(engineer)
+    print(f"[PRESCRIPTION_CHECK] --- {filename} B18 агент ---")
+    print(agent)
+    if final != agent and final != engineer:
+        print(f"[PRESCRIPTION_CHECK] --- {filename} B18 в файл ---")
+        print(final)
+
+
 def _build_review_display(
     report_text: str,
     fields: dict[str, str],
@@ -598,6 +618,27 @@ def _build_review_display(
 
     if draft_letter:
         parts.append("## ЧЕРНОВИК ПИСЬМА ИНЖЕНЕРУ\n" + draft_letter)
+
+    orig_content = (fields.get("content") or "").strip()
+    agent_content = (model_corrected.get("content") or "").strip()
+    final_content = (final_corrected.get("content") or "").strip()
+    if orig_content or agent_content:
+        b18_lines = [
+            "### Исходник инженера (B18)",
+            orig_content or "(пусто)",
+            "",
+            "### Переработка агента (B18)",
+            agent_content or "(без переработки)",
+        ]
+        if final_content and final_content not in {orig_content, agent_content}:
+            b18_lines.extend(
+                [
+                    "",
+                    "### Записано в файл (B18)",
+                    final_content,
+                ]
+            )
+        parts.append("## СОДЕРЖАНИЕ ЗАМЕЧАНИЯ (B18)\n" + "\n".join(b18_lines))
 
     resume = _extract_report_section(report_text, "РЕЗЮМЕ ПРОВЕРКИ")
     changes = _extract_report_section(report_text, "ОТЧЁТ О ПРАВКАХ")
@@ -939,6 +980,7 @@ def check_prescription(filepath: str | Path) -> dict:
         f"(te={'ok' if normative_lookup.get('ok') else 'fail'}, "
         f"issues={len(issues)})"
     )
+    _log_b18_texts(filename, fields, model_corrected, corrected)
     return result
 
 

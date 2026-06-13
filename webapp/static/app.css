@@ -645,8 +645,20 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
   margin: 10px 0 4px;
 }
 .prescription-questions-block,
-.prescription-letter-block {
+.prescription-letter-block,
+.prescription-text-block {
   margin-top: 6px;
+}
+.prescription-text-body {
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.5;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .prescription-questions {
   margin: 4px 0 0;
