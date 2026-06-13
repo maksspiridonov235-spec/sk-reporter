@@ -12,13 +12,16 @@ if not exist "%REPO_ROOT%\venv\Scripts\activate.bat" (
 
 call "%REPO_ROOT%\venv\Scripts\activate.bat"
 
-REM Техэксперт: data\local\te_expert.env (скопировать с te_expert.env.example)
+REM Техэксперт: учётные данные читает Python из data\local\te_expert.env
 set "TE_ENV=%REPO_ROOT%\data\local\te_expert.env"
-if exist "%TE_ENV%" (
-  echo [INFO] Загрузка TE_EXPERT из data\local\te_expert.env
-  for /f "usebackq eol=# tokens=1,* delims==" %%a in ("%TE_ENV%") do (
-    if not "%%a"=="" set "%%a=%%b"
+set "TE_ENV_EXAMPLE=%REPO_ROOT%\data\local\te_expert.env.example"
+if not exist "%TE_ENV%" (
+  echo [WARN] Нет data\local\te_expert.env — Техэксперт не авторизуется.
+  if exist "%TE_ENV_EXAMPLE%" (
+    echo [WARN] Скопируйте te_expert.env.example в te_expert.env и укажите логин/пароль.
   )
+) else (
+  echo [INFO] TechExpert env: data\local\te_expert.env
 )
 
 REM Корпоративный прокси/SSL: set SK_REPORTER_PIP_TRUSTED=1 перед запуском bat

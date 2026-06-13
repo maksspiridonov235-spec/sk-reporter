@@ -27,7 +27,7 @@ from urllib.parse import urljoin, urlparse
 
 import requests
 
-from sk_reporter.prescriptions.te_env import load_te_expert_env
+from sk_reporter.prescriptions.te_env import load_te_expert_env, parse_te_expert_env_file
 
 load_te_expert_env()
 
@@ -108,16 +108,21 @@ def _env(name: str, default: str = "") -> str:
 
 
 def _config() -> dict[str, str]:
-    base = _env("TE_EXPERT_BASE_URL", _DEFAULT_BASE).rstrip("/")
-    catalog = _env("TE_EXPERT_CATALOG", _DEFAULT_CATALOG)
+    file_values = parse_te_expert_env_file()
+    base = (
+        file_values.get("TE_EXPERT_BASE_URL")
+        or _env("TE_EXPERT_BASE_URL", _DEFAULT_BASE)
+    ).rstrip("/")
+    catalog = file_values.get("TE_EXPERT_CATALOG") or _env("TE_EXPERT_CATALOG", _DEFAULT_CATALOG)
     if not catalog.startswith("/"):
         catalog = "/" + catalog
+    use_browser_raw = file_values.get("TE_EXPERT_USE_BROWSER") or _env("TE_EXPERT_USE_BROWSER", "0")
     return {
         "base_url": base,
         "catalog": catalog.rstrip("/") or "/docs",
-        "login": _env("TE_EXPERT_LOGIN"),
-        "password": _env("TE_EXPERT_PASSWORD"),
-        "use_browser": _env("TE_EXPERT_USE_BROWSER", "0") not in {"0", "false", "no"},
+        "login": file_values.get("TE_EXPERT_LOGIN") or _env("TE_EXPERT_LOGIN"),
+        "password": file_values.get("TE_EXPERT_PASSWORD") or _env("TE_EXPERT_PASSWORD"),
+        "use_browser": use_browser_raw not in {"0", "false", "no"},
     }
 
 

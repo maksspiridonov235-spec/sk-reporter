@@ -44,10 +44,15 @@ if not _te_cfg["env_file_exists"]:
         "[WARN] TechExpert: создайте data/local/te_expert.env "
         "(скопируйте data/local/te_expert.env.example) — файл не в git"
     )
+    if _te_cfg.get("edited_example_only"):
+        print(
+            "[WARN] TechExpert: логин/пароль найдены только в te_expert.env.example. "
+            "Скопируйте файл: te_expert.env.example -> te_expert.env"
+        )
 elif not _te_cfg.get("configured"):
     print(
         "[WARN] TechExpert: в data/local/te_expert.env задайте "
-        "TE_EXPERT_LOGIN и TE_EXPERT_PASSWORD (не te_expert.env.example)"
+        "TE_EXPERT_LOGIN и TE_EXPERT_PASSWORD (не te_expert.env.example, не «ваш_логин»)"
     )
 
 try:
