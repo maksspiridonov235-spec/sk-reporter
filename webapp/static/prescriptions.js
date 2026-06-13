@@ -157,12 +157,31 @@ function buildPrescriptionCompareBlocks(label, engineerText, agentText, finalTex
   return html;
 }
 
+function buildPrescriptionNormativeBlocks(engineerText, assessmentText, modelSuggestion) {
+  const engineer = (engineerText || '').trim();
+  const assessment = (assessmentText || '').trim();
+  const model = (modelSuggestion || '').trim();
+  if (!engineer && !assessment && !model) return '';
+  let html = buildPrescriptionTextBlock('B19 — исходник инженера', engineer);
+  html += buildPrescriptionTextBlock(
+    'B19 — сверка с замечанием (в файл не записывается)',
+    assessment || '(модель не заполнила блок сверки)'
+  );
+  if (model && model !== engineer) {
+    html += buildPrescriptionTextBlock(
+      'B19 — ошибочное предложение модели (отклонено)',
+      model
+    );
+  }
+  return html;
+}
+
 function buildPrescriptionFileCard(filename, meta) {
   const {
     hasErrors, hasWarnings, reportText, downloadUrl,
     normativeSource, questions, draftLetter, issues,
     engineerContent, agentContent, finalContent,
-    engineerNormative, agentNormative, finalNormative,
+    engineerNormative, agentNormative, normativeAssessment,
   } = meta;
   const bodyId = 'rb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
   const badgeHtml = hasErrors
@@ -206,7 +225,11 @@ function buildPrescriptionFileCard(filename, meta) {
     : '';
 
   let b18Html = buildPrescriptionCompareBlocks('B18', engineerContent, agentContent, finalContent);
-  let b19Html = buildPrescriptionCompareBlocks('B19', engineerNormative, agentNormative, finalNormative);
+  let b19Html = buildPrescriptionNormativeBlocks(
+    engineerNormative,
+    normativeAssessment,
+    agentNormative
+  );
 
   const bodyHtml = reportText
     ? `<div class="report-body" id="${bodyId}">${escHtml(reportText)}</div>`
@@ -393,7 +416,7 @@ async function checkPrescriptions() {
             finalContent: corrected.content || '',
             engineerNormative: fields.normative || '',
             agentNormative: modelCorrected.normative || '',
-            finalNormative: corrected.normative || '',
+            normativeAssessment: result.normative_assessment || '',
           })
         );
         if (ev.download) addCheckedFile(ev.filename, ev.download);

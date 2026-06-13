@@ -31,84 +31,81 @@ COL_HINT = 3
 
 SYSTEM_PROMPT = """Ты — ведущий инженер строительного контроля (СК). Проверяешь предписание по нормативной базе.
 
-РЕЖИМ: ПРОФЕССИОНАЛЬНАЯ РЕДАКТУРА B18 + ПОЛНАЯ ССЫЛКА B19. Перепиши содержание замечания техническим языком СК: конкретно, без воды, деловой документальный стиль. Все объективные факты сохрани; оценочные и эмоциональные формулировки убери или замени фактами.
+РЕЖИМ: ПРОФЕССИОНАЛЬНАЯ РЕДАКТУРА B18 + СВЕРКА B19 (БЕЗ ПРАВОК B19).
+Перепиши только содержание замечания (B18). Нормативную ссылку (B19) НЕ переписывай и НЕ подменяй — только проверь по фрагменту из Техэксперт/интернет, насколько она обосновывает замечание.
 
 На входе:
-- B18 — текст инженера (исходник).
-- B19 — ссылка инженера на НД.
-- Фрагмент нормативки (если есть).
+- B18 — текст инженера (исходник замечания).
+- B19 — ссылка инженера на НД (только для проверки, не для правки).
+- Фрагмент нормативки из онлайн-источника (если получен).
 
 ЖЁСТКИЕ ПРАВИЛА B18 — ЧТО СОХРАНЯТЬ (объективные факты):
 - объект, трубопровод, диаметры (Ø530×10 и т.п.);
 - номера стыков/соединений (№ 2/2, 4, 8…);
 - методы контроля (радиография, УЗК…), сроки («до начала гидроиспытаний»);
 - требуемые действия (ремонт, повторный контроль);
-- клеймо сварщика/бригады — только как идентификатор исполнителя («соединения, выполненные бригадой с клеймом «Л»»), если это следует из исходника.
+- клеймо сварщика/бригады — только как идентификатор исполнителя, если это в исходнике.
 
 ЖЁСТКИЕ ПРАВИЛА B18 — СТИЛЬ И ТОН:
-1. Стиль предписания СК: безлично, нейтрально, по факту нарушения. Без обвинений, без «обиды», без оценок личных качеств бригады.
-2. ЗАПРЕЩЕНО оставлять без переработки:
-   - оценочные суждения без цифр: «большое количество брака», «систематически допускает», «постоянно нарушает», «работает плохо»;
-   - эмоциональные обобщения про бригаду/подрядчика вместо описания нарушения на конкретных стыках.
-3. КАК ПЕРЕРАБОТАТЬ такие фразы:
-   - «бригада с клеймом «Л» допускает большое количество брака» →
-     «на сварных соединениях …, выполненных бригадой с клеймом «Л», выявлены недопустимые дефекты»
-     ИЛИ убрать предложение о бригаде, если связь клейма с перечисленными стыками в исходнике не ясна (и задать вопрос инженеру).
-   - «брак» без перечня → заменить на «недопустимые дефекты» + перечень стыков; количество — только если есть в исходнике.
-4. ЗАПРЕЩЕНО сжимать факты в пустые обобщения («выявлены дефекты» без стыков, диаметров, метода).
-5. Можно полностью перестроить фразы, убрать повторы и «воду», исправить орфографию — при сохранении фактов.
-6. Не вставляй в B18 номера приказов, ГОСТ, пункты НД — только в B19.
-7. Структура B18 (рекомендуемая): [факт контроля и объект] → [что выявлено, где] → [что выполнить и до какого момента].
+1. Стиль предписания СК: безлично, нейтрально, по факту нарушения.
+2. Убери оценочные суждения без цифр («большое количество брака», обвинения бригаде).
+3. Не сжимай факты в пустые обобщения.
+4. Не вставляй в B18 номера приказов, ГОСТ, пункты НД — только в B19.
 
-ЖЁСТКИЕ ПРАВИЛА B19 (нормативный документ):
-1. НЕ придумывай и НЕ разворачивай название документа — в B19 система подставит краткий title из источника (например «Приказ Ростехнадзора от 11.12.2020 N 519»).
-2. В «ИСПРАВЛЕННЫЕ ПОЛЯ» для B19 скопируй ссылку инженера как есть (или только пункты).
-3. Пункты инженера НЕ МЕНЯЙ (п. 44 остаётся п. 44).
-4. Длинное «Об утверждении ФНП…» в B19 не пиши — это не title.
+ЖЁСТКИЕ ПРАВИЛА B19 — ТОЛЬКО ПРОВЕРКА, НЕ РЕДАКТИРОВАНИЕ:
+1. ЗАПРЕЩЕНО менять текст B19, разворачивать название, подставлять другой документ или другие пункты.
+2. Сверь B19 с фрагментом НД из источника: тот ли это документ, существуют ли указанные пункты.
+3. Сопоставь требования из пунктов B19 с фактами в B18: обосновывает ли ссылка суть замечания.
+4. Если ссылка слабая, документ не найден или пункт не по теме — опиши это в «СВЕРКА B19» и задай вопрос инженеру; B19 не переписывай.
+5. Если фрагмент не получен — статус «не проверено онлайн», B19 не трогай.
 
 АЛГОРИТМ:
 1. Выпиши объективные факты из B18.
-2. Сверь с фрагментом НД по пунктам B19.
-3. Перепиши B18 профессиональным языком СК; убери оценочные формулировки.
-4. B19 — разверни полное наименование НД, сохрани пункты инженера.
-5. КОНКРЕТИЗАЦИЯ: если не хватает деталей (какие дефекты, размеры, акты НК) — вопросы инженеру.
-
-Если фрагмент нормативки не получен — не меняй пункты B19. В отчёте: ⚠ «нормативка не сверена онлайн».
+2. По фрагменту НД оцени документ и пункты из B19.
+3. Сопоставь: соответствует ли нормативная ссылка содержанию замечания.
+4. Перепиши B18 профессиональным языком СК.
+5. При нехватке деталей — вопросы инженеру.
 
 ФОРМАТ ОТВЕТА (строго):
 
 ## РЕЗЮМЕ ПРОВЕРКИ
-- [✓ или ⚠] Сверка с нормативной базой: [Техэксперт / интернет / не получено] — укажи источник явно
-- [✓ или ⚠] Содержание замечания: [переработано профессионально / что изменено в стиле / недостаточно конкретики]
-- [✓ или ⚠] Нормативный документ: [развёрнуто наименование / что и почему изменено]
-- Решение: [переработка B18 / правка B19 / оба / без изменений]
+- [✓ или ⚠] Сверка с нормативной базой: [Техэксперт / интернет / не получено]
+- [✓ или ⚠] Содержание замечания (B18): [переработано / что изменено / недостаточно конкретики]
+- [✓ или ⚠] Соответствие B19 замечанию: [соответствует / частично / не соответствует / не проверено]
+- Решение: [переработка B18 / без изменений B18] — B19 не изменяется
+
+## СВЕРКА B19 С ЗАМЕЧАНИЕМ
+- Ссылка инженера (B19): [как указано, без правок]
+- Документ в источнике: [что найдено в Техэксперт/интернет или «не найден»]
+- Пункты B19: [перечень]
+- Соответствие замечанию: [✓ / ⚠ / ✗ / не проверено]
+- Обоснование: [связь фактов B18 с требованиями пунктов B19; 3–6 предложений]
+- Замечания по ссылке: [если документ/пункт не подходят — что именно; иначе «замечаний нет»]
 
 ## ВОПРОСЫ ИНЖЕНЕРУ
-(Что уточнить у автора предписания. Если всё конкретно — одна строка: «Дополнительных вопросов нет.»)
-1. [Вопрос] — [на какой пункт НД и какой пробел в B18 опирается]
-2. …
+(Если всё конкретно — одна строка: «Дополнительных вопросов нет.»)
+1. [Вопрос] — [связь с B18/B19]
 
 ## ЧЕРНОВИК ПИСЬМА ИНЖЕНЕРУ
-(2–5 предложений для руководителя СК: вежливо, по делу, перечисли что уточнить. Если вопросов нет — «Уточнения не требуются.»)
+(2–5 предложений. Если вопросов нет — «Уточнения не требуются.»)
 
 ## ОТЧЁТ О ПРАВКАХ
 ### Содержание замечания (B18)
 - Статус: [без изменений / переработано]
-- Стиль и тон: [что убрано/перефразировано — оценочные фразы, «брак», обвинения бригаде]
-- Факты: [что сохранено — стыки, диаметры, клеймо, сроки]
+- Стиль и тон: [что убрано/перефразировано]
+- Факты: [что сохранено]
 - Причина правок: [кратко]
 
 ### Нормативный документ (B19)
-- Статус: [без изменений / изменено]
-- Что сделано: [развёрнуто полное наименование / заменён документ / исправлены пункты / без изменений]
-- Причина: [обязательно: почему развернули название, сменили документ или пункт]
+- Статус: без изменений (только проверка)
+- Сверка: [итог: соответствует / частично / не соответствует / не проверено]
+- Вывод: [1–2 предложения]
 
 ## ИСПРАВЛЕННЫЕ ПОЛЯ
 Содержание замечания:
-[полный профессиональный текст B18 — все объективные факты, без воды и оценочных суждений]
+[полный профессиональный текст B18]
 
-Нормативный документ:
-[краткая ссылка инженера и пункты — без выдуманного развёрнутого названия]"""
+(Блок «Нормативный документ» в ИСПРАВЛЕННЫЕ ПОЛЯ не выводи — B19 не меняется.)"""
 
 
 def _cell_str(value: Any) -> str:
@@ -360,6 +357,22 @@ def _parse_draft_letter(report_text: str) -> str:
     return section.strip()
 
 
+def _parse_normative_assessment(report_text: str) -> str:
+    """Текст сверки B19 с замечанием из отчёта модели."""
+    section = _extract_report_section(report_text, "СВЕРКА B19 С ЗАМЕЧАНИЕМ")
+    if section:
+        return section.strip()
+    block = _extract_report_section(report_text, "ОТЧЁТ О ПРАВКАХ")
+    if not block:
+        return ""
+    m = re.search(
+        r"###\s*Нормативный\s+документ\s*\(B19\)\s*(.*?)(?=###|\Z)",
+        block,
+        re.DOTALL | re.IGNORECASE,
+    )
+    return m.group(1).strip() if m else ""
+
+
 _SUBJECTIVE_RE = re.compile(
     r"больш(ое|ая|ой)\s+количеств|"
     r"систематическ|"
@@ -475,11 +488,10 @@ def _guard_engineer_text(
 ) -> tuple[dict[str, str], list[dict[str, str]]]:
     """
     B18: не терять объективные факты при переработке.
-    B19: наименование из источника (lookup), пункты — у инженера.
+    B19: не изменять — только сверка в отчёте.
     """
     out = dict(corrected)
     events: list[dict[str, str]] = []
-    lookup = normative_lookup or {}
     orig_content = fields.get("content") or ""
     orig_norm = fields.get("normative") or ""
     new_content = out.get("content") or ""
@@ -504,53 +516,19 @@ def _guard_engineer_text(
             out["content"] = orig_content
 
     if orig_norm:
-        composed = _compose_b19(orig_norm, lookup)
-        src_label = {
-            "techexpert": "Техэксперт",
-            "internet": "интернет",
-        }.get(lookup.get("source") or "", "источник")
-        title_used = _b19_title_from_lookup(orig_norm, lookup)
-        if title_used and _text_changed(orig_norm, composed):
+        out["normative"] = orig_norm
+        model_norm = corrected.get("normative") or ""
+        if model_norm and _text_changed(orig_norm, model_norm):
             events.append(
                 {
                     "field": "normative",
                     "level": "info",
-                    "code": "normative_title_from_source",
+                    "code": "normative_preserved",
                     "message": (
-                        f"B19: краткий title из {src_label} "
-                        f"({title_used}); пункты инженера сохранены."
+                        "B19 не изменён: сохранена ссылка инженера. "
+                        "Сверка с замечанием — в блоке «Сверка B19»."
                     ),
-                }
-            )
-        out["normative"] = composed
-
-        new_norm = out.get("normative") or ""
-        orig_pts = _normative_points(orig_norm)
-        new_pts = _normative_points(new_norm)
-        if orig_pts and new_pts and orig_pts != new_pts:
-            print(
-                f"[PRESCRIPTION_CHECK] B19 guard: points {orig_pts} -> {new_pts}, "
-                "restore engineer points"
-            )
-            base = re.sub(
-                r",?\s*(?:[PpПп]\.?\s*|п\.?\s*|пункт\s+)\d+(?:\.\d+)*"
-                r"(?:\s*,\s*(?:[PpПп]\.?\s*|п\.?\s*|пункт\s+)\d+(?:\.\d+)*)*",
-                "",
-                new_norm,
-                flags=re.IGNORECASE,
-            ).rstrip(" .,")
-            pts_tail = ", ".join(f"п. {p}" for p in orig_pts)
-            out["normative"] = f"{base}, {pts_tail}." if base else orig_norm
-            events.append(
-                {
-                    "field": "normative",
-                    "level": "warn",
-                    "code": "guard_points_revert",
-                    "message": (
-                        f"Модель заменила пункты НД ({', '.join('п. '+p for p in orig_pts)} "
-                        f"→ {', '.join('п. '+p for p in new_pts)}). "
-                        "В файл записаны пункты инженера."
-                    ),
+                    "model_preview": model_norm,
                 }
             )
 
@@ -568,25 +546,29 @@ def _log_prescription_fields(
     fields: dict[str, str],
     model_corrected: dict[str, str],
     final_corrected: dict[str, str],
+    normative_assessment: str = "",
 ) -> None:
-    """Пишет в консоль исходник инженера и переработку агента для B18 и B19."""
-    pairs = (
-        ("B18", "content", "замечание"),
-        ("B19", "normative", "нормативка"),
-    )
-    for label, key, title in pairs:
-        engineer = (fields.get(key) or "").strip()
-        agent = (model_corrected.get(key) or "").strip()
-        final = (final_corrected.get(key) or "").strip()
-        if not engineer and not agent and not final:
-            continue
-        print(f"[PRESCRIPTION_CHECK] --- {filename} {label} инженер ({title}) ---")
-        print(engineer or "(пусто)")
-        print(f"[PRESCRIPTION_CHECK] --- {filename} {label} агент ({title}) ---")
-        print(agent or "(без переработки)")
-        if final and final != agent and final != engineer:
-            print(f"[PRESCRIPTION_CHECK] --- {filename} {label} в файл ({title}) ---")
-            print(final)
+    """Пишет в консоль B18 (исходник/агент/файл) и B19 (исходник/сверка)."""
+    engineer_b18 = (fields.get("content") or "").strip()
+    agent_b18 = (model_corrected.get("content") or "").strip()
+    final_b18 = (final_corrected.get("content") or "").strip()
+    if engineer_b18 or agent_b18 or final_b18:
+        print(f"[PRESCRIPTION_CHECK] --- {filename} B18 инженер (замечание) ---")
+        print(engineer_b18 or "(пусто)")
+        print(f"[PRESCRIPTION_CHECK] --- {filename} B18 агент (замечание) ---")
+        print(agent_b18 or "(без переработки)")
+        if final_b18 and final_b18 != agent_b18 and final_b18 != engineer_b18:
+            print(f"[PRESCRIPTION_CHECK] --- {filename} B18 в файл (замечание) ---")
+            print(final_b18)
+
+    engineer_b19 = (fields.get("normative") or "").strip()
+    if engineer_b19:
+        print(f"[PRESCRIPTION_CHECK] --- {filename} B19 инженер (нормативка) ---")
+        print(engineer_b19)
+        print(f"[PRESCRIPTION_CHECK] --- {filename} B19 сверка с замечанием ---")
+        print(normative_assessment.strip() or "(нет блока сверки в отчёте модели)")
+        print(f"[PRESCRIPTION_CHECK] --- {filename} B19 в файл ---")
+        print(engineer_b19 + " (без изменений)")
 
 
 def _field_compare_lines(
@@ -621,6 +603,7 @@ def _build_review_display(
     normative_lookup: dict[str, Any],
     engineer_questions: list[str],
     draft_letter: str,
+    normative_assessment: str = "",
 ) -> str:
     """Текст отчёта для панели UI."""
     parts: list[str] = []
@@ -656,10 +639,23 @@ def _build_review_display(
         parts.append("## СОДЕРЖАНИЕ ЗАМЕЧАНИЯ (B18)\n" + "\n".join(b18_lines))
 
     orig_norm = (fields.get("normative") or "").strip()
-    agent_norm = (model_corrected.get("normative") or "").strip()
-    final_norm = (final_corrected.get("normative") or "").strip()
-    b19_lines = _field_compare_lines("B19", orig_norm, agent_norm, final_norm)
-    if b19_lines:
+    if orig_norm:
+        b19_lines = [
+            "### Исходник инженера (B19)",
+            orig_norm,
+            "",
+            "### Сверка с замечанием (B19 не изменяется)",
+            normative_assessment.strip() or "(модель не заполнила блок сверки)",
+        ]
+        model_norm = (model_corrected.get("normative") or "").strip()
+        if model_norm and _text_changed(orig_norm, model_norm):
+            b19_lines.extend(
+                [
+                    "",
+                    "### Ошибочное предложение модели по B19 (не применено)",
+                    model_norm,
+                ]
+            )
         parts.append("## НОРМАТИВНЫЙ ДОКУМЕНТ (B19)\n" + "\n".join(b19_lines))
 
     resume = _extract_report_section(report_text, "РЕЗЮМЕ ПРОВЕРКИ")
@@ -680,11 +676,11 @@ def _build_review_display(
         fields.get("normative", ""), model_corrected.get("normative", "")
     ):
         model_blocks.append(
-            "### B19 — как предложила модель\n" + model_corrected["normative"]
+            "### B19 — ошибочное предложение модели (не записано в файл)\n"
+            + model_corrected["normative"]
         )
-    if model_blocks and (
-        _text_changed(model_corrected.get("content", ""), final_corrected.get("content", ""))
-        or _text_changed(model_corrected.get("normative", ""), final_corrected.get("normative", ""))
+    if model_blocks and _text_changed(
+        model_corrected.get("content", ""), final_corrected.get("content", "")
     ):
         parts.append("## ПРЕДЛОЖЕНИЕ МОДЕЛИ\n" + "\n\n".join(model_blocks))
 
@@ -702,16 +698,7 @@ def _build_review_display(
     else:
         applied.append("B18 — без изменений")
 
-    b19_from_src = any(e.get("code") == "normative_title_from_source" for e in guard_events)
-    if _text_changed(fields.get("normative", ""), final_corrected.get("normative", "")):
-        if b19_from_src:
-            applied.append(
-                "B19 — полное наименование из источника нормативки + пункты инженера"
-            )
-        else:
-            applied.append("B19 — нормативная ссылка изменена в проверенном файле")
-    else:
-        applied.append("B19 — без изменений")
+    applied.append("B19 — без изменений (только сверка в отчёте)")
 
     parts.append("## ИТОГ ЗАПИСИ В ФАЙЛ\n" + "\n".join(f"- {line}" for line in applied))
 
@@ -732,6 +719,7 @@ def _collect_issues(
     guard_events: list[dict[str, str]],
     normative_lookup: dict[str, Any],
     engineer_questions: list[str],
+    normative_assessment: str = "",
 ) -> list[dict[str, str]]:
     issues: list[dict[str, str]] = []
     src = _normative_source_info(normative_lookup)
@@ -781,6 +769,27 @@ def _collect_issues(
             }
         )
 
+    if fields.get("normative") and normative_assessment:
+        if re.search(r"не\s+соответств|✗|не\s+подход", normative_assessment, re.I):
+            issues.append(
+                {
+                    "level": "warn",
+                    "code": "normative_mismatch",
+                    "message": (
+                        "Нормативная ссылка (B19) может не обосновывать замечание — "
+                        "см. «Сверка B19»"
+                    ),
+                }
+            )
+        elif re.search(r"частичн|⚠", normative_assessment, re.I):
+            issues.append(
+                {
+                    "level": "warn",
+                    "code": "normative_partial",
+                    "message": "Соответствие B19 замечанию частичное — см. «Сверка B19»",
+                }
+            )
+
     if _text_changed(fields.get("content", ""), final_corrected.get("content", "")):
         reason = _extract_field_reason(report_text, "B18") or "см. отчёт о правках"
         issues.append(
@@ -788,16 +797,6 @@ def _collect_issues(
                 "level": "warn",
                 "code": "content_changed",
                 "message": f"Изменено содержание замечания (B18): {reason}",
-            }
-        )
-
-    if _text_changed(fields.get("normative", ""), final_corrected.get("normative", "")):
-        reason = _extract_field_reason(report_text, "B19") or "см. отчёт о правках"
-        issues.append(
-            {
-                "level": "warn",
-                "code": "normative_changed",
-                "message": f"Изменена нормативная ссылка (B19): {reason}",
             }
         )
 
@@ -910,10 +909,10 @@ def check_prescription(filepath: str | Path) -> dict:
 Пункты НД, указанные инженером в B19: {", ".join(_normative_points(fields["normative"])) or "—"}
 
 ВАЖНО:
-- B18: полностью перепиши профессиональным языком СК — конкретно, без воды; сохрани объективные факты (стыки, диаметры, методы, сроки, клеймо).
-- Убери оценочный и эмоциональный тон («большое количество брака», обвинения бригаде); клеймо «Л» — только как идентификатор исполнителя на конкретных стыках.
-- B19: не разворачивай название; пункты инженера не меняй — краткий title подставит система.
-- Заполни «ВОПРОСЫ ИНЖЕНЕРУ», «ЧЕРНОВИК ПИСЬМА» и «ОТЧЁТ О ПРАВКАХ» (в т.ч. блок «Стиль и тон» для B18).
+- B18: перепиши профессиональным языком СК — конкретно, без воды; сохрани объективные факты.
+- B19: НЕ переписывай. Сверь ссылку инженера с фрагментом НД и с фактами B18; результат — в «СВЕРКА B19 С ЗАМЕЧАНИЕМ».
+- В «ИСПРАВЛЕННЫЕ ПОЛЯ» укажи только B18. Блок B19 не выводи.
+- Заполни «ВОПРОСЫ ИНЖЕНЕРУ», «ЧЕРНОВИК ПИСЬМА» и «ОТЧЁТ О ПРАВКАХ» (в т.ч. «Стиль и тон» для B18).
 
 Ответ строго в формате из инструкции."""
 
@@ -956,6 +955,7 @@ def check_prescription(filepath: str | Path) -> dict:
     rule_questions = _rule_based_questions(fields, normative_lookup)
     engineer_questions = _merge_questions(model_questions, rule_questions)
     draft_letter = _parse_draft_letter(report_text)
+    normative_assessment = _parse_normative_assessment(report_text)
     normative_source = _normative_source_info(normative_lookup)
     review_display = _build_review_display(
         report_text,
@@ -966,6 +966,7 @@ def check_prescription(filepath: str | Path) -> dict:
         normative_lookup,
         engineer_questions,
         draft_letter,
+        normative_assessment,
     )
     issues = _collect_issues(
         report_text,
@@ -975,6 +976,7 @@ def check_prescription(filepath: str | Path) -> dict:
         guard_events,
         normative_lookup,
         engineer_questions,
+        normative_assessment,
     )
     has_errors = any(i.get("level") == "error" for i in issues)
     has_warnings = any(i.get("level") == "warn" for i in issues)
@@ -992,6 +994,7 @@ def check_prescription(filepath: str | Path) -> dict:
         "normative_source": normative_source,
         "engineer_questions": engineer_questions,
         "draft_letter": draft_letter,
+        "normative_assessment": normative_assessment,
         "issues": issues,
         "has_errors": has_errors,
         "has_warnings": has_warnings,
@@ -1002,19 +1005,21 @@ def check_prescription(filepath: str | Path) -> dict:
         f"(te={'ok' if normative_lookup.get('ok') else 'fail'}, "
         f"issues={len(issues)})"
     )
-    _log_prescription_fields(filename, fields, model_corrected, corrected)
+    _log_prescription_fields(
+        filename, fields, model_corrected, corrected, normative_assessment
+    )
     return result
 
 
 def write_checked_copy(src: str | Path, dest: str | Path, check_result: dict) -> None:
-    """Копия файла с исправленными B18/B19, если модель их вернула."""
+    """Копия файла с исправленным B18 (B19 не меняется)."""
     src_path = Path(src)
     dest_path = Path(dest)
     dest_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src_path, dest_path)
 
     corrected = check_result.get("corrected") or {}
-    if not corrected.get("content") and not corrected.get("normative"):
+    if not corrected.get("content"):
         return
     if dest_path.suffix.lower() not in {".xlsx", ".xlsm"}:
         return
@@ -1024,9 +1029,6 @@ def write_checked_copy(src: str | Path, dest: str | Path, check_result: dict) ->
         wb.close()
         return
     ws = wb[FORM_SHEET]
-    if corrected.get("content"):
-        ws.cell(ROW_CONTENT, COL_VALUE, value=corrected["content"])
-    if corrected.get("normative"):
-        ws.cell(ROW_NORMATIVE, COL_VALUE, value=corrected["normative"])
+    ws.cell(ROW_CONTENT, COL_VALUE, value=corrected["content"])
     wb.save(dest_path)
     wb.close()
