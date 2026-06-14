@@ -23,7 +23,7 @@
 
 **Следующий шаг:** наполнить `data/normative/`; позже — UI загрузки НД в базу.
 
-**Ollama:** нужен на машине с сервером (`OLLAMA_HOST`, по умолчанию localhost). TE env (`TE_EXPERT_*`) для предписаний **не нужен**.
+**Ollama:** `sk_reporter/llm_client.py` — локально `http://127.0.0.1:11434` (офис + bat) или облако: `OLLAMA_API_KEY` + `OLLAMA_HOST=https://ollama.com` (Relax Dev). Модель: `OLLAMA_MODEL` или `gemma4:31b-cloud`. TE env не нужен.
 
 **Не смешивать** с docx-агентами (`sk_reporter/agent/check_agent.py`); temp uploads — `UPLOAD_DIR`.
 

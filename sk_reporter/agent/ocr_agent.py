@@ -3,7 +3,6 @@
 Определяет компанию по содержимому документа, вставляет в болванку.
 """
 
-import ollama
 import re
 import json
 import zipfile
@@ -109,7 +108,9 @@ def detect_company(filepath: str) -> Optional[str]:
         return None
 
     try:
-        response = ollama.chat(
+        from sk_reporter.llm_client import llm_chat
+
+        response = llm_chat(
             model=MODEL,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},

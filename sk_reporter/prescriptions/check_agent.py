@@ -923,9 +923,9 @@ def check_prescription(filepath: str | Path) -> dict:
 Ответ строго в формате из инструкции."""
 
     try:
-        import ollama
+        from sk_reporter.llm_client import llm_chat
 
-        response = ollama.chat(
+        response = llm_chat(
             model=MODEL,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},

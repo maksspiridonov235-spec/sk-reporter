@@ -137,8 +137,23 @@ python3 -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
 
 ```
 [INFO] Templates dir: ... (N шаблонов)
-[INFO] AI agent connected: gemma4:31b-cloud via Ollama
+[INFO] Ollama: mode=local|cloud, host=..., model=gemma4:31b-cloud, api_key=yes|no, ping=ok|fail
 INFO:     Uvicorn running on http://127.0.0.1:8000
+```
+
+### Ollama: офис vs облако (Relax Dev)
+
+| Режим | Env |
+|-------|-----|
+| **Офис** (локальный Ollama) | ничего, или `OLLAMA_HOST=http://127.0.0.1:11434`; `ollama signin`, `ollama pull gemma4:31b-cloud` |
+| **Облако** (без daemon на сервере) | `OLLAMA_API_KEY` — ключ с [ollama.com/settings/keys](https://ollama.com/settings/keys); `OLLAMA_HOST=https://ollama.com`; опционально `OLLAMA_MODEL=gemma4:31b-cloud` |
+
+Ключи **не коммитить**. При `ping=fail` в логе — AI (отчёты, предписания) не заработает.
+
+Проверка ключа:
+
+```bash
+curl -s https://ollama.com/api/tags -H "Authorization: Bearer $OLLAMA_API_KEY"
 ```
 
 Шаблоны: **`data/templates/`** — в UI не загружаются.

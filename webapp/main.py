@@ -43,8 +43,24 @@ if _nd_cfg["documents_count"] == 0:
 
 try:
     from sk_reporter.agent.ocr_agent import detect_company, merge_report_into_template
+    from sk_reporter.llm_client import llm_status, ping_llm
+
     AGENT_ENABLED = True
-    print("[INFO] AI agent connected: gemma4:31b-cloud via Ollama")
+    _llm = llm_status()
+    _llm_ok, _llm_err = ping_llm()
+    print(
+        "[INFO] Ollama: "
+        f"mode={_llm['mode']}, host={_llm['host']}, model={_llm['model']}, "
+        f"api_key={'yes' if _llm['api_key_set'] else 'no'}, "
+        f"ping={'ok' if _llm_ok else 'fail'}"
+    )
+    if not _llm_ok:
+        print(f"[WARN] Ollama недоступна: {_llm_err}")
+        if _llm["mode"] == "local":
+            print(
+                "[WARN] Офис: запустите Ollama. Облако (Relax Dev): задайте "
+                "OLLAMA_API_KEY и OLLAMA_HOST=https://ollama.com"
+            )
 except ImportError as e:
     AGENT_ENABLED = False
     print(f"[WARNING] Agent not found: {e}")

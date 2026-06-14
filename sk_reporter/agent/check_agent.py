@@ -188,14 +188,14 @@ def check_report(filepath: str) -> dict:
 
 ВАЖНО: Выводи ТОЛЬКО разделы РЕЗЮМЕ и ИСПРАВЛЕННЫЙ ОТЧЁТ с ЧАСТЯМИ 1–4. Никаких других пояснений."""
 
-    # Вызываем ollama
     try:
-        import ollama
-        response = ollama.chat(
+        from sk_reporter.llm_client import llm_chat
+
+        response = llm_chat(
             model=MODEL,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": user_prompt},
             ],
             stream=False,
         )
