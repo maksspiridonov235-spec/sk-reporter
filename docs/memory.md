@@ -6,57 +6,26 @@
 
 ## ▶ СЕЙЧАС В РАБОТЕ (читать первым)
 
-**Дата:** 2026-06-08  
+**Дата:** 2026-06-13  
 
-### Главный фокус: **Отчётность → Предписания (проверка Excel)**
+### Главный фокус: **отчёты (docx) + предписания (Excel), Ollama**
 
-**Статус:** модуль **в коде и в `main`**, идёт доводка на живом Техэксперте и в офисе.
+**Предписания:** без Техэксперт и без интернет-fallback. Нормативка — **локальная база** `data/normative/` (`manifest.yaml` + `texts/*.txt`). B18 перерабатывает Ollama; B19 **не меняется**, только сверка по фрагменту из базы.
 
-| Коммит | Содержание |
-|--------|------------|
-| `67af3c3` | Карточка «Предписания», `/prescriptions`, загрузка xlsx/xls, SSE, ZIP |
-| `737f5d4` | Техэксперт + интернет-fallback, отчёт проверки в UI, guard B18/B19 |
-| `f91ec0a` | **B19:** краткий **title** из выдачи TE (не выдумка модели) + пункты инженера |
+**Поток предписаний:**
 
-**Маршрут:** `/reporting` → **«Предписания»** → `/prescriptions` (UX как `/daily`, но Excel).
+1. xlsx/xls → B18/B19 на листе «Форма заполнения предписания».
+2. `normative_store.lookup_normative()` — поиск по manifest.
+3. Ollama (`gemma4:31b-cloud`) — B18, сверка B19, отчёт.
+4. В файл пишется только **B18**.
 
-**Поток проверки:**
+**Код:** `sk_reporter/prescriptions/normative_store.py`, `check_agent.py`, `scripts/test_normative_store.py`. Старые `techexpert_client.py` / `normative_web_fallback.py` в репо, **не используются** в проверке.
 
-1. Загрузка xlsx/xls → кнопка проверки (SSE).
-2. Чтение листа **«Форма заполнения предписания»**, ячейки **B18** (замечание) и **B19** (нормативка).
-3. **B19 — lookup до Ollama:** `techexpert_client.py` (env `TE_EXPERT_*`); при `ok=False` — `normative_web_fallback.py` (`TE_EXPERT_INTERNET_FALLBACK=1` по умолчанию).
-4. **Ollama** (`gemma4:31b-cloud`, `check_agent.py`): переработка B18, вопросы инженеру, черновик письма, отчёт о правках.
-5. **Guard после модели:**
-   - **B18:** не терять объективные факты (диаметры, № стыков, радиография/НК, гидроиспытания); оценочный тон убирается; клеймо «Л» — идентификатор, не обязательно сохранять при переработке; при потере фактов — откат + блок **«Предложение модели»** в отчёте.
-   - **B19:** в файл пишет **система**, не модель — `list_title` / `doc_title` из TE или интернета через `_short_doc_title` + пункты из B19 инженера. Пример: `Приказ Ростехнадзора от 11.12.2020 N 519, п. 44.` Длинное «Об утверждении ФНП…» и выдуманные названия (другой приказ/ред.) **не попадают** в ячейку.
-6. Скачивание исправленного Excel + ZIP.
+**Следующий шаг:** наполнить `data/normative/`; позже — UI загрузки НД в базу.
 
-**Код:**
+**Ollama:** нужен на машине с сервером (`OLLAMA_HOST`, по умолчанию localhost). TE env (`TE_EXPERT_*`) для предписаний **не нужен**.
 
-| Путь | Назначение |
-|------|------------|
-| `sk_reporter/prescriptions/check_agent.py` | Ollama, guard B18/B19, отчёт UI |
-| `sk_reporter/prescriptions/techexpert_client.py` | TE: `ifind_list`, выбор nd, `list_title`, `_short_doc_title` |
-| `sk_reporter/prescriptions/normative_web_fallback.py` | rulaws.ru / legalacts.ru + DuckDuckGo |
-| `webapp/static/prescriptions.js` | UI, карточки отчёта |
-| `scripts/test_techexpert.py` | Ручная проверка доступа к TE (логин, поиск, excerpt) |
-
-**Env (см. [`RUN_SERVER.md`](RUN_SERVER.md)):** `TE_EXPERT_BASE_URL`, `TE_EXPERT_LOGIN`, `TE_EXPERT_PASSWORD`, опционально `TE_EXPERT_USE_BROWSER=1`, `TE_EXPERT_INTERNET_FALLBACK=0|1`. Учётные данные — **только env, не в git**.
-
-**Известные ограничения TE:**
-
-- **`toomanyusers`** — лимит одновременных подключений к облаку; HTTP и Playwright падают, пока открыты лишние вкладки TE в браузере. В отчёте тогда источник **«интернет»** (если fallback включён) или предупреждение «нормативка не сверена онлайн».
-- Раньше: неверный `nd` / мусор «0 из 0» в excerpt — исправлено валидацией кандидатов; **полный E2E на живом TE после `f91ec0a` ещё не прогнан** (блокировка слотами).
-
-**На чём остановились (следующий шаг):**
-
-1. На офисном ПК: `git pull` через **`scripts/git-pull-office.ps1`** (или bat сам тянет код) → перезапуск bat → проверить предписание с приказом 519.
-2. При `toomanyusers` — закрыть лишние сессии TE или временно полагаться на интернет-fallback.
-3. По результатам офиса — точечные правки TE/B19.
-
-**Git на офисном ПК (2026-06-08):** pull блокировался из‑за `data/templates/*.docx` и `project.yaml`. Fix: `scripts/git-pull-office.ps1` — backup data → `reset --hard origin/main` → restore + skip-worktree; в bat при старте. Не пайпить `git ls-files` docx через PowerShell (кириллица). См. [`RUN_SERVER.md`](RUN_SERVER.md).
-
-**Не смешивать** с docx-агентами (`sk_reporter/check_agent.py`); temp uploads — тот же `UPLOAD_DIR`.
+**Не смешивать** с docx-агентами (`sk_reporter/agent/check_agent.py`); temp uploads — `UPLOAD_DIR`.
 
 ---
 

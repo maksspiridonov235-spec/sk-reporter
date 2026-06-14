@@ -2,7 +2,7 @@
 Агент проверки предписания (Excel).
 
 Читает лист «Форма заполнения предписания»: B18 (содержание замечания),
-B19 (нормативный документ). Сверка с Техэксперт, при недоступности — с открытым интернетом.
+B19 (нормативный документ). Фрагмент НД — из локальной базы data/normative/.
 """
 
 from __future__ import annotations
@@ -14,10 +14,10 @@ from typing import Any
 
 from openpyxl import load_workbook
 
+from sk_reporter.prescriptions.normative_store import lookup_normative
 from sk_reporter.prescriptions.techexpert_client import (
     _short_doc_title,
     _title_from_reference,
-    lookup_normative,
     parse_normative_reference,
 )
 
@@ -32,12 +32,12 @@ COL_HINT = 3
 SYSTEM_PROMPT = """Ты — ведущий инженер строительного контроля (СК). Проверяешь предписание по нормативной базе.
 
 РЕЖИМ: ПРОФЕССИОНАЛЬНАЯ РЕДАКТУРА B18 + СВЕРКА B19 (БЕЗ ПРАВОК B19).
-Перепиши только содержание замечания (B18). Нормативную ссылку (B19) НЕ переписывай и НЕ подменяй — только проверь по фрагменту из Техэксперт/интернет, насколько она обосновывает замечание.
+Перепиши только содержание замечания (B18). Нормативную ссылку (B19) НЕ переписывай — только проверь по фрагменту из локальной базы, насколько она обосновывает замечание.
 
 На входе:
 - B18 — текст инженера (исходник замечания).
 - B19 — ссылка инженера на НД (только для проверки, не для правки).
-- Фрагмент нормативки из онлайн-источника (если получен).
+- Фрагмент нормативки из локальной базы data/normative/ (если документ найден).
 
 ЖЁСТКИЕ ПРАВИЛА B18 — ЧТО СОХРАНЯТЬ (объективные факты):
 - объект, трубопровод, диаметры (Ø530×10 и т.п.);
@@ -57,7 +57,7 @@ SYSTEM_PROMPT = """Ты — ведущий инженер строительно
 2. Сверь B19 с фрагментом НД из источника: тот ли это документ, существуют ли указанные пункты.
 3. Сопоставь требования из пунктов B19 с фактами в B18: обосновывает ли ссылка суть замечания.
 4. Если ссылка слабая, документ не найден или пункт не по теме — опиши это в «СВЕРКА B19» и задай вопрос инженеру; B19 не переписывай.
-5. Если фрагмент не получен — статус «не проверено онлайн», B19 не трогай.
+5. Если фрагмент не получен — статус «не в локальной базе», B19 не трогай.
 
 АЛГОРИТМ:
 1. Выпиши объективные факты из B18.
@@ -69,14 +69,14 @@ SYSTEM_PROMPT = """Ты — ведущий инженер строительно
 ФОРМАТ ОТВЕТА (строго):
 
 ## РЕЗЮМЕ ПРОВЕРКИ
-- [✓ или ⚠] Сверка с нормативной базой: [Техэксперт / интернет / не получено]
+- [✓ или ⚠] Сверка с нормативной базой: [локальная база / не найден]
 - [✓ или ⚠] Содержание замечания (B18): [переработано / что изменено / недостаточно конкретики]
 - [✓ или ⚠] Соответствие B19 замечанию: [соответствует / частично / не соответствует / не проверено]
 - Решение: [переработка B18 / без изменений B18] — B19 не изменяется
 
 ## СВЕРКА B19 С ЗАМЕЧАНИЕМ
 - Ссылка инженера (B19): [как указано, без правок]
-- Документ в источнике: [что найдено в Техэксперт/интернет или «не найден»]
+- Документ в источнике: [что найдено в локальной базе или «не найден»]
 - Пункты B19: [перечень]
 - Соответствие замечанию: [✓ / ⚠ / ✗ / не проверено]
 - Обоснование: [связь фактов B18 с требованиями пунктов B19; 3–6 предложений]
@@ -300,10 +300,9 @@ def _compose_b19(
 
 def _normative_source_info(lookup: dict[str, Any]) -> dict[str, str]:
     """Метаданные источника нормативки для UI и отчёта."""
-    src = (lookup.get("source") or "unknown").lower()
+    src = (lookup.get("source") or "local").lower()
     labels = {
-        "techexpert": "Техэксперт",
-        "internet": "Интернет (открытые источники)",
+        "local": "Локальная база",
     }
     label = labels.get(src, src)
     if lookup.get("ok"):
@@ -319,7 +318,6 @@ def _normative_source_info(lookup: dict[str, Any]) -> dict[str, str]:
         "doc_title": lookup.get("doc_title") or "",
         "source_url": lookup.get("source_url") or "",
         "error": lookup.get("error") or "",
-        "te_fallback_error": lookup.get("te_fallback_error") or "",
     }
 
 
@@ -613,11 +611,7 @@ def _build_review_display(
     if src["doc_title"]:
         source_lines.append(f"**Документ:** {src['doc_title']}")
     if src["source_url"]:
-        source_lines.append(f"**URL:** {src['source_url']}")
-    if src.get("te_fallback_error"):
-        source_lines.append(
-            f"**Техэксперт (не использован):** {src['te_fallback_error']}"
-        )
+        source_lines.append(f"**Файл:** {src['source_url']}")
     if src["error"] and not normative_lookup.get("ok"):
         source_lines.append(f"**Ошибка поиска:** {src['error']}")
     parts.append("## ИСТОЧНИК НОРМАТИВКИ\n" + "\n".join(f"- {l}" for l in source_lines))
@@ -643,6 +637,9 @@ def _build_review_display(
         b19_lines = [
             "### Исходник инженера (B19)",
             orig_norm,
+            "",
+            "### Документ в источнике (система, до Ollama)",
+            _lookup_document_status(normative_lookup),
             "",
             "### Сверка с замечанием (B19 не изменяется)",
             normative_assessment.strip() or "(модель не заполнила блок сверки)",
@@ -729,8 +726,6 @@ def _collect_issues(
             msg = f"Нормативка: {src['label']}"
             if src["doc_title"]:
                 msg += f" — {src['doc_title'][:80]}"
-            if src.get("te_fallback_error"):
-                msg += f" (Техэксперт: {src['te_fallback_error'][:100]})"
             issues.append(
                 {
                     "level": "info",
@@ -744,7 +739,7 @@ def _collect_issues(
                     "level": "warn",
                     "code": "normative_lookup",
                     "message": normative_lookup.get("error")
-                    or "Не удалось получить текст нормативного документа для сверки",
+                    or "Документ не найден в локальной базе data/normative/",
                 }
             )
 
@@ -835,23 +830,34 @@ def _extract_field_reason(report_text: str, field: str) -> str:
     return reason.split("\n")[0].strip()[:300]
 
 
+def _lookup_document_status(lookup: dict[str, Any]) -> str:
+    """Фактический статус загрузки НД для отчёта (не пересказ модели)."""
+    if lookup.get("ok"):
+        title = lookup.get("doc_title") or lookup.get("list_title") or "документ получен"
+        path = lookup.get("source_url") or ""
+        if path:
+            return f"найден (локальная база): {title} [{path}]"
+        return f"найден (локальная база): {title}"
+    err = (lookup.get("error") or "").strip()
+    if err:
+        return f"не найден — {err}"
+    return "не найден — документ отсутствует в локальной базе"
+
+
 def _format_normative_lookup(lookup: dict[str, Any]) -> str:
     ref = lookup.get("reference") or {}
-    src = lookup.get("source") or "techexpert"
-    src_label = {"techexpert": "Техэксперт", "internet": "интернет"}.get(src, src)
     lines = [
-        f"Источник нормативки: {src_label}",
+        "Источник нормативки: локальная база (data/normative/)",
+        f"Статус загрузки (система): {_lookup_document_status(lookup)}",
         f"Поисковый запрос: {ref.get('search_query') or '—'}",
     ]
     if lookup.get("doc_title"):
         lines.append(f"Найденный документ: {lookup['doc_title']}")
     if lookup.get("source_url"):
-        lines.append(f"URL: {lookup['source_url']}")
-    if lookup.get("te_fallback_error"):
-        lines.append(f"Техэксперт недоступен: {lookup['te_fallback_error']}")
+        lines.append(f"Файл: {lookup['source_url']}")
     if lookup.get("ok") and lookup.get("excerpt"):
         lines.append("")
-        lines.append(f"--- Фрагмент из {src_label} ---")
+        lines.append("--- Фрагмент из локальной базы ---")
         lines.append(str(lookup["excerpt"]))
         lines.append("--- конец фрагмента ---")
     elif lookup.get("error"):
@@ -860,7 +866,7 @@ def _format_normative_lookup(lookup: dict[str, Any]) -> str:
 
 
 def check_prescription(filepath: str | Path) -> dict:
-    """Проверить предписание: Техэксперт + Ollama."""
+    """Проверить предписание: локальная база НД + Ollama."""
     path = Path(filepath)
     filename = path.name
 
@@ -887,8 +893,8 @@ def check_prescription(filepath: str | Path) -> dict:
         try:
             normative_lookup = lookup_normative(fields["normative"])
         except Exception as e:
-            print(f"[PRESCRIPTION_CHECK] techexpert error: {e}")
-            normative_lookup = {"ok": False, "error": str(e)}
+            print(f"[PRESCRIPTION_CHECK] normative lookup error: {e}")
+            normative_lookup = {"ok": False, "error": str(e), "source": "local"}
 
     user_prompt = f"""Проверь предписание (лист «{FORM_SHEET}») по нормативной базе.
 
@@ -1002,7 +1008,7 @@ def check_prescription(filepath: str | Path) -> dict:
     print(
         f"[PRESCRIPTION_CHECK] "
         f"{'OK' if result['ok'] else ('ERR' if has_errors else 'WARN')}: {filename} "
-        f"(te={'ok' if normative_lookup.get('ok') else 'fail'}, "
+        f"(norm={'ok' if normative_lookup.get('ok') else 'fail'}, "
         f"issues={len(issues)})"
     )
     _log_prescription_fields(

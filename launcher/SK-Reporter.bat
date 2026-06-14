@@ -12,16 +12,11 @@ if not exist "%REPO_ROOT%\venv\Scripts\activate.bat" (
 
 call "%REPO_ROOT%\venv\Scripts\activate.bat"
 
-REM Техэксперт: учётные данные читает Python из data\local\te_expert.env
-set "TE_ENV=%REPO_ROOT%\data\local\te_expert.env"
-set "TE_ENV_EXAMPLE=%REPO_ROOT%\data\local\te_expert.env.example"
-if not exist "%TE_ENV%" (
-  echo [WARN] Нет data\local\te_expert.env — Техэксперт не авторизуется.
-  if exist "%TE_ENV_EXAMPLE%" (
-    echo [WARN] Скопируйте te_expert.env.example в te_expert.env и укажите логин/пароль.
-  )
+REM Нормативка для предписаний: data\normative\ (manifest.yaml + texts\)
+if not exist "%REPO_ROOT%\data\normative\manifest.yaml" (
+  echo [WARN] Нет data\normative\manifest.yaml — сверка B19 без текста НД.
 ) else (
-  echo [INFO] TechExpert env: data\local\te_expert.env
+  echo [INFO] Normative DB: data\normative\
 )
 
 REM Корпоративный прокси/SSL: set SK_REPORTER_PIP_TRUSTED=1 перед запуском bat

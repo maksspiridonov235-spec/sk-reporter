@@ -18,7 +18,7 @@
 |------|------------|
 | `webapp/` | FastAPI + UI: `/`, `/planning`, `/reporting`, `/daily`, `/prescriptions`, `/engineer-hub`, `/engineer` |
 | `sk_reporter/` | docx, компании, агенты Ollama, `luvr_store.py`, `planning_data.py` |
-| `sk_reporter/prescriptions/` | проверка Excel предписаний: `check_agent.py`, `techexpert_client.py`, env `TE_EXPERT_*` |
+| `sk_reporter/prescriptions/` | проверка Excel предписаний: `check_agent.py`, `normative_store.py` (локальная база НД), Ollama |
 | `data/luvr/` | **ЛУВР**, luvr.yaml, шаблоны Прил.7 и расстановки (`manifest.yaml`) |
 | `data/templates/` | Болванки подрядчиков |
 | `data/projects/`, `data/tk/`, `data/personnel/` | Планирование |

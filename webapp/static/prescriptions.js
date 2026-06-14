@@ -157,12 +157,16 @@ function buildPrescriptionCompareBlocks(label, engineerText, agentText, finalTex
   return html;
 }
 
-function buildPrescriptionNormativeBlocks(engineerText, assessmentText, modelSuggestion) {
+function buildPrescriptionNormativeBlocks(engineerText, assessmentText, modelSuggestion, lookupStatus) {
   const engineer = (engineerText || '').trim();
   const assessment = (assessmentText || '').trim();
   const model = (modelSuggestion || '').trim();
-  if (!engineer && !assessment && !model) return '';
+  const status = (lookupStatus || '').trim();
+  if (!engineer && !assessment && !model && !status) return '';
   let html = buildPrescriptionTextBlock('B19 — исходник инженера', engineer);
+  if (status) {
+    html += buildPrescriptionTextBlock('B19 — документ в источнике (система)', status);
+  }
   html += buildPrescriptionTextBlock(
     'B19 — сверка с замечанием (в файл не записывается)',
     assessment || '(модель не заполнила блок сверки)'
@@ -181,7 +185,7 @@ function buildPrescriptionFileCard(filename, meta) {
     hasErrors, hasWarnings, reportText, downloadUrl,
     normativeSource, questions, draftLetter, issues,
     engineerContent, agentContent, finalContent,
-    engineerNormative, agentNormative, normativeAssessment,
+    engineerNormative, agentNormative, normativeAssessment, lookupStatus,
   } = meta;
   const bodyId = 'rb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
   const badgeHtml = hasErrors
@@ -192,9 +196,9 @@ function buildPrescriptionFileCard(filename, meta) {
 
   let sourceHtml = '';
   if (normativeSource && normativeSource.label) {
-    const srcClass = normativeSource.source === 'techexpert'
-      ? 'source-te'
-      : (normativeSource.source === 'internet' ? 'source-net' : 'source-unknown');
+    const srcClass = normativeSource.source === 'local'
+      ? 'source-local'
+      : 'source-unknown';
     const status = normativeSource.status === 'получен' ? '' : ` (${normativeSource.status})`;
     sourceHtml = `<div class="prescription-meta-row">`
       + `<span class="prescription-source-chip ${srcClass}">Нормативка: ${escHtml(normativeSource.label)}${escHtml(status)}</span>`
@@ -228,7 +232,8 @@ function buildPrescriptionFileCard(filename, meta) {
   let b19Html = buildPrescriptionNormativeBlocks(
     engineerNormative,
     normativeAssessment,
-    agentNormative
+    agentNormative,
+    lookupStatus
   );
 
   const bodyHtml = reportText
@@ -401,6 +406,17 @@ async function checkPrescriptions() {
         const fields = result.fields || {};
         const modelCorrected = result.model_corrected || {};
         const corrected = result.corrected || {};
+        const lookup = result.normative_lookup || {};
+        let lookupStatus = '';
+        if (lookup.ok) {
+          const title = lookup.doc_title || lookup.list_title || 'документ получен';
+          const path = lookup.source_url ? ` [${lookup.source_url}]` : '';
+          lookupStatus = `найден (локальная база): ${title}${path}`;
+        } else {
+          lookupStatus = lookup.error
+            ? `не найден — ${lookup.error}`
+            : 'не найден — документ отсутствует в локальной базе';
+        }
         fileCards.push(
           buildPrescriptionFileCard(ev.filename || ev.msg, {
             hasErrors: hasErr,
@@ -417,6 +433,7 @@ async function checkPrescriptions() {
             engineerNormative: fields.normative || '',
             agentNormative: modelCorrected.normative || '',
             normativeAssessment: result.normative_assessment || '',
+            lookupStatus,
           })
         );
         if (ev.download) addCheckedFile(ev.filename, ev.download);

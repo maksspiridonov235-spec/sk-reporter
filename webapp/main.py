@@ -26,38 +26,19 @@ from sk_reporter.docx_processing import (
     rename_templates,
 )
 from sk_reporter.paths import templates_dir
-from sk_reporter.prescriptions.te_env import load_te_expert_env, te_expert_config_status
+from sk_reporter.prescriptions.normative_store import normative_store_status
 from sk_reporter.template_layout import hardcoded_layout
 
-load_te_expert_env()
-_te_cfg = te_expert_config_status()
+_nd_cfg = normative_store_status()
 print(
-    "[INFO] TechExpert: "
-    f"login={'yes' if _te_cfg['login_set'] else 'no'}, "
-    f"password={'yes' if _te_cfg['password_set'] else 'no'}, "
-    f"env_file={'yes' if _te_cfg['env_file_exists'] else 'no'}, "
-    f"path={_te_cfg['env_file']}, "
-    f"internet_fallback={_te_cfg['internet_fallback']}"
+    "[INFO] Normative DB: "
+    f"documents={_nd_cfg['documents_count']}, "
+    f"manifest={'yes' if _nd_cfg['manifest_exists'] else 'no'}"
 )
-if not _te_cfg["env_file_exists"]:
+if _nd_cfg["documents_count"] == 0:
     print(
-        "[WARN] TechExpert: создайте data/local/te_expert.env "
-        "(скопируйте data/local/te_expert.env.example) — файл не в git"
-    )
-    if _te_cfg.get("edited_example_only"):
-        print(
-            "[WARN] TechExpert: логин/пароль найдены только в te_expert.env.example. "
-            "Скопируйте файл: te_expert.env.example -> te_expert.env"
-        )
-elif _te_cfg.get("env_bootstrapped_from_example"):
-    print(
-        "[INFO] TechExpert: создан data/local/te_expert.env "
-        "из te_expert.env.example"
-    )
-elif not _te_cfg.get("configured"):
-    print(
-        "[WARN] TechExpert: в data/local/te_expert.env задайте "
-        "TE_EXPERT_LOGIN и TE_EXPERT_PASSWORD (не te_expert.env.example, не «ваш_логин»)"
+        "[WARN] Normative DB: пусто — добавьте записи в data/normative/manifest.yaml "
+        "(см. data/normative/README.md)"
     )
 
 try:

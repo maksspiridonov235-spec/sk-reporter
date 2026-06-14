@@ -637,6 +637,7 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 }
 .prescription-source-chip.source-te { background: #dbeafe; color: #1e40af; }
 .prescription-source-chip.source-net { background: #e0e7ff; color: #3730a3; }
+.prescription-source-chip.source-local { background: #d1fae5; color: #065f46; }
 .prescription-source-chip.source-unknown { background: #f3f4f6; color: #4b5563; }
 .prescription-block-title {
   font-size: 12px;

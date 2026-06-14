@@ -1,0 +1,13 @@
+# Локальная база нормативки для проверки предписаний (B19).
+# Тексты — в data/normative/texts/*.txt (UTF-8).
+# Инструкция: data/normative/README.md
+
+documents: []
+  # Пример:
+  # - id: rostekhnadzor-519
+  #   title: "Приказ Ростехнадзора от 11.12.2020 N 519"
+  #   kind: Приказ
+  #   number: "519"
+  #   date: "11.12.2020"
+  #   issuer: Ростехнадзор
+  #   file: texts/519.txt

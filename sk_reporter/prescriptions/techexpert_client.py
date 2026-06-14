@@ -45,6 +45,16 @@ _JUNK_PLAIN_MARKERS = (
     "0 из 0",
     "точное совпадение",
     "учет порядка слов",
+    "ошибка загрузки страницы",
+    "произошла ошибка загрузки",
+    "error loading",
+)
+_TE_PAGE_ERROR_MARKERS = (
+    "ошибка загрузки страницы",
+    "произошла ошибка загрузки",
+    "error loading",
+    "страница не найдена",
+    "document not found",
 )
 _LOGIN_RETRIES = 2
 _LOGIN_RETRY_DELAY_S = 4.0
@@ -255,8 +265,25 @@ def _build_search_queries(reference: NormativeReference) -> list[str]:
     return out[:4]
 
 
+def _te_page_load_error(html: str) -> str:
+    """Типовая HTML-ошибка te-cloud при открытии документа (часто после протухшей сессии)."""
+    if not html:
+        return ""
+    low = html.lower()
+    for marker in _TE_PAGE_ERROR_MARKERS:
+        if marker in low:
+            return (
+                "Техэксперт: ошибка загрузки страницы документа "
+                "(сессия или nd). Закройте лишние вкладки TE и повторите."
+            )
+    return ""
+
+
 def _api_error_message(html: str) -> str:
     low = html.lower()
+    page_err = _te_page_load_error(html)
+    if page_err:
+        return page_err
     if "toomanyusers" in low or "максимальное число подключений" in low:
         return (
             "Техэксперт: превышено число одновременных подключений. "
@@ -549,25 +576,27 @@ def _score_document_header(header: str, reference: NormativeReference) -> int:
     return score
 
 
-def _fetch_document_plain(
+def _fetch_document_plain_once(
     client: "TechExpertClient",
     nd: str,
     href: str = "",
 ) -> tuple[str, str, str]:
-    """Загрузить текст документа по nd / ссылке из выдачи. Возвращает (plain, url, api_error)."""
+    """Загрузить текст документа по nd. Возвращает (plain, url, api_error)."""
     urls: list[str] = []
     if href and not href.lower().startswith("javascript"):
         urls.append(urljoin(client.catalog_url + "/", href.lstrip("/")))
     urls.extend(
         [
             f"{client.catalog_url}/text?nd={nd}",
-            f"{client.catalog_url}/?nd={nd}",
             f"{client.catalog_url}/?frame=center&nd={nd}",
+            f"{client.catalog_url}/?frame=right&nd={nd}",
+            f"{client.catalog_url}/?nd={nd}",
         ]
     )
     seen: set[str] = set()
     best_plain = ""
     best_url = urls[0] if urls else f"{client.catalog_url}/text?nd={nd}"
+    last_err = ""
 
     for doc_url in urls:
         if doc_url in seen:
@@ -577,14 +606,22 @@ def _fetch_document_plain(
             resp = client.session.get(
                 doc_url,
                 timeout=60,
-                headers={"Referer": f"{client.catalog_url}/?frame=center"},
+                headers={"Referer": f"{client.catalog_url}/?frame=center&nd={nd}"},
             )
-        except requests.RequestException:
+        except requests.RequestException as e:
+            last_err = f"Сеть при загрузке документа: {e}"
             continue
         api_err = _api_error_message(resp.text)
-        if api_err or resp.status_code != 200 or len(resp.text) < 200:
+        if api_err:
+            last_err = api_err
+            continue
+        if resp.status_code != 200 or len(resp.text) < 200:
+            last_err = f"HTTP {resp.status_code} при загрузке nd={nd}"
             continue
         plain = _html_to_document_text(resp.text)
+        if _te_page_load_error(plain):
+            last_err = _te_page_load_error(plain)
+            continue
         if len(plain) > len(best_plain):
             best_plain = plain
             best_url = doc_url
@@ -598,18 +635,48 @@ def _fetch_document_plain(
         ):
             try:
                 alt = client._api_post(path, payload)
-            except requests.RequestException:
+            except requests.RequestException as e:
+                last_err = f"Сеть при загрузке документа: {e}"
                 continue
-            if _api_error_message(alt.text):
+            api_err = _api_error_message(alt.text)
+            if api_err:
+                last_err = api_err
                 continue
             alt_plain = _html_to_document_text(alt.text)
+            if _te_page_load_error(alt_plain):
+                last_err = _te_page_load_error(alt_plain)
+                continue
             if len(alt_plain) > len(best_plain):
                 best_plain = alt_plain
                 best_url = f"{client.catalog_url}/text?nd={nd}"
 
     if not best_plain:
-        return "", best_url, f"Пустой ответ Техэксперт для nd={nd}"
+        return "", best_url, last_err or f"Пустой ответ Техэксперт для nd={nd}"
     return best_plain, best_url, ""
+
+
+def _fetch_document_plain(
+    client: "TechExpertClient",
+    nd: str,
+    href: str = "",
+) -> tuple[str, str, str]:
+    """Загрузка с одним повтором после перелогина (типично при «ошибка загрузки страницы»)."""
+    plain, url, err = _fetch_document_plain_once(client, nd, href)
+    if plain:
+        return plain, url, err
+    retryable = err and (
+        "загрузки страницы" in err.lower()
+        or "подключений" in err.lower()
+        or "сессия" in err.lower()
+    )
+    if not retryable:
+        return plain, url, err
+    print(f"[TECHEXPERT] retry document nd={nd} after: {err[:120]}")
+    client._logged_in = False
+    auth_ok, auth_err = client._ensure_login()
+    if not auth_ok:
+        return plain, url, auth_err or err
+    return _fetch_document_plain_once(client, nd, href)
 
 
 def _pick_document_candidate(
