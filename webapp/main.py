@@ -58,32 +58,20 @@ try:
                 "[WARN] PostgreSQL: справочник сотрудников пуст — "
                 "загрузите Excel на /planning/personnel"
             )
-        from sk_reporter.otkk_db import db_status as otkk_db_status
+        from sk_reporter.otkk_db import db_status as otkk_db_status, purge_empty_otkk_cards
 
+        _purged = purge_empty_otkk_cards()
+        if _purged:
+            print(f"[INFO] PostgreSQL ОТКК: удалено пустых записей (без content): {_purged}")
         _otkk_st = otkk_db_status()
         print(
             "[INFO] PostgreSQL ОТКК: "
-            f"ok={_otkk_st.get('ok')}, cards={_otkk_st.get('count', 0)}"
+            f"ok={_otkk_st.get('ok')}, cards={_otkk_st.get('with_content', 0)}"
         )
-        if _otkk_st.get("ok") and _otkk_st.get("count", 0) == 0:
+        if _otkk_st.get("ok") and _otkk_st.get("with_content", 0) == 0:
             print(
-                "[WARN] PostgreSQL: каталог ОТКК пуст — "
+                "[WARN] PostgreSQL: в базе нет загруженных ОТКК — "
                 "загрузите .doc на /planning/otkk"
-            )
-        if _otkk_st.get("ok"):
-            from sk_reporter.otkk_db import bootstrap_otkk_on_startup
-
-            _boot = bootstrap_otkk_on_startup()
-            if _boot and _boot.get("documents", {}).get("imported"):
-                print(
-                    "[INFO] PostgreSQL ОТКК: импорт с диска — "
-                    f"{', '.join(_boot['documents']['imported'])}"
-                )
-            _otkk_st = otkk_db_status()
-            print(
-                "[INFO] PostgreSQL ОТКК после bootstrap: "
-                f"cards={_otkk_st.get('count', 0)}, "
-                f"with_content={_otkk_st.get('with_content', 0)}"
             )
     else:
         print("[WARN] PostgreSQL: DATABASE_URL не задан — раздел «Сотрудники» недоступен")
@@ -440,51 +428,6 @@ async def planning_personnel_upload_xlsx(file: UploadFile = File(...)):
                 pass
 
 
-@app.post("/api/planning/otkk/import-manifest")
-async def planning_otkk_import_manifest(file: UploadFile = File(...)):
-    from sk_reporter.db.config import database_enabled
-    from sk_reporter.otkk_db import import_manifest_to_db
-
-    if not database_enabled():
-        raise HTTPException(status_code=400, detail="DATABASE_URL не задан")
-    name = (file.filename or "").lower()
-    if not name.endswith((".yaml", ".yml")):
-        raise HTTPException(status_code=400, detail="Нужен manifest.yaml")
-    tmp = None
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".yaml") as tmp:
-            shutil.copyfileobj(file.file, tmp)
-            tmp_path = Path(tmp.name)
-        return await asyncio.to_thread(import_manifest_to_db, tmp_path)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-    finally:
-        if tmp is not None:
-            try:
-                Path(tmp.name).unlink(missing_ok=True)
-            except OSError:
-                pass
-
-
-@app.post("/api/planning/otkk/scan-disk")
-async def planning_otkk_scan_disk():
-    from sk_reporter.db.config import database_enabled
-    from sk_reporter.otkk_db import scan_disk_and_upsert
-
-    if not database_enabled():
-        raise HTTPException(status_code=400, detail="DATABASE_URL не задан")
-    try:
-        return await asyncio.to_thread(scan_disk_and_upsert)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
 @app.get("/api/planning/otkk/{card_id}")
 async def planning_otkk_get(card_id: str):
     from sk_reporter.db.config import database_enabled
@@ -514,7 +457,7 @@ async def planning_otkk_upload_doc(file: UploadFile = File(...)):
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             shutil.copyfileobj(file.file, tmp)
             tmp_path = Path(tmp.name)
-        return await asyncio.to_thread(import_document_to_db, tmp_path, copy_to_tk_dir=True)
+        return await asyncio.to_thread(import_document_to_db, tmp_path, copy_to_tk_dir=False)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except FileNotFoundError as e:

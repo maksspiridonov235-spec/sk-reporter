@@ -18,7 +18,7 @@
   <p class="planning-hint">Справочник сотрудников хранится в <strong>PostgreSQL</strong> (RelaxDev). Обновление списка — загрузка Excel на этой странице. Назначение инженеров на объекты — в разделе «Проекты»; профиль для ежедневного отчёта — <code>engineer/profiles/{id}.yaml</code>.</p>
   <div id="personnelList"></div>
   {% elif section == "otkk" %}
-  <p class="planning-hint">Технологические карты хранятся в <strong>PostgreSQL</strong> (текст и структура как в .doc). Чтобы добавить или обновить карту — кнопка <strong>«Загрузить карту»</strong> ниже (повторная загрузка перезаписывает содержимое).</p>
+  <p class="planning-hint">Карты ОТКК — только в <strong>PostgreSQL</strong>. Загрузите .doc кнопкой ниже: содержимое попадёт в базу. Файлы на диске сервера не используются.</p>
   <div id="otkkList"></div>
   {% endif %}
 </div>

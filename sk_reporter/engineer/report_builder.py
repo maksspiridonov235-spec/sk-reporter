@@ -10,8 +10,8 @@ from pathlib import Path
 from docx import Document
 
 from sk_reporter.agent.inject_agent import _find_sk_section_header_cells, _write_lines_to_cell
-from sk_reporter.engineer.doc_text import control_snippet_from_tk, extract_doc_text
-from sk_reporter.engineer.tk_catalog import resolve_tk_for_work, resolve_tk_path
+from sk_reporter.engineer.doc_text import control_snippet_from_tk
+from sk_reporter.engineer.tk_catalog import resolve_tk_for_work, tk_text_for_id
 from sk_reporter.paths import project_dir
 
 
@@ -32,11 +32,10 @@ def _tk_snippet(work_name: str, proj: Path) -> str:
     tk_id = resolve_tk_for_work(work_name, proj)
     if not tk_id:
         return ""
-    tk_path = resolve_tk_path(tk_id)
-    if not tk_path:
-        return ""
     try:
-        text = extract_doc_text(tk_path)
+        text = tk_text_for_id(tk_id)
+        if not text:
+            return ""
         return control_snippet_from_tk(text)
     except Exception as exc:
         return f"[ТК {tk_id}: {exc}]"

@@ -7,13 +7,14 @@ from typing import Any
 
 from sk_reporter.personnel_store import is_engineer, list_engineers, load_people
 from sk_reporter.project_store import engineer_project_map, get_project, list_projects_rich
-from sk_reporter.paths import repo_root, tk_dir
 
 _SECTIONS = frozenset({"projects", "personnel", "otkk"})
 
 
 def _file_row(path: Path) -> dict[str, Any]:
     st = path.stat()
+    from sk_reporter.paths import repo_root
+
     root = repo_root()
     try:
         rel = str(path.relative_to(root))
@@ -86,31 +87,22 @@ def list_otkk() -> dict[str, Any]:
     from sk_reporter.otkk_db import db_status
     from sk_reporter.otkk_store import load_cards
 
-    folder = tk_dir()
     cards = []
     for card in load_cards():
-        fp = folder / card["file"]
         cards.append(
             {
                 "id": card["id"],
-                "file": card["file"],
                 "code": card.get("code") or "",
                 "title": card.get("title") or "",
-                "has_content": bool(card.get("has_content")),
-                "present": fp.is_file(),
-                "size_kb": round(fp.stat().st_size / 1024, 1) if fp.is_file() else None,
+                "source_file": card.get("file") or "",
             }
         )
-    present_count = sum(1 for c in cards if c["present"])
-    content_count = sum(1 for c in cards if c["has_content"])
+    db = db_status()
     return {
         "storage": "postgresql",
-        "folder": str(folder.relative_to(repo_root())),
         "count": len(cards),
-        "present_count": present_count,
-        "content_count": content_count,
         "cards": cards,
-        "db": db_status(),
+        "db": db,
     }
 
 
