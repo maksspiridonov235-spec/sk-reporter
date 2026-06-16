@@ -45,9 +45,5 @@ def engineer_dir() -> Path:
     return _REPO_ROOT / "engineer"
 
 
-def engineer_launchers_dir() -> Path:
-    return engineer_dir() / "launchers"
-
-
 def engineer_profiles_dir() -> Path:
     return engineer_dir() / "profiles"

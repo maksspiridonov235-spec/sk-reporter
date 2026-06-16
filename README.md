@@ -2,7 +2,8 @@
 
 Веб-приложение для **строительного контроля**: ежедневные отчёты (.docx), планирование (ЛУВР), отчёт инженера по ВОР, проверка предписаний (Excel).
 
-- Запуск: **[docs/RUN_SERVER.md](docs/RUN_SERVER.md)** (Windows: [ярлык SK-Reporter.bat](docs/RUN_SERVER.md#офисный-пк-ярлык-sk-reporterbat))
+- Запуск prod: **https://sk-reporter.relaxdev.ru** — см. **[docs/ДЛЯ_СОТРУДНИКОВ.md](docs/ДЛЯ_СОТРУДНИКОВ.md)**
+- Локальная разработка: **[docs/RUN_SERVER.md](docs/RUN_SERVER.md)**
 - Для сотрудников: **[docs/ДЛЯ_СОТРУДНИКОВ.md](docs/ДЛЯ_СОТРУДНИКОВ.md)**
 - Для разработки / AI: **[AGENTS.md](AGENTS.md)**, **[docs/memory.md](docs/memory.md)**
 
@@ -51,11 +52,9 @@ sk-reporter/                         ← корень репозитория (gi
 │   └── tk/                          ← каталог технологических карт
 │
 ├── engineer/                        ← конфиг инженеров (не Python-код!)
-│   ├── profiles/                    ← yaml-профили (ФИО, person_id)
-│   └── launchers/                   ← .bat для запуска с рабочего стола
+│   └── profiles/                    ← yaml-профили (ФИО, person_id)
 │
 ├── scripts/                         ← утилиты из терминала (setup, сборка yaml)
-├── launcher/SK-Reporter.bat           ← запуск сервера на офисном Windows-ПК
 ├── docs/                            ← инструкции, memory.md, контекст продукта
 └── pyproject.toml                   ← зависимости; pip install -e .
 ```
@@ -72,7 +71,7 @@ sk-reporter/                         ← корень репозитория (gi
 
 ### Частые вопросы
 
-- **`engineer/` в корне** и **`sk_reporter/engineer/`** — разное: в корне yaml и bat для людей, в пакете — Python.
+- **`engineer/` в корне** и **`sk_reporter/engineer/`** — разное: в корне yaml для людей, в пакете — Python.
 - **`scripts/`** — не второй проект, а редкие команды (`setup.sh`, `build_engineer_data.py --luvr`).
 - **Тяжёлые xlsx/xlsm** — класть в `data/luvr/` (или `data/prescriptions/`), не в корень репо и не коммитить без необходимости (см. `.gitignore`).
 

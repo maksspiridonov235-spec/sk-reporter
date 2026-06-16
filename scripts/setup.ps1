@@ -29,7 +29,7 @@ pip завершился с ошибкой (код $LASTEXITCODE).
 Частые причины:
   • getaddrinfo failed — нет интернета/DNS (проверьте ping pypi.org; иногда нужен VPN офиса)
   • SSL certificate — `$env:SK_REPORTER_PIP_TRUSTED = "1"` и снова setup
-  • venv занят — закройте SK-Reporter.bat и все окна с (venv)
+  • venv занят — закройте все окна с (venv) и uvicorn
 
 Подробнее: docs/RUN_SERVER.md
 "@
@@ -47,8 +47,8 @@ function Remove-VenvSafe {
 Не удалось удалить $Path (файлы заняты).
 
 Закройте:
-  • окно SK-Reporter.bat (чёрная консоль)
   • все PowerShell с префиксом (venv)
+  • процессы uvicorn / python с этим проектом
   • Cursor/VS Code терминалы в этом проекте
 
 Затем в новом PowerShell (без venv):
@@ -98,7 +98,7 @@ Write-Host "  .\venv\Scripts\Activate.ps1"
 Write-Host "  cd webapp"
 Write-Host "  python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000"
 Write-Host ""
-Write-Host "Или ярлык: launcher\SK-Reporter.bat"
+Write-Host "Или: .\scripts\run-server.ps1 (порт 8010)"
 Write-Host ""
 Write-Host "Офис: пометка локальных данных (болванки, project.yaml) для git pull..."
 & "$PSScriptRoot\git-pull-office.ps1" -MarkOnly

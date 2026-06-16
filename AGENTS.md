@@ -22,10 +22,11 @@
 | `data/luvr/` | **ЛУВР**, luvr.yaml, шаблоны Прил.7 и расстановки (`manifest.yaml`) |
 | `data/templates/` | Болванки подрядчиков |
 | `data/projects/`, `data/tk/`, `data/personnel/` | Планирование |
-| `engineer/profiles/`, `engineer/launchers/` | Профили и bat для инженеров |
+| `engineer/profiles/` | Профили инженеров (yaml) |
 | `sk_reporter/engineer/` | Парсер ВОР, каталог ТК, сборка отчёта инженера |
 | temp `sk_reports_work/uploads/` | Загруженные и исправленные отчёты (рабочие; не в репо) |
-| `launcher/SK-Reporter.bat` | Запуск сервера на офисном ПК |
+
+**Продакшен:** https://sk-reporter.relaxdev.ru (RelaxDev). Локальный uvicorn — только для разработки.
 
 ## Правила работы агента
 
@@ -33,7 +34,7 @@
 - Коммит и push — **только по явной просьбе** пользователя
 - После изменения поведения для офиса — обновить `docs/memory.md` и при необходимости `docs/PROJECT_CONTEXT.md`
 - Модель Ollama в агентах: `gemma4:31b-cloud` (см. код)
-- После `git pull` на Windows сервер нужно **перезапустить** bat (код в памяти не обновляется)
+- После деплоя на RelaxDev — перезапуск сервиса на платформе (код в памяти не обновляется сам)
 
 ## Обновление «памяти» между чатами
 

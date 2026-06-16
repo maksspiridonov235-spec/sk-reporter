@@ -30,7 +30,6 @@
       const meta = [
         eng.position,
         `${eng.projects_count} ${pluralProjects(eng.projects_count)}`,
-        eng.launcher_name ? `bat: ${eng.launcher_name}` : null,
       ]
         .filter(Boolean)
         .join(" · ");

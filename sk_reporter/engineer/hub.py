@@ -2,18 +2,13 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import yaml
 
-from sk_reporter.paths import engineer_launchers_dir, engineer_profiles_dir, repo_root
+from sk_reporter.paths import engineer_profiles_dir, repo_root
 from sk_reporter.personnel_store import get_person, list_engineers
 from sk_reporter.project_store import engineer_project_map, get_project
-
-
-def _launchers_dir() -> Path:
-    return engineer_launchers_dir()
 
 
 def _scan_profiles_by_person() -> dict[str, str]:
@@ -37,7 +32,7 @@ def find_profile_id(person_id: str) -> str | None:
 
 
 def ensure_engineer_profile(person_id: str) -> str:
-    """Создать yaml + bat при первом назначении; вернуть profile id."""
+    """Создать yaml при первом назначении; вернуть profile id."""
     person_id = str(person_id).strip()
     existing = find_profile_id(person_id)
     if existing:
@@ -65,27 +60,7 @@ def ensure_engineer_profile(person_id: str) -> str:
             encoding="utf-8",
         )
 
-    bat_path = _launchers_dir() / f"{profile_id}.bat"
-    if not bat_path.is_file():
-        bat_path.parent.mkdir(parents=True, exist_ok=True)
-        bat_path.write_text(
-            _bat_contents(profile_id),
-            encoding="utf-8",
-        )
-
     return profile_id
-
-
-def _bat_contents(profile_id: str) -> str:
-    return f"""@echo off
-setlocal
-cd /d "%~dp0..\\.."
-set SK_ENGINEER_PROFILE={profile_id}
-echo SK-Reporter engineer profile: %SK_ENGINEER_PROFILE%
-echo Open http://127.0.0.1:8010/engineer/{profile_id} after starting the server.
-start http://127.0.0.1:8010/engineer/{profile_id}
-call scripts\\run-server.ps1
-"""
 
 
 def ensure_profiles_for_engineers(engineer_ids: list[str]) -> None:
@@ -124,7 +99,6 @@ def list_hub_engineers() -> list[dict[str, Any]]:
                 }
             )
 
-        launcher = _launchers_dir() / f"{profile_id}.bat" if profile_id else None
         items.append(
             {
                 "person_id": pid,
@@ -134,7 +108,6 @@ def list_hub_engineers() -> list[dict[str, Any]]:
                 "projects": projects,
                 "projects_count": len(projects),
                 "profile_ok": bool(profile_id),
-                "launcher_name": launcher.name if launcher and launcher.is_file() else None,
                 "href": f"/engineer/{profile_id}" if profile_id else None,
             }
         )
@@ -148,5 +121,4 @@ def hub_payload() -> dict[str, Any]:
         "engineers": engineers,
         "engineers_count": len(engineers),
         "profiles_dir": str(engineer_profiles_dir().relative_to(repo_root())),
-        "launchers_dir": str(_launchers_dir().relative_to(repo_root())),
     }

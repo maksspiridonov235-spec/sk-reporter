@@ -9,6 +9,7 @@
 ### 2026-06-16
 - **Что сделано:** зафиксирован протокол работы агента с памятью (4 раздела, журнал сверху).
 - **Что сделано:** удалён модуль «ЛУВР» из UI/роутов (страницы `/planning/luvr` и `/api/luvr/*` больше нет).
+- **Что сделано:** удалены все `.bat` (офисный `launcher/`, `engineer/launchers/`), автогенерация bat в `hub.py`; прод — только RelaxDev.
 - **Что сделано:** справочник **Сотрудники** — только PostgreSQL на RelaxDev (`personnel`, импорт Excel, UI `/planning/personnel`); `personnel.yaml` и yaml-fallback удалены.
 - **Что решили:** `docs/memory.md` — единый источник; при конфликте с запросом — уточнять у пользователя; обновлять память в конце задачи при любом значимом изменении.
 - **Что решили:** планирование (Проекты, ОТКК) — следующий шаг та же схема: PostgreSQL + импорт из legacy-файлов.
@@ -46,7 +47,7 @@
 **Не смешивать** с docx-агентами (`sk_reporter/agent/check_agent.py`); temp uploads — `UPLOAD_DIR`.
 
 ### Ollama
-`sk_reporter/llm_client.py` — локально `http://127.0.0.1:11434` (офис + bat) или облако: `OLLAMA_API_KEY` + `OLLAMA_HOST=https://ollama.com` (Relax Dev). Модель: `OLLAMA_MODEL` или `gemma4:31b-cloud`. TE env не нужен.
+`sk_reporter/llm_client.py` — локально `http://127.0.0.1:11434` или облако: `OLLAMA_API_KEY` + `OLLAMA_HOST=https://ollama.com` (RelaxDev). Модель: `OLLAMA_MODEL` или `gemma4:31b-cloud`. TE env не нужен.
 
 ### Параллельно (стабильно, не ломать)
 **Ежедневные отчёты СК** — `/reporting` → `/daily`: check→inject, руководитель, сборка в болванки. Одна кнопка **«Проверить и сформировать»**. Verify-агента **нет**.
@@ -58,7 +59,7 @@
 2. **Предписания** — текущий приоритет; ежедневные отчёты и планирование — минимальный diff, не регрессить.
 3. xlsm с макросами — **не перезаписывать** без `keep_vba`; экспорт только значений ячеек.
 4. Коммит/push — только по просьбе пользователя.
-5. После `git pull` на офисном ПК — перезапуск bat, `pip install -e .` при новых зависимостях, Ctrl+F5.
+5. Продакшен на RelaxDev — деплой из `main`, не bat на офисном ПК.
 
 ---
 
@@ -79,10 +80,8 @@
 **Сделано (2026-06-08, коммит `cf69962`, push в `main`):**
 
 - `/engineer-hub` — карточки по **ФИО** инженеров с назначениями (из `project.yaml` + `personnel.yaml`).
-- При назначении в **Планирование → Проекты** — автосоздание `engineer/profiles/{id}.yaml` и `engineer/launchers/{id}.bat` (если профиля ещё нет).
-- `/engineer/{profile_id}` — **вкладки по закреплённым объектам** (название с титула `object_name`), таблица ВОР как раньше.
-- `/engineer` → редирект на `/engineer-hub`; API: `GET /api/engineer-hub`, `profile_id` в `/api/engineer/config` и `/api/engineer/build`.
-- `ayupov.bat` → `/engineer/ayupov`.
+- При назначении в **Планирование → Проекты** — автосоздание `engineer/profiles/{id}.yaml` (если профиля ещё нет).
+- `/engineer/{profile_id}` — карточка на RelaxDev.
 
 **Отложено:** шаблон `data/engineer/report_template.docx` — **не автогенерировать**; положить вручную позже. Пока нет файла — предупреждение на странице инженера, кнопка docx неактивна.
 
@@ -196,12 +195,12 @@ personnel.yaml + project.yaml (назначения инженеров)
 
 ### 2026-06-07 — навигация и шапка
 - Вложенные хабы: `/planning`, `/reporting`, `/engineer-hub`; хлебные крошки в `_header.html`
-- `launcher/SK-Reporter.bat` — явный pip install, проверка openpyxl/pyyaml
+- *(устарело 2026-06-16)* офисный bat удалён — прод на RelaxDev
 
 ### 2026-06-04 — где лежат файлы (отчёты СК)
 - **Сырые и исправленные:** temp `…/sk_reports_work/uploads/` (`UPLOAD_DIR`)
 - **Готовые сводные:** temp `…/sk_reports_work/results/`
-- После `git pull` на офисном ПК — **перезапустить** bat
+- После деплоя на RelaxDev — перезапуск сервиса
 
 ### 2026-06-05 — блок 2 без AI-агента
 - `leader_switch.py` rule-based; verify **не планируется**

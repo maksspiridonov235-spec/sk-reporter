@@ -46,8 +46,8 @@
 
 ## Ограничения и среда
 
-- Офисный **Windows**: один ПК, `launcher/SK-Reporter.bat`, Ollama для AI
-- Разработка на **Mac**; `git pull` + перезапуск bat на офисе
+- **Продакшен:** RelaxDev — https://sk-reporter.relaxdev.ru, PostgreSQL (`DATABASE_URL`), Ollama cloud (`OLLAMA_API_KEY`)
+- **Разработка** на Mac / локальный Windows — `uvicorn` из venv
 - Тяжёлые xlsx/xlsm — **локально**, yaml-кэши — в git где уместно
 
 ## Что считается успехом (планирование)
