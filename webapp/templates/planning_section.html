@@ -15,20 +15,13 @@
   <p class="planning-hint">Проекты из <code>data/projects/</code>: ВОР, ТК, инженеры. Назначьте инженеров и нажмите <strong>«Сформировать расстановку»</strong>.</p>
   <div id="projectsList" class="planning-cards"></div>
   {% elif section == "personnel" %}
-  <p class="planning-hint">Справочник из <code>personnel.yaml</code>. Инженеры назначаются на проекты в разделе «Проекты»; профиль для ежедневного отчёта — <code>engineer/profiles/{id}.yaml</code>.</p>
+  <p class="planning-hint">Справочник сотрудников: <strong>PostgreSQL</strong> при заданном <code>DATABASE_URL</code>, иначе <code>data/personnel/personnel.yaml</code>. Инженеры назначаются на проекты в разделе «Проекты»; профиль для ежедневного отчёта — <code>engineer/profiles/{id}.yaml</code>.</p>
   <div id="personnelList"></div>
   {% elif section == "otkk" %}
   <p class="planning-hint">Технологические карты в <code>data/tk/</code> — manifest.yaml.</p>
   <div id="otkkList"></div>
-  {% elif section == "luvr" %}
-  <p class="planning-hint">Лист учёта времени — сетка по дням; строки связаны со справочником <code>personnel.yaml</code>. Расстановку из назначений формируйте в разделе <a href="/planning/projects">Проекты</a>.</p>
-  <div id="luvrList"></div>
   {% endif %}
 </div>
-
-{% if section == "luvr" %}
-<script src="/static/luvr_render.js?v={{ git_head }}"></script>
-{% endif %}
 <script src="/static/planning.js?v={{ git_head }}"></script>
 </body>
 </html>

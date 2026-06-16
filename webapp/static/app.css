@@ -932,6 +932,16 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 .personnel-toolbar {
   display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 12px;
 }
+.personnel-import-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 12px;
+}
+.personnel-upload-label { cursor: pointer; margin: 0; }
+.storage-badge {
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;
+  padding: 3px 8px; border-radius: 999px;
+}
+.storage-badge--db { background: #ecfdf5; color: #047857; }
+.storage-badge--yaml { background: #f1f5f9; color: #475569; }
 .personnel-filter { font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .personnel-search { max-width: 240px; font-size: 13px; padding: 6px 10px; }
 .personnel-table-wrap { overflow-x: auto; }

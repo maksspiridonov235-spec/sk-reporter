@@ -42,6 +42,29 @@ if _nd_cfg["documents_count"] == 0:
     )
 
 try:
+    from sk_reporter.db.config import database_enabled
+    from sk_reporter.personnel_db import db_status
+
+    if database_enabled():
+        _db_st = db_status()
+        print(
+            "[INFO] PostgreSQL: "
+            f"ok={_db_st.get('ok')}, personnel={_db_st.get('count', 0)}"
+        )
+        if not _db_st.get("ok"):
+            print(f"[WARN] PostgreSQL: {_db_st.get('error')}")
+        elif _db_st.get("count", 0) == 0:
+            print(
+                "[WARN] PostgreSQL: справочник сотрудников пуст — "
+                "импортируйте на /planning/personnel или: "
+                "python scripts/import_personnel_db.py"
+            )
+    else:
+        print("[INFO] PostgreSQL: не задан DATABASE_URL — сотрудники из personnel.yaml")
+except Exception as _db_err:
+    print(f"[WARN] PostgreSQL: {_db_err}")
+
+try:
     from sk_reporter.agent.ocr_agent import detect_company, merge_report_into_template
     from sk_reporter.llm_client import llm_status, ping_llm
 
@@ -67,13 +90,12 @@ except ImportError as e:
 
 _WEBAPP_DIR = Path(__file__).resolve().parent
 _HTML_TEMPLATES_DIR = _WEBAPP_DIR / "templates"
-_APP_UI_BUILD = "home+reporting+daily+weekly+weekly-photos+prescriptions+planning+planning-sections+luvr+engineer-hub+engineer"
+_APP_UI_BUILD = "home+reporting+daily+weekly+weekly-photos+prescriptions+planning+planning-sections+engineer-hub+engineer"
 
 _PLANNING_SECTIONS = {
     "projects": "Проекты",
     "personnel": "Сотрудники",
     "otkk": "ОТКК",
-    "luvr": "ЛУВР",
 }
 
 
@@ -118,7 +140,7 @@ if not TEMPLATES_DIR.exists():
     raise RuntimeError(f"Папка с болванками не найдена: {TEMPLATES_DIR}")
 print(f"[INFO] Templates dir: {TEMPLATES_DIR} ({len(list(TEMPLATES_DIR.glob('*.docx')))} шаблонов)")
 
-for _tpl in ("home.html", "reporting.html", "daily.html", "weekly.html", "weekly_photos.html", "prescriptions.html", "planning.html", "planning_section.html", "luvr.html", "engineer_hub.html", "engineer.html"):
+for _tpl in ("home.html", "reporting.html", "daily.html", "weekly.html", "weekly_photos.html", "prescriptions.html", "planning.html", "planning_section.html", "engineer_hub.html", "engineer.html"):
     _tpl_path = _HTML_TEMPLATES_DIR / _tpl
     if not _tpl_path.is_file():
         raise RuntimeError(f"HTML-шаблон не найден: {_tpl_path} — выполните git pull и перезапустите сервер")
@@ -221,10 +243,18 @@ async def health():
         or not has_engineer
         or not has_engineer_hub
     )
+    db_info = None
+    try:
+        from sk_reporter.personnel_db import db_status
+
+        db_info = db_status()
+    except Exception:
+        pass
     return {
         "ok": not stale,
         "stale_process": stale,
         "app_ui_build": _APP_UI_BUILD,
+        "database": db_info,
         "has_daily_route": has_daily,
         "has_prescriptions_route": has_prescriptions,
         "has_reporting_route": has_reporting,
@@ -354,6 +384,52 @@ async def planning_api(section: str):
         raise HTTPException(status_code=404, detail="Неизвестный раздел") from None
 
 
+@app.post("/api/planning/personnel/import-yaml")
+async def planning_personnel_import_yaml():
+    from sk_reporter.db.config import database_enabled
+    from sk_reporter.personnel_db import import_personnel_yaml_to_db
+
+    if not database_enabled():
+        raise HTTPException(status_code=400, detail="DATABASE_URL не задан")
+    try:
+        return await asyncio.to_thread(import_personnel_yaml_to_db)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/api/planning/personnel/upload-xlsx")
+async def planning_personnel_upload_xlsx(file: UploadFile = File(...)):
+    from sk_reporter.db.config import database_enabled
+    from sk_reporter.personnel_db import import_personnel_xlsx_to_db
+
+    if not database_enabled():
+        raise HTTPException(status_code=400, detail="DATABASE_URL не задан")
+    name = (file.filename or "").lower()
+    if not name.endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="Нужен файл Excel (.xlsx)")
+    suffix = ".xlsx" if name.endswith(".xlsx") else ".xls"
+    tmp = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            shutil.copyfileobj(file.file, tmp)
+            tmp_path = Path(tmp.name)
+        return await asyncio.to_thread(import_personnel_xlsx_to_db, tmp_path)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    finally:
+        if tmp is not None:
+            try:
+                Path(tmp.name).unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
 class ProjectEngineersBody(BaseModel):
     engineer_ids: list[str] = []
 
@@ -377,241 +453,6 @@ async def planning_deployment_build():
 
     try:
         return await asyncio.to_thread(build_deployment_from_projects)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.get("/luvr", response_class=HTMLResponse)
-async def luvr_page(request: Request):
-    print(f"[REQ] GET /luvr pid={os.getpid()} -> luvr.html")
-    return templates.TemplateResponse(
-        "luvr.html",
-        _page_context(
-            request,
-            breadcrumbs=[
-                {"label": "Планирование", "href": "/planning"},
-                {"label": "ЛУВР"},
-            ],
-        ),
-    )
-
-
-@app.get("/api/luvr")
-async def luvr_api():
-    from sk_reporter.planning_data import list_luvr
-
-    return list_luvr()
-
-
-class LuvrMarkBody(BaseModel):
-    sheet: str
-    person_idx: int = Field(ge=0)
-    day_idx: int = Field(ge=0)
-    mark: str = ""
-
-
-@app.post("/api/luvr/mark")
-async def luvr_set_mark(body: LuvrMarkBody):
-    from sk_reporter.luvr_store import update_luvr_mark
-
-    try:
-        return await asyncio.to_thread(
-            update_luvr_mark, body.sheet, body.person_idx, body.day_idx, body.mark
-        )
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except IndexError as e:
-        raise HTTPException(status_code=400, detail="Неверный индекс строки или дня") from e
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-class LuvrMarkUpdate(BaseModel):
-    person_idx: int = Field(ge=0)
-    day_idx: int = Field(ge=0)
-    mark: str = ""
-
-
-class LuvrMarksBatchBody(BaseModel):
-    sheet: str
-    updates: list[LuvrMarkUpdate] = Field(default_factory=list)
-
-
-@app.post("/api/luvr/marks-batch")
-async def luvr_set_marks_batch(body: LuvrMarksBatchBody):
-    from sk_reporter.luvr_store import update_luvr_marks_batch
-
-    payload = [{"person_idx": u.person_idx, "day_idx": u.day_idx, "mark": u.mark} for u in body.updates]
-    try:
-        return await asyncio.to_thread(update_luvr_marks_batch, body.sheet, payload)
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except IndexError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/api/luvr/import-from-xlsx")
-async def luvr_import_from_xlsx():
-    from sk_reporter.luvr_store import import_luvr_from_xlsx
-
-    try:
-        return await asyncio.to_thread(import_luvr_from_xlsx)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-class LuvrExportBody(BaseModel):
-    sheet: str | None = None
-
-
-@app.post("/api/luvr/export-to-xlsx")
-async def luvr_export_to_xlsx(body: LuvrExportBody | None = None):
-    from sk_reporter.luvr_store import sync_luvr_to_xlsx
-
-    sheet = body.sheet if body else None
-    try:
-        return await asyncio.to_thread(sync_luvr_to_xlsx, sheet)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-class LuvrLinkBody(BaseModel):
-    sheet: str
-    person_idx: int = Field(ge=0)
-    person_id: str = ""
-
-
-@app.post("/api/luvr/link")
-async def luvr_set_person_link(body: LuvrLinkBody):
-    from sk_reporter.luvr_store import set_luvr_person_link
-
-    pid = body.person_id.strip() or None
-    try:
-        return await asyncio.to_thread(set_luvr_person_link, body.sheet, body.person_idx, pid)
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except IndexError as e:
-        raise HTTPException(status_code=400, detail="Неверный индекс строки") from e
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/api/luvr/auto-link")
-async def luvr_auto_link():
-    from sk_reporter.luvr_store import auto_link_luvr
-
-    try:
-        return await asyncio.to_thread(auto_link_luvr, True)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-class LuvrProjectsBody(BaseModel):
-    sheet: str
-    person_idx: int = Field(ge=0)
-    project_ids: list[str] = Field(default_factory=list)
-
-
-@app.post("/api/luvr/projects")
-async def luvr_set_person_projects(body: LuvrProjectsBody):
-    from sk_reporter.luvr_store import set_luvr_person_projects
-
-    try:
-        return await asyncio.to_thread(
-            set_luvr_person_projects, body.sheet, body.person_idx, body.project_ids
-        )
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except IndexError as e:
-        raise HTTPException(status_code=400, detail="Неверный индекс строки") from e
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/api/luvr/auto-projects")
-async def luvr_auto_projects():
-    from sk_reporter.luvr_store import auto_assign_luvr_projects
-
-    try:
-        return await asyncio.to_thread(auto_assign_luvr_projects, True)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-class LuvrAppendix7Body(BaseModel):
-    sheet: str
-
-
-@app.get("/api/luvr/appendix7/status")
-async def luvr_appendix7_status():
-    from sk_reporter.appendix7_store import appendix7_status
-
-    return await asyncio.to_thread(appendix7_status)
-
-
-@app.post("/api/luvr/appendix7/build")
-async def luvr_appendix7_build(body: LuvrAppendix7Body):
-    from sk_reporter.appendix7_store import build_appendix7_from_luvr
-
-    try:
-        return await asyncio.to_thread(build_appendix7_from_luvr, body.sheet)
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.get("/api/luvr/deployment/status")
-async def luvr_deployment_status():
-    from sk_reporter.deployment_store import deployment_status
-
-    return await asyncio.to_thread(deployment_status)
-
-
-@app.post("/api/luvr/deployment/build")
-async def luvr_deployment_build(body: LuvrAppendix7Body):
-    from sk_reporter.deployment_store import build_deployment_from_luvr
-
-    try:
-        return await asyncio.to_thread(build_deployment_from_luvr, body.sheet)
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except ValueError as e:

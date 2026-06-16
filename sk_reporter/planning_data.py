@@ -7,12 +7,11 @@ from typing import Any
 
 import yaml
 
-from sk_reporter.luvr_store import luvr_planning_payload
-from sk_reporter.personnel_store import is_engineer, list_engineers, load_people
+from sk_reporter.personnel_store import is_engineer, list_engineers, load_people, storage_backend
 from sk_reporter.project_store import engineer_project_map, get_project, list_projects_rich, set_project_engineers
 from sk_reporter.paths import personnel_dir, repo_root, tk_dir
 
-_SECTIONS = frozenset({"projects", "luvr", "personnel", "otkk"})
+_SECTIONS = frozenset({"projects", "personnel", "otkk"})
 
 
 def _file_row(path: Path) -> dict[str, Any]:
@@ -59,11 +58,9 @@ def projects_planning_payload() -> dict[str, Any]:
     }
 
 
-def list_luvr() -> dict[str, Any]:
-    return luvr_planning_payload()
-
-
 def list_personnel() -> dict[str, Any]:
+    from sk_reporter.personnel_db import db_status
+
     folder = personnel_dir()
     assignments = engineer_project_map()
     people = []
@@ -79,11 +76,14 @@ def list_personnel() -> dict[str, Any]:
                 "projects": assignments.get(p["id"], []),
             }
         )
+    backend = storage_backend()
     return {
+        "storage": backend,
         "folder": str(folder.relative_to(repo_root())),
         "people_count": len(people),
         "engineers_count": engineers_count,
         "people": people,
+        "db": db_status() if backend == "postgresql" else None,
     }
 
 
@@ -127,8 +127,6 @@ def planning_section(section: str) -> dict[str, Any]:
         raise KeyError(section)
     if section == "projects":
         return projects_planning_payload()
-    if section == "luvr":
-        return {"section": section, **list_luvr()}
     if section == "personnel":
         return {"section": section, **list_personnel()}
     return {"section": section, **list_otkk()}
