@@ -58,11 +58,14 @@ try:
                 "[WARN] PostgreSQL: справочник сотрудников пуст — "
                 "загрузите Excel на /planning/personnel"
             )
-        from sk_reporter.otkk_db import db_status as otkk_db_status, purge_empty_otkk_cards
+        from sk_reporter.otkk_db import db_status as otkk_db_status, purge_empty_otkk_cards, seed_otkk1
 
         _purged = purge_empty_otkk_cards()
         if _purged:
             print(f"[INFO] PostgreSQL ОТКК: удалено пустых записей (без content): {_purged}")
+        _seed = seed_otkk1()
+        if _seed.get("seeded"):
+            print(f"[INFO] PostgreSQL ОТКК: залит эталон {_seed.get('id')} ({_seed.get('rows')} пунктов)")
         _otkk_st = otkk_db_status()
         print(
             "[INFO] PostgreSQL ОТКК: "
@@ -439,6 +442,20 @@ async def planning_otkk_get(card_id: str):
     if not card:
         raise HTTPException(status_code=404, detail="Карта не найдена")
     return card
+
+
+@app.post("/api/planning/otkk/seed/otkk-1")
+async def planning_otkk_seed_otkk1(overwrite: bool = False):
+    from sk_reporter.db.config import database_enabled
+    from sk_reporter.otkk_db import seed_otkk1
+
+    if not database_enabled():
+        raise HTTPException(status_code=400, detail="DATABASE_URL не задан")
+    try:
+        return await asyncio.to_thread(seed_otkk1, overwrite=overwrite)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/api/planning/otkk/upload-doc")

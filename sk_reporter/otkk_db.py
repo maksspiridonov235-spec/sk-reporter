@@ -144,6 +144,22 @@ def upsert_card_content(parsed: dict[str, Any], *, file_name: str | None = None)
     return {"id": cid, "file": fname, "code": content["code"], "title": content["title"]}
 
 
+def seed_otkk1(*, overwrite: bool = False) -> dict[str, Any]:
+    """Залить эталон ОТКК-1 (6 пунктов карты) в PostgreSQL."""
+    from sk_reporter.otkk1_data import otkk1_parsed
+
+    parsed = otkk1_parsed()
+    cid = parsed["id"]
+    if not overwrite:
+        existing = get_card_from_db(cid, include_content=True)
+        if existing and existing.get("has_content"):
+            return {"id": cid, "skipped": True, "reason": "already in db"}
+    result = upsert_card_content(parsed, file_name=parsed["file"])
+    result["rows"] = len(parsed.get("rows") or [])
+    result["seeded"] = True
+    return result
+
+
 def import_document_to_db(
     source: Path,
     *,

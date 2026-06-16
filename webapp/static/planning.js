@@ -455,23 +455,8 @@
 
   function renderOtkkRowBody(row) {
     const label = esc(row.label || "");
-    let valueHtml = esc(row.value || "");
-    const body = row.body;
-    if (body) {
-      const parts = [];
-      for (const p of body.paragraphs || []) {
-        parts.push(`<p>${esc(p)}</p>`);
-      }
-      if (body.bullets?.length) {
-        parts.push(
-          `<ul class="otkk-bullets">${body.bullets.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>`
-        );
-      }
-      if (parts.length) valueHtml = parts.join("");
-    }
-    if (row.codes?.length) {
-      valueHtml += `<p class="hint-text">Коды: ${row.codes.map((c) => `<code>${esc(c)}</code>`).join(", ")}</p>`;
-    }
+    const value = row.value || "";
+    const valueHtml = `<div class="otkk-value">${esc(value)}</div>`;
     return `<tr><th scope="row">${label}</th><td>${valueHtml}</td></tr>`;
   }
 
@@ -490,11 +475,7 @@
       const content = data.content || {};
       titleEl.textContent = [content.code, content.title].filter(Boolean).join(" — ") || cardId;
       const rows = (content.rows || []).map(renderOtkkRowBody).join("");
-      const sig = content.signature;
-      const sigHtml = sig?.text
-        ? `<p class="otkk-signature"><strong>${esc(sig.label || "Подпись")}:</strong> ${esc(sig.text)}</p>`
-        : "";
-      bodyEl.innerHTML = `<table class="planning-table otkk-structure-table"><tbody>${rows}</tbody></table>${sigHtml}`;
+      bodyEl.innerHTML = `<table class="planning-table otkk-structure-table"><tbody>${rows}</tbody></table>`;
     } catch (e) {
       bodyEl.innerHTML = `<p class="error-text">${esc(e.message)}</p>`;
       titleEl.textContent = cardId;
