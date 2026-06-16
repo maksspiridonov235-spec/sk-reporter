@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import text
-from sk_reporter.db.config import database_url
+from sk_reporter.db.config import database_enabled, database_url
 from sk_reporter.db.models import OtkkCard
 from sk_reporter.db.session import get_session, init_db
 from sk_reporter.paths import tk_dir
