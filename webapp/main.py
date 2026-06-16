@@ -68,8 +68,8 @@ try:
         _purged = purge_empty_otkk_cards()
         if _purged:
             print(f"[INFO] PostgreSQL ОТКК: удалено пустых записей (без content): {_purged}")
-        for _seed_fn in (seed_otkk1, seed_otkk2):
-            _seed = _seed_fn()
+        for _seed_fn, _overwrite in ((seed_otkk1, False), (seed_otkk2, True)):
+            _seed = _seed_fn(overwrite=_overwrite)
             if _seed.get("seeded"):
                 print(
                     f"[INFO] PostgreSQL ОТКК: залит эталон {_seed.get('id')} "
