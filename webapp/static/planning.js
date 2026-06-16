@@ -326,22 +326,27 @@
     const storageBadge = `<span class="storage-badge storage-badge--db" title="${esc(dbError)}">PostgreSQL${db.count != null ? ` · ${db.count}` : ""}</span>`;
 
     const importToolbar = `<div class="personnel-import-bar">
-        <label class="btn btn-secondary btn-sm personnel-upload-label">
-          Загрузить карту (.doc)
+        <label class="btn btn-primary btn-sm personnel-upload-label">
+          Загрузить карту (.doc / .docx)
           <input type="file" id="otkkUploadDoc" accept=".doc,.docx" hidden/>
         </label>
-        <label class="btn btn-secondary btn-sm personnel-upload-label">
-          Импорт manifest.yaml
-          <input type="file" id="otkkUploadManifest" accept=".yaml,.yml" hidden/>
-        </label>
-        <button type="button" class="btn btn-secondary btn-sm" id="otkkScanDisk">Сканировать data/tk/</button>
+        <details class="otkk-admin-import">
+          <summary class="hint-text">Дополнительно</summary>
+          <div class="personnel-import-bar">
+            <label class="btn btn-secondary btn-sm personnel-upload-label">
+              Импорт manifest.yaml
+              <input type="file" id="otkkUploadManifest" accept=".yaml,.yml" hidden/>
+            </label>
+            <button type="button" class="btn btn-secondary btn-sm" id="otkkScanDisk">Сканировать data/tk/</button>
+          </div>
+        </details>
         <span id="otkkImportStatus" class="hint-text" aria-live="polite"></span>
       </div>`;
 
     if (!cards.length) {
       const emptyHint = dbError
         ? `Каталог недоступен: ${esc(dbError)}`
-        : "Каталог в базе пуст. Импортируйте manifest.yaml или отсканируйте папку data/tk/.";
+        : "В базе пока нет карт. Загрузите файл ОТКК (.doc) кнопкой выше — содержимое сохранится в PostgreSQL.";
       el.innerHTML =
         `<div class="personnel-toolbar">${storageBadge}</div>` +
         (db.ok ? importToolbar : "") +
@@ -366,7 +371,7 @@
         <input type="search" id="otkkSearch" class="field-input personnel-search" placeholder="Поиск по ID, коду или названию…"/>
       </div>
       ${importToolbar}
-      <p class="hint-text">Загрузка .doc парсит карту в структуру как в исходнике и перезаписывает запись в PostgreSQL. Файл копируется в <code>${esc(data.folder || "data/tk")}</code>.</p>
+      <p class="hint-text">Повторная загрузка того же номера ОТКК полностью перезаписывает карту в базе.</p>
       <div class="personnel-table-wrap">
         <table class="planning-table personnel-table" id="otkkTable">
           <thead>

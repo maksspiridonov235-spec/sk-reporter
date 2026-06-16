@@ -211,3 +211,62 @@ def scan_disk_and_upsert() -> dict[str, Any]:
     result = upsert_cards(cards)
     result["source"] = "disk"
     return result
+
+
+def import_all_documents_from_disk() -> dict[str, Any]:
+    """Парсит .doc/.docx на диске в БД, если structured content ещё нет."""
+    from sk_reporter.otkk_parser import otkk_id_from_path
+
+    folder = tk_dir()
+    if not folder.is_dir():
+        return {"imported": [], "skipped": 0, "errors": []}
+
+    init_db()
+    _ensure_otkk_schema()
+    imported: list[str] = []
+    errors: list[dict[str, str]] = []
+    skipped = 0
+
+    with get_session() as session:
+        rows = {r.id: r for r in session.query(OtkkCard).all()}
+
+    for path in sorted(folder.iterdir()):
+        if path.suffix.lower() not in {".doc", ".docx"}:
+            continue
+        card_id = otkk_id_from_path(path)
+        if not card_id:
+            continue
+        row = rows.get(card_id)
+        if row and row.content is not None:
+            skipped += 1
+            continue
+        try:
+            import_document_to_db(path, copy_to_tk_dir=False)
+            imported.append(card_id)
+        except Exception as exc:
+            errors.append({"id": card_id, "file": path.name, "error": str(exc)})
+
+    return {"imported": imported, "skipped": skipped, "errors": errors}
+
+
+def bootstrap_otkk_on_startup() -> dict[str, Any] | None:
+    """При пустой БД — каталог из manifest; затем content из .doc на диске сервера."""
+    if not database_enabled():
+        return None
+    init_db()
+    _ensure_otkk_schema()
+    st = db_status()
+    if not st.get("ok"):
+        return {"ok": False, "error": st.get("error")}
+
+    folder = tk_dir()
+    catalog: dict[str, Any] | None = None
+    if st.get("count", 0) == 0:
+        manifest = folder / "manifest.yaml"
+        if manifest.is_file():
+            catalog = import_manifest_to_db(manifest)
+        elif any(folder.glob("*.doc")) or any(folder.glob("*.DOC")) or any(folder.glob("*.docx")):
+            catalog = scan_disk_and_upsert()
+
+    docs = import_all_documents_from_disk()
+    return {"catalog": catalog, "documents": docs}

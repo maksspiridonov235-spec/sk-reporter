@@ -68,7 +68,22 @@ try:
         if _otkk_st.get("ok") and _otkk_st.get("count", 0) == 0:
             print(
                 "[WARN] PostgreSQL: каталог ОТКК пуст — "
-                "импортируйте manifest на /planning/otkk"
+                "загрузите .doc на /planning/otkk"
+            )
+        if _otkk_st.get("ok"):
+            from sk_reporter.otkk_db import bootstrap_otkk_on_startup
+
+            _boot = bootstrap_otkk_on_startup()
+            if _boot and _boot.get("documents", {}).get("imported"):
+                print(
+                    "[INFO] PostgreSQL ОТКК: импорт с диска — "
+                    f"{', '.join(_boot['documents']['imported'])}"
+                )
+            _otkk_st = otkk_db_status()
+            print(
+                "[INFO] PostgreSQL ОТКК после bootstrap: "
+                f"cards={_otkk_st.get('count', 0)}, "
+                f"with_content={_otkk_st.get('with_content', 0)}"
             )
     else:
         print("[WARN] PostgreSQL: DATABASE_URL не задан — раздел «Сотрудники» недоступен")
