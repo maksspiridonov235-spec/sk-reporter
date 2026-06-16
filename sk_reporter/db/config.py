@@ -7,7 +7,11 @@ import os
 
 def database_url() -> str | None:
     raw = (os.environ.get("DATABASE_URL") or "").strip()
-    return raw or None
+    if not raw:
+        return None
+    if raw.startswith("postgresql://"):
+        return "postgresql+psycopg://" + raw[len("postgresql://") :]
+    return raw
 
 
 def database_enabled() -> bool:
