@@ -5,10 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import yaml
-
 from sk_reporter.personnel_store import is_engineer, list_engineers, load_people
-from sk_reporter.project_store import engineer_project_map, get_project, list_projects_rich, set_project_engineers
+from sk_reporter.project_store import engineer_project_map, get_project, list_projects_rich
 from sk_reporter.paths import repo_root, tk_dir
 
 _SECTIONS = frozenset({"projects", "personnel", "otkk"})
@@ -85,37 +83,34 @@ def list_personnel() -> dict[str, Any]:
 
 
 def list_otkk() -> dict[str, Any]:
+    from sk_reporter.otkk_db import db_status
+    from sk_reporter.otkk_store import load_cards
+
     folder = tk_dir()
     cards = []
-    manifest = folder / "manifest.yaml"
-    if manifest.is_file():
-        data = yaml.safe_load(manifest.read_text(encoding="utf-8")) or {}
-        for card in data.get("cards") or []:
-            fname = card.get("file") or ""
-            fp = folder / fname
-            cards.append(
-                {
-                    "id": card.get("id"),
-                    "file": fname,
-                    "present": fp.is_file(),
-                    "size_kb": round(fp.stat().st_size / 1024, 1) if fp.is_file() else None,
-                }
-            )
-    else:
-        for p in sorted(folder.iterdir()):
-            if p.suffix.lower() in {".doc", ".docx"} and not p.name.startswith("."):
-                cards.append(
-                    {
-                        "id": p.stem[:20],
-                        "file": p.name,
-                        "present": True,
-                        "size_kb": round(p.stat().st_size / 1024, 1),
-                    }
-                )
+    for card in load_cards():
+        fp = folder / card["file"]
+        cards.append(
+            {
+                "id": card["id"],
+                "file": card["file"],
+                "code": card.get("code") or "",
+                "title": card.get("title") or "",
+                "has_content": bool(card.get("has_content")),
+                "present": fp.is_file(),
+                "size_kb": round(fp.stat().st_size / 1024, 1) if fp.is_file() else None,
+            }
+        )
+    present_count = sum(1 for c in cards if c["present"])
+    content_count = sum(1 for c in cards if c["has_content"])
     return {
+        "storage": "postgresql",
         "folder": str(folder.relative_to(repo_root())),
         "count": len(cards),
+        "present_count": present_count,
+        "content_count": content_count,
         "cards": cards,
+        "db": db_status(),
     }
 
 

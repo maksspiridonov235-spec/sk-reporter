@@ -946,6 +946,25 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 .personnel-table-wrap { overflow-x: auto; }
 .personnel-table td:first-child { font-weight: 500; white-space: nowrap; }
 .personnel-table td:nth-child(2) { max-width: 280px; }
+.otkk-title-cell { max-width: 320px; }
+.otkk-detail-dialog {
+  border: none; border-radius: 10px; padding: 0; max-width: min(920px, 96vw); width: 100%;
+  box-shadow: 0 12px 40px rgba(0,0,0,.18);
+}
+.otkk-detail-dialog::backdrop { background: rgba(15,23,42,.45); }
+.otkk-detail-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 14px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc;
+}
+.otkk-detail-header h3 { margin: 0; font-size: 15px; line-height: 1.35; flex: 1; }
+.otkk-detail-body { padding: 12px 16px 16px; max-height: 70vh; overflow: auto; }
+.otkk-structure-table th {
+  width: 34%; vertical-align: top; text-align: left; font-weight: 600; color: #334155;
+  text-transform: none; font-size: 13px;
+}
+.otkk-structure-table td { font-size: 13px; line-height: 1.45; vertical-align: top; }
+.otkk-bullets { margin: 8px 0 0; padding-left: 1.2em; }
+.otkk-signature { margin-top: 16px; font-size: 13px; color: #475569; }
 .luvr-month-select { max-width: 320px; margin-bottom: 12px; }
 .luvr-header { margin-bottom: 8px; }
 .luvr-sync-bar {

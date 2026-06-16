@@ -56,12 +56,23 @@ def resolve_tk_for_work(work_name: str, project_dir: Path) -> Optional[str]:
 
 def resolve_tk_path(tk_id: str, root: Optional[Path] = None) -> Optional[Path]:
     root = root or tk_dir()
+    try:
+        from sk_reporter.otkk_store import card_file_path, get_card
+
+        card = get_card(tk_id)
+        if card:
+            p = card_file_path(card, root)
+            if p.is_file():
+                return p
+    except RuntimeError:
+        pass
+
     manifest_path = root / "manifest.yaml"
     if manifest_path.is_file():
         data = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
         for card in data.get("cards") or []:
             if card.get("id") == tk_id:
-                p = root / card["file"]
+                p = root / Path(str(card.get("file") or "")).name
                 if p.is_file():
                     return p
     tk_id_norm = tk_id.lower().replace("otkk-", "ОТКК-")
@@ -77,15 +88,34 @@ def extract_tk_text(path: Path) -> str:
     return extract_doc_text(path)
 
 
+def tk_text_for_id(tk_id: str, root: Optional[Path] = None) -> str:
+    """Текст карты: из PostgreSQL (структура), иначе с диска."""
+    try:
+        from sk_reporter.otkk_parser import content_to_plain_text
+        from sk_reporter.otkk_store import get_card
+
+        card = get_card(tk_id, include_content=True)
+        if card and card.get("content"):
+            return content_to_plain_text(card["content"])
+    except RuntimeError:
+        pass
+    tk_path = resolve_tk_path(tk_id, root)
+    if not tk_path:
+        return ""
+    try:
+        return extract_tk_text(tk_path)
+    except Exception:
+        return ""
+
+
 def snippet_for_work(work_name: str, project_dir: Path, max_chars: int = 900) -> str:
     tk_id = resolve_tk_for_work(work_name, project_dir)
     if not tk_id:
         return ""
-    tk_path = resolve_tk_path(tk_id)
-    if not tk_path:
-        return ""
     try:
-        text = extract_tk_text(tk_path)
+        text = tk_text_for_id(tk_id)
+        if not text:
+            return ""
         return control_snippet_from_tk(text, max_chars=max_chars)
     except Exception:
         return ""

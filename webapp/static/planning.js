@@ -319,19 +319,249 @@
 
   function renderOtkk(data) {
     const el = document.getElementById("otkkList");
+    const db = data.db || {};
     const cards = data.cards || [];
+
+    const dbError = !db.ok ? (db.error || "PostgreSQL недоступна") : "";
+    const storageBadge = `<span class="storage-badge storage-badge--db" title="${esc(dbError)}">PostgreSQL${db.count != null ? ` · ${db.count}` : ""}</span>`;
+
+    const importToolbar = `<div class="personnel-import-bar">
+        <label class="btn btn-secondary btn-sm personnel-upload-label">
+          Загрузить карту (.doc)
+          <input type="file" id="otkkUploadDoc" accept=".doc,.docx" hidden/>
+        </label>
+        <label class="btn btn-secondary btn-sm personnel-upload-label">
+          Импорт manifest.yaml
+          <input type="file" id="otkkUploadManifest" accept=".yaml,.yml" hidden/>
+        </label>
+        <button type="button" class="btn btn-secondary btn-sm" id="otkkScanDisk">Сканировать data/tk/</button>
+        <span id="otkkImportStatus" class="hint-text" aria-live="polite"></span>
+      </div>`;
+
     if (!cards.length) {
-      el.innerHTML = '<p class="hint-text">ОТКК не найдены. Запустите build_engineer_data.py --tk</p>';
+      const emptyHint = dbError
+        ? `Каталог недоступен: ${esc(dbError)}`
+        : "Каталог в базе пуст. Импортируйте manifest.yaml или отсканируйте папку data/tk/.";
+      el.innerHTML =
+        `<div class="personnel-toolbar">${storageBadge}</div>` +
+        (db.ok ? importToolbar : "") +
+        `<p class="hint-text">${emptyHint}</p>`;
+      bindOtkkImport(el);
       return;
     }
-    const rows = cards
-      .map(
-        (c) =>
-          `<tr><td>${esc(c.id)}</td><td>${esc(c.file)}</td><td>${c.present ? c.size_kb : "—"}</td><td>${c.present ? "✓" : "—"}</td></tr>`
-      )
-      .join("");
-    el.innerHTML = `<p class="planning-meta">Папка: <code>${esc(data.folder)}</code> · ${cards.length} карт</p>
-      <table class="planning-table"><thead><tr><th>ID</th><th>Файл</th><th>КБ</th><th>На диске</th></tr></thead><tbody>${rows}</tbody></table>`;
+
+    const missing = cards.filter((c) => !c.present).length;
+    const noContent = cards.filter((c) => !c.has_content).length;
+    const metaExtra = [
+      missing ? `<span class="warn-text">${missing} без файла на диске</span>` : "",
+      noContent ? `<span class="warn-text">${noContent} без текста в БД</span>` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    el.innerHTML = `
+      <div class="personnel-toolbar">
+        ${storageBadge}
+        <p class="planning-meta">${cards.length} карт · на диске: <strong>${data.present_count ?? 0}</strong> · в БД: <strong>${data.content_count ?? 0}</strong>${metaExtra ? ` · ${metaExtra}` : ""}</p>
+        <input type="search" id="otkkSearch" class="field-input personnel-search" placeholder="Поиск по ID, коду или названию…"/>
+      </div>
+      ${importToolbar}
+      <p class="hint-text">Загрузка .doc парсит карту в структуру как в исходнике и перезаписывает запись в PostgreSQL. Файл копируется в <code>${esc(data.folder || "data/tk")}</code>.</p>
+      <div class="personnel-table-wrap">
+        <table class="planning-table personnel-table" id="otkkTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Код</th>
+              <th>Название</th>
+              <th>В БД</th>
+              <th>На диске</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <dialog id="otkkDetailDialog" class="otkk-detail-dialog">
+        <div class="otkk-detail-header">
+          <h3 id="otkkDetailTitle"></h3>
+          <button type="button" class="btn btn-secondary btn-sm" id="otkkDetailClose">Закрыть</button>
+        </div>
+        <div id="otkkDetailBody" class="otkk-detail-body"></div>
+      </dialog>`;
+
+    bindOtkkImport(el);
+    bindOtkkDetail(el);
+
+    const tbody = el.querySelector("#otkkTable tbody");
+    const search = el.querySelector("#otkkSearch");
+
+    function renderRows() {
+      const q = (search.value || "").trim().toLowerCase();
+      const rows = cards.filter((c) => {
+        if (!q) return true;
+        const hay = [c.id, c.file, c.code, c.title].join(" ").toLowerCase();
+        return hay.includes(q);
+      });
+      tbody.innerHTML = rows
+        .map(
+          (c) =>
+            `<tr>
+              <td><code>${esc(c.id)}</code></td>
+              <td>${esc(c.code || "—")}</td>
+              <td class="otkk-title-cell">${esc(c.title || c.file || "—")}</td>
+              <td>${c.has_content ? "✓" : '<span class="warn-text">нет</span>'}</td>
+              <td>${c.present ? "✓" : '<span class="warn-text">нет</span>'}</td>
+              <td>${c.has_content ? `<button type="button" class="btn btn-link btn-sm otkk-open-btn" data-id="${esc(c.id)}">Открыть</button>` : ""}</td>
+            </tr>`
+        )
+        .join("");
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="hint-text">Ничего не найдено</td></tr>';
+      }
+      tbody.querySelectorAll(".otkk-open-btn").forEach((btn) => {
+        btn.addEventListener("click", () => openOtkkDetail(btn.dataset.id));
+      });
+    }
+
+    search.addEventListener("input", renderRows);
+    renderRows();
+  }
+
+  function bindOtkkImport(root) {
+    const docInput = root.querySelector("#otkkUploadDoc");
+    const manifestInput = root.querySelector("#otkkUploadManifest");
+    const scanBtn = root.querySelector("#otkkScanDisk");
+    const status = root.querySelector("#otkkImportStatus");
+    if (!docInput && !manifestInput && !scanBtn) return;
+
+    async function setStatus(msg, isError) {
+      if (!status) return;
+      status.textContent = msg;
+      status.classList.toggle("error-text", !!isError);
+    }
+
+    if (docInput) {
+      docInput.addEventListener("change", async () => {
+        const file = docInput.files?.[0];
+        if (!file) return;
+        docInput.value = "";
+        await setStatus(`Загрузка ${file.name}…`);
+        try {
+          const fd = new FormData();
+          fd.append("file", file);
+          const res = await fetch("/api/planning/otkk/upload-doc", {
+            method: "POST",
+            body: fd,
+          });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(body.detail || res.statusText);
+          await setStatus(`Сохранено: ${body.id} (${body.rows ?? "?"} строк)`);
+          await loadTab("otkk", true);
+        } catch (e) {
+          await setStatus(e.message, true);
+        }
+      });
+    }
+
+    if (manifestInput) {
+      manifestInput.addEventListener("change", async () => {
+        const file = manifestInput.files?.[0];
+        if (!file) return;
+        manifestInput.value = "";
+        await setStatus("Импорт manifest…");
+        try {
+          const fd = new FormData();
+          fd.append("file", file);
+          const res = await fetch("/api/planning/otkk/import-manifest", {
+            method: "POST",
+            body: fd,
+          });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(body.detail || res.statusText);
+          await setStatus(`Импортировано: ${body.upserted ?? "?"}`);
+          await loadTab("otkk", true);
+        } catch (e) {
+          await setStatus(e.message, true);
+        }
+      });
+    }
+
+    if (scanBtn) {
+      scanBtn.addEventListener("click", async () => {
+        scanBtn.disabled = true;
+        await setStatus("Сканирование data/tk/…");
+        try {
+          const res = await fetch("/api/planning/otkk/scan-disk", { method: "POST" });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(body.detail || res.statusText);
+          await setStatus(`В каталоге: ${body.upserted ?? "?"}`);
+          await loadTab("otkk", true);
+        } catch (e) {
+          await setStatus(e.message, true);
+        } finally {
+          scanBtn.disabled = false;
+        }
+      });
+    }
+  }
+
+  function bindOtkkDetail(root) {
+    const dialog = root.querySelector("#otkkDetailDialog");
+    const closeBtn = root.querySelector("#otkkDetailClose");
+    if (!dialog || !closeBtn) return;
+    closeBtn.addEventListener("click", () => dialog.close());
+    dialog.addEventListener("click", (e) => {
+      if (e.target === dialog) dialog.close();
+    });
+  }
+
+  function renderOtkkRowBody(row) {
+    const label = esc(row.label || "");
+    let valueHtml = esc(row.value || "");
+    const body = row.body;
+    if (body) {
+      const parts = [];
+      for (const p of body.paragraphs || []) {
+        parts.push(`<p>${esc(p)}</p>`);
+      }
+      if (body.bullets?.length) {
+        parts.push(
+          `<ul class="otkk-bullets">${body.bullets.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>`
+        );
+      }
+      if (parts.length) valueHtml = parts.join("");
+    }
+    if (row.codes?.length) {
+      valueHtml += `<p class="hint-text">Коды: ${row.codes.map((c) => `<code>${esc(c)}</code>`).join(", ")}</p>`;
+    }
+    return `<tr><th scope="row">${label}</th><td>${valueHtml}</td></tr>`;
+  }
+
+  async function openOtkkDetail(cardId) {
+    const dialog = document.getElementById("otkkDetailDialog");
+    const titleEl = document.getElementById("otkkDetailTitle");
+    const bodyEl = document.getElementById("otkkDetailBody");
+    if (!dialog || !titleEl || !bodyEl) return;
+    titleEl.textContent = "Загрузка…";
+    bodyEl.innerHTML = "";
+    dialog.showModal();
+    try {
+      const res = await fetch(`/api/planning/otkk/${encodeURIComponent(cardId)}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || res.statusText);
+      const content = data.content || {};
+      titleEl.textContent = [content.code, content.title].filter(Boolean).join(" — ") || cardId;
+      const rows = (content.rows || []).map(renderOtkkRowBody).join("");
+      const sig = content.signature;
+      const sigHtml = sig?.text
+        ? `<p class="otkk-signature"><strong>${esc(sig.label || "Подпись")}:</strong> ${esc(sig.text)}</p>`
+        : "";
+      bodyEl.innerHTML = `<table class="planning-table otkk-structure-table"><tbody>${rows}</tbody></table>${sigHtml}`;
+    } catch (e) {
+      bodyEl.innerHTML = `<p class="error-text">${esc(e.message)}</p>`;
+      titleEl.textContent = cardId;
+    }
   }
 
   async function loadTab(name, force) {

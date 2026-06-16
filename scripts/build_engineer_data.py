@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Собрать кэши данных инженера: vor.json, tk/manifest.yaml; персонал → PostgreSQL."""
+"""Собрать кэши данных инженера: vor.json; персонал и ОТКК → PostgreSQL."""
 
 from __future__ import annotations
 
@@ -9,8 +9,7 @@ from pathlib import Path
 
 import yaml
 
-from sk_reporter.engineer.tk_catalog import write_manifest
-from sk_reporter.paths import personnel_dir, projects_dir
+from sk_reporter.paths import personnel_dir, projects_dir, tk_dir
 
 
 def import_personnel() -> dict:
@@ -20,6 +19,15 @@ def import_personnel() -> dict:
     if not xlsx.is_file():
         raise FileNotFoundError(xlsx)
     return import_personnel_xlsx_to_db(xlsx)
+
+
+def import_tk() -> dict:
+    from sk_reporter.otkk_db import import_manifest_to_db, scan_disk_and_upsert
+
+    manifest = tk_dir() / "manifest.yaml"
+    if manifest.is_file():
+        return import_manifest_to_db(manifest)
+    return scan_disk_and_upsert()
 
 
 def build_vor_caches(project_ids: list[str] | None = None) -> list[Path]:
@@ -52,7 +60,7 @@ def main() -> None:
         action="store_true",
         help="Import data/personnel/Справочник персонала.xlsx → PostgreSQL",
     )
-    parser.add_argument("--tk", action="store_true", help="Write data/tk/manifest.yaml")
+    parser.add_argument("--tk", action="store_true", help="Import data/tk/ → PostgreSQL (manifest or scan)")
     parser.add_argument("--vor", action="store_true", help="Parse VOR docx → vor.json")
     parser.add_argument("--luvr", action="store_true", help="Export luvr.yaml from xlsx")
     parser.add_argument("--all", action="store_true", help="All of the above")
@@ -71,7 +79,8 @@ def main() -> None:
 
         results["luvr"] = str(export_luvr())
     if args.tk:
-        results["tk_manifest"] = str(write_manifest())
+        result = import_tk()
+        results["otkk"] = f"upserted={result.get('upserted', 0)}"
     if args.vor:
         for p in build_vor_caches(args.projects):
             results[f"vor_{p.parent.name}"] = str(p)

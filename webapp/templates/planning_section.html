@@ -18,7 +18,7 @@
   <p class="planning-hint">Справочник сотрудников хранится в <strong>PostgreSQL</strong> (RelaxDev). Обновление списка — загрузка Excel на этой странице. Назначение инженеров на объекты — в разделе «Проекты»; профиль для ежедневного отчёта — <code>engineer/profiles/{id}.yaml</code>.</p>
   <div id="personnelList"></div>
   {% elif section == "otkk" %}
-  <p class="planning-hint">Технологические карты в <code>data/tk/</code> — manifest.yaml.</p>
+  <p class="planning-hint">Каталог ОТКК в <strong>PostgreSQL</strong> (RelaxDev): id карты и имя файла. Сами файлы .doc/.docx — в <code>data/tk/</code> на сервере. Импорт — manifest.yaml или сканирование папки на этой странице.</p>
   <div id="otkkList"></div>
   {% endif %}
 </div>

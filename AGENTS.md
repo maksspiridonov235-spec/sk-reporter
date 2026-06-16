@@ -21,7 +21,7 @@
 | `sk_reporter/prescriptions/` | проверка Excel предписаний: `check_agent.py`, `normative_store.py` (локальная база НД), Ollama |
 | `data/luvr/` | **ЛУВР**, luvr.yaml, шаблоны Прил.7 и расстановки (`manifest.yaml`) |
 | `data/templates/` | Болванки подрядчиков |
-| `data/projects/`, `data/tk/`, `data/personnel/` | Планирование |
+| `data/projects/`, `data/tk/` | Планирование (проекты; файлы ОТКК на диске) |
 | `engineer/profiles/` | Профили инженеров (yaml) |
 | `sk_reporter/engineer/` | Парсер ВОР, каталог ТК, сборка отчёта инженера |
 | temp `sk_reports_work/uploads/` | Загруженные и исправленные отчёты (рабочие; не в репо) |
