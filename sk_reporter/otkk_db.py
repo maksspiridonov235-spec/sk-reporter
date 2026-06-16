@@ -144,11 +144,22 @@ def upsert_card_content(parsed: dict[str, Any], *, file_name: str | None = None)
     return {"id": cid, "file": fname, "code": content["code"], "title": content["title"]}
 
 
-def seed_otkk1(*, overwrite: bool = False) -> dict[str, Any]:
-    """Залить эталон ОТКК-1 (6 пунктов карты) в PostgreSQL."""
-    from sk_reporter.otkk1_data import otkk1_parsed
+def _seed_otkk_card(
+    loader: str,
+    *,
+    overwrite: bool = False,
+) -> dict[str, Any]:
+    if loader == "otkk-1":
+        from sk_reporter.otkk1_data import otkk1_parsed
 
-    parsed = otkk1_parsed()
+        parsed = otkk1_parsed()
+    elif loader == "otkk-2":
+        from sk_reporter.otkk2_data import otkk2_parsed
+
+        parsed = otkk2_parsed()
+    else:
+        raise ValueError(f"Неизвестная эталонная карта: {loader}")
+
     cid = parsed["id"]
     if not overwrite:
         existing = get_card_from_db(cid, include_content=True)
@@ -158,6 +169,16 @@ def seed_otkk1(*, overwrite: bool = False) -> dict[str, Any]:
     result["rows"] = len(parsed.get("rows") or [])
     result["seeded"] = True
     return result
+
+
+def seed_otkk1(*, overwrite: bool = False) -> dict[str, Any]:
+    """Залить эталон ОТКК-1 (6 пунктов карты) в PostgreSQL."""
+    return _seed_otkk_card("otkk-1", overwrite=overwrite)
+
+
+def seed_otkk2(*, overwrite: bool = False) -> dict[str, Any]:
+    """Залить эталон ОТКК-2 (6 пунктов карты) в PostgreSQL."""
+    return _seed_otkk_card("otkk-2", overwrite=overwrite)
 
 
 def import_document_to_db(
