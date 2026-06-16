@@ -10,7 +10,7 @@ from sqlalchemy import text
 from sk_reporter.db.config import database_enabled, database_url
 from sk_reporter.db.models import OtkkCard
 from sk_reporter.db.session import get_session, init_db
-from sk_reporter.otkk_text import sanitize_otkk_rows
+from sk_reporter.otkk_text import sanitize_otkk_rows, strip_kodeks_fields
 from sk_reporter.paths import tk_dir
 
 
@@ -58,6 +58,20 @@ def db_status() -> dict[str, Any]:
         return {"enabled": True, "configured": True, "count": 0, "with_content": 0, "ok": False, "error": str(exc)}
 
 
+def _sanitize_content(content: dict[str, Any]) -> dict[str, Any]:
+    """Старые записи в БД могли залиться с HYPERLINK — чистим при отдаче в UI."""
+    if not content:
+        return content
+    out = dict(content)
+    rows = out.get("rows")
+    if rows:
+        out["rows"] = sanitize_otkk_rows(rows)
+    plain = out.get("plain_text")
+    if plain:
+        out["plain_text"] = strip_kodeks_fields(str(plain))
+    return out
+
+
 def _row_to_dict(row: OtkkCard, *, include_content: bool = False) -> dict[str, Any]:
     out: dict[str, Any] = {
         "id": row.id,
@@ -67,7 +81,7 @@ def _row_to_dict(row: OtkkCard, *, include_content: bool = False) -> dict[str, A
         "has_content": row.content is not None,
     }
     if include_content and row.content is not None:
-        out["content"] = row.content
+        out["content"] = _sanitize_content(row.content)
     return out
 
 
