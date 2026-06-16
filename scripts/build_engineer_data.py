@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Собрать кэши данных инженера: vor.json, tk/manifest.yaml, personnel.yaml."""
+"""Собрать кэши данных инженера: vor.json, tk/manifest.yaml; персонал → PostgreSQL."""
 
 from __future__ import annotations
 
@@ -8,37 +8,18 @@ import json
 from pathlib import Path
 
 import yaml
-from openpyxl import load_workbook
 
 from sk_reporter.engineer.tk_catalog import write_manifest
-from sk_reporter.personnel_store import person_id_from_fio
 from sk_reporter.paths import personnel_dir, projects_dir
 
 
-def export_personnel() -> Path:
+def import_personnel() -> dict:
+    from sk_reporter.personnel_db import import_personnel_xlsx_to_db
+
     xlsx = personnel_dir() / "Справочник персонала.xlsx"
     if not xlsx.is_file():
         raise FileNotFoundError(xlsx)
-    wb = load_workbook(xlsx, read_only=True, data_only=True)
-    ws = wb.active
-    rows = list(ws.iter_rows(values_only=True))
-    if not rows:
-        raise ValueError("Пустой лист в справочнике персонала")
-    headers = [str(h).strip() if h is not None else "" for h in rows[0]]
-    people = []
-    for row in rows[1:]:
-        if not any(row):
-            continue
-        rec = {headers[i]: (row[i] if i < len(row) else None) for i in range(len(headers))}
-        if not any(rec.values()):
-            continue
-        fio = str(rec.get("ФИО") or "").strip()
-        if fio:
-            rec["id"] = person_id_from_fio(fio)
-        people.append(rec)
-    out = personnel_dir() / "personnel.yaml"
-    out.write_text(yaml.safe_dump({"people": people}, allow_unicode=True, sort_keys=False), encoding="utf-8")
-    return out
+    return import_personnel_xlsx_to_db(xlsx)
 
 
 def build_vor_caches(project_ids: list[str] | None = None) -> list[Path]:
@@ -66,7 +47,11 @@ def build_vor_caches(project_ids: list[str] | None = None) -> list[Path]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build engineer data caches")
-    parser.add_argument("--personnel", action="store_true", help="Export personnel.yaml")
+    parser.add_argument(
+        "--personnel",
+        action="store_true",
+        help="Import data/personnel/Справочник персонала.xlsx → PostgreSQL",
+    )
     parser.add_argument("--tk", action="store_true", help="Write data/tk/manifest.yaml")
     parser.add_argument("--vor", action="store_true", help="Parse VOR docx → vor.json")
     parser.add_argument("--luvr", action="store_true", help="Export luvr.yaml from xlsx")
@@ -79,7 +64,8 @@ def main() -> None:
 
     results: dict[str, str] = {}
     if args.personnel:
-        results["personnel"] = str(export_personnel())
+        result = import_personnel()
+        results["personnel"] = f"upserted={result.get('upserted', 0)}"
     if args.luvr:
         from sk_reporter.luvr_store import export_luvr
 
@@ -88,7 +74,7 @@ def main() -> None:
         results["tk_manifest"] = str(write_manifest())
     if args.vor:
         for p in build_vor_caches(args.projects):
-            results.setdefault("vor", []).append(str(p))  # type: ignore[union-attr]
+            results[f"vor_{p.parent.name}"] = str(p)
 
     print(json.dumps(results, ensure_ascii=False, indent=2))
 

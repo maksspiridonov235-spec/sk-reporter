@@ -7,9 +7,9 @@ from typing import Any
 
 import yaml
 
-from sk_reporter.personnel_store import is_engineer, list_engineers, load_people, storage_backend
+from sk_reporter.personnel_store import is_engineer, list_engineers, load_people
 from sk_reporter.project_store import engineer_project_map, get_project, list_projects_rich, set_project_engineers
-from sk_reporter.paths import personnel_dir, repo_root, tk_dir
+from sk_reporter.paths import repo_root, tk_dir
 
 _SECTIONS = frozenset({"projects", "personnel", "otkk"})
 
@@ -61,7 +61,6 @@ def projects_planning_payload() -> dict[str, Any]:
 def list_personnel() -> dict[str, Any]:
     from sk_reporter.personnel_db import db_status
 
-    folder = personnel_dir()
     assignments = engineer_project_map()
     people = []
     engineers_count = 0
@@ -76,14 +75,12 @@ def list_personnel() -> dict[str, Any]:
                 "projects": assignments.get(p["id"], []),
             }
         )
-    backend = storage_backend()
     return {
-        "storage": backend,
-        "folder": str(folder.relative_to(repo_root())),
+        "storage": "postgresql",
         "people_count": len(people),
         "engineers_count": engineers_count,
         "people": people,
-        "db": db_status() if backend == "postgresql" else None,
+        "db": db_status(),
     }
 
 

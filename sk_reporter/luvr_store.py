@@ -101,7 +101,7 @@ def set_luvr_person_link(sheet: str, person_idx: int, person_id: str | None) -> 
         from sk_reporter.personnel_store import get_person
 
         if get_person(person_id) is None:
-            raise KeyError(f"person_id «{person_id}» не найден в personnel.yaml")
+            raise KeyError(f"person_id «{person_id}» не найден в справочнике сотрудников")
         person["person_id"] = person_id
         person["link_source"] = "manual"
     else:

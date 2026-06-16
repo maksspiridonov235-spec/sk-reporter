@@ -45,7 +45,7 @@ def ensure_engineer_profile(person_id: str) -> str:
 
     person = get_person(person_id)
     if not person:
-        raise KeyError(f"person_id «{person_id}» не найден в personnel.yaml")
+        raise KeyError(f"person_id «{person_id}» не найден в справочнике сотрудников")
 
     profile_id = person_id
     profile_path = engineer_profiles_dir() / f"{profile_id}.yaml"

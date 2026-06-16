@@ -183,7 +183,7 @@ curl http://127.0.0.1:8000/diagnose/reports
 | `data/templates/*.docx` | сборка отчётов переименовывает/трогает болванки |
 | `data/projects/*/project.yaml` | назначения инженеров в «Проекты» |
 | `data/luvr/luvr.yaml` | отметки ЛУВР на сайте |
-| `data/personnel/personnel.yaml` | справочник персонала |
+| PostgreSQL `personnel` | справочник сотрудников (RelaxDev) |
 
 Cursor/VS Code и `git pull` блокируются, пока эти изменения не убраны — **это нормально для офиса**, данные нужны на месте.
 

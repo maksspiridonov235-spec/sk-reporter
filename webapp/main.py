@@ -56,11 +56,10 @@ try:
         elif _db_st.get("count", 0) == 0:
             print(
                 "[WARN] PostgreSQL: справочник сотрудников пуст — "
-                "импортируйте на /planning/personnel или: "
-                "python scripts/import_personnel_db.py"
+                "загрузите Excel на /planning/personnel"
             )
     else:
-        print("[INFO] PostgreSQL: не задан DATABASE_URL — сотрудники из personnel.yaml")
+        print("[WARN] PostgreSQL: DATABASE_URL не задан — раздел «Сотрудники» недоступен")
 except Exception as _db_err:
     print(f"[WARN] PostgreSQL: {_db_err}")
 
@@ -382,22 +381,6 @@ async def planning_api(section: str):
         return planning_section(section)
     except KeyError:
         raise HTTPException(status_code=404, detail="Неизвестный раздел") from None
-
-
-@app.post("/api/planning/personnel/import-yaml")
-async def planning_personnel_import_yaml():
-    from sk_reporter.db.config import database_enabled
-    from sk_reporter.personnel_db import import_personnel_yaml_to_db
-
-    if not database_enabled():
-        raise HTTPException(status_code=400, detail="DATABASE_URL не задан")
-    try:
-        return await asyncio.to_thread(import_personnel_yaml_to_db)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/api/planning/personnel/upload-xlsx")

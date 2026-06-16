@@ -166,43 +166,35 @@
 
   function renderPersonnel(data) {
     const el = document.getElementById("personnelList");
-    const storage = data.storage || "yaml";
     const db = data.db || {};
     let people = data.people || [];
 
-    const storageBadge =
-      storage === "postgresql"
-        ? `<span class="storage-badge storage-badge--db" title="${esc(db.error || "")}">PostgreSQL${db.count != null ? ` · ${db.count}` : ""}</span>`
-        : `<span class="storage-badge storage-badge--yaml">personnel.yaml</span>`;
+    const dbError = !db.ok ? (db.error || "PostgreSQL недоступна") : "";
+    const storageBadge = `<span class="storage-badge storage-badge--db" title="${esc(dbError)}">PostgreSQL${db.count != null ? ` · ${db.count}` : ""}</span>`;
 
-    const importToolbar =
-      storage === "postgresql"
-        ? `<div class="personnel-import-bar">
-            <button type="button" class="btn btn-secondary btn-sm" id="personnelImportYaml">Импорт из personnel.yaml</button>
-            <label class="btn btn-secondary btn-sm personnel-upload-label">
-              Загрузить Excel
-              <input type="file" id="personnelUploadXlsx" accept=".xlsx,.xls" hidden/>
-            </label>
-            <span id="personnelImportStatus" class="hint-text" aria-live="polite"></span>
-          </div>`
-        : "";
+    const importToolbar = `<div class="personnel-import-bar">
+        <label class="btn btn-secondary btn-sm personnel-upload-label">
+          Загрузить Excel
+          <input type="file" id="personnelUploadXlsx" accept=".xlsx,.xls" hidden/>
+        </label>
+        <span id="personnelImportStatus" class="hint-text" aria-live="polite"></span>
+      </div>`;
 
     if (!people.length && data.people_count > 0) {
       el.innerHTML =
         '<p class="warn-text">Справочник на диске есть (' +
         data.people_count +
-        " записей), но сервер отдаёт старый API. Перезапустите сервер (Ctrl+C → снова uvicorn).</p>";
+        " записей), но сервер отдаёт старый API. Перезапустите сервер.</p>";
       return;
     }
 
     if (!people.length) {
-      const emptyHint =
-        storage === "postgresql"
-          ? "Справочник в базе пуст. Импортируйте из personnel.yaml или загрузите Excel."
-          : 'Справочник пуст. Запустите: <code>python scripts/build_engineer_data.py --personnel</code> или задайте <code>DATABASE_URL</code>.';
+      const emptyHint = dbError
+        ? `Справочник недоступен: ${esc(dbError)}`
+        : "Справочник в базе пуст. Загрузите Excel со списком сотрудников.";
       el.innerHTML =
         `<div class="personnel-toolbar">${storageBadge}</div>` +
-        importToolbar +
+        (db.ok ? importToolbar : "") +
         `<p class="hint-text">${emptyHint}</p>`;
       bindPersonnelImport(el);
       return;
@@ -274,10 +266,9 @@
   }
 
   function bindPersonnelImport(root) {
-    const yamlBtn = root.querySelector("#personnelImportYaml");
     const xlsxInput = root.querySelector("#personnelUploadXlsx");
     const status = root.querySelector("#personnelImportStatus");
-    if (!yamlBtn && !xlsxInput) return;
+    if (!xlsxInput) return;
 
     async function setStatus(msg, isError) {
       if (!status) return;
@@ -285,26 +276,7 @@
       status.classList.toggle("error-text", !!isError);
     }
 
-    if (yamlBtn) {
-      yamlBtn.addEventListener("click", async () => {
-        yamlBtn.disabled = true;
-        await setStatus("Импорт из yaml…");
-        try {
-          const res = await fetch("/api/planning/personnel/import-yaml", { method: "POST" });
-          const body = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(body.detail || res.statusText);
-          loaded.personnel = false;
-          await loadTab("personnel", true);
-        } catch (e) {
-          await setStatus(e.message, true);
-        } finally {
-          yamlBtn.disabled = false;
-        }
-      });
-    }
-
-    if (xlsxInput) {
-      xlsxInput.addEventListener("change", async () => {
+    xlsxInput.addEventListener("change", async () => {
         const file = xlsxInput.files?.[0];
         if (!file) return;
         xlsxInput.disabled = true;
@@ -327,14 +299,13 @@
           xlsxInput.disabled = false;
         }
       });
-    }
   }
 
   function renderSimpleList(elId, data) {
     const el = document.getElementById(elId);
     let extra = "";
-    if (data.people_count != null) {
-      extra = `<p class="planning-meta">Записей в personnel.yaml: <strong>${data.people_count}</strong></p>`;
+    if (data.people_count != null && elId === "personnelList") {
+      extra = `<p class="planning-meta">Записей в справочнике: <strong>${data.people_count}</strong></p>`;
     }
     if (data.count != null) {
       extra = `<p class="planning-meta">Карт в каталоге: <strong>${data.count}</strong></p>`;

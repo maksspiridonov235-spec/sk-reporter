@@ -1,15 +1,11 @@
-"""Справочник персонала: PostgreSQL (если DATABASE_URL) или personnel.yaml."""
+"""Справочник персонала в PostgreSQL (RelaxDev, DATABASE_URL)."""
 
 from __future__ import annotations
 
 import re
-from functools import lru_cache
 from typing import Any
 
-import yaml
-
 from sk_reporter.db.config import database_enabled
-from sk_reporter.paths import personnel_dir
 
 _ENGINEER_MARKERS = ("инженер ск", "инженер строительного")
 
@@ -28,48 +24,18 @@ def _normalize_fio(fio: str) -> str:
     return " ".join(fio.split())
 
 
-def storage_backend() -> str:
-    return "postgresql" if database_enabled() else "yaml"
-
-
-@lru_cache(maxsize=1)
-def _load_people_from_yaml() -> list[dict[str, Any]]:
-    path = personnel_dir() / "personnel.yaml"
-    if not path.is_file():
-        return []
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    out: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for row in data.get("people") or []:
-        fio = _normalize_fio(str(row.get("ФИО") or ""))
-        if not fio:
-            continue
-        pid = str(row.get("id") or person_id_from_fio(fio))
-        if pid in seen:
-            pid = f"{pid}-{len(seen)}"
-        seen.add(pid)
-        out.append(
-            {
-                "id": pid,
-                "fio": fio,
-                "phone": str(row.get("Телефон") or "").strip(),
-                "position": str(row.get("Должность") or "").strip(),
-                "control_mode": str(row.get("Режим контроля") or "").strip(),
-            }
+def _require_database() -> None:
+    if not database_enabled():
+        raise RuntimeError(
+            "DATABASE_URL не задан — справочник сотрудников хранится только в PostgreSQL"
         )
-    return out
-
-
-def clear_personnel_cache() -> None:
-    _load_people_from_yaml.cache_clear()
 
 
 def load_people() -> list[dict[str, Any]]:
-    if database_enabled():
-        from sk_reporter.personnel_db import load_people_from_db
+    _require_database()
+    from sk_reporter.personnel_db import load_people_from_db
 
-        return load_people_from_db()
-    return _load_people_from_yaml()
+    return load_people_from_db()
 
 
 def list_engineers() -> list[dict[str, Any]]:

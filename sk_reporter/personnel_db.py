@@ -7,15 +7,18 @@ from typing import Any
 from sk_reporter.db.config import database_enabled
 from sk_reporter.db.models import Personnel
 from sk_reporter.db.session import get_session, init_db
-from sk_reporter.personnel_store import _normalize_fio, person_id_from_fio
-from sk_reporter.paths import personnel_dir
-
-import yaml
+from sk_reporter.personnel_store import _normalize_fio
 
 
 def db_status() -> dict[str, Any]:
     if not database_enabled():
-        return {"enabled": False, "configured": False, "count": 0}
+        return {
+            "enabled": False,
+            "configured": False,
+            "count": 0,
+            "ok": False,
+            "error": "DATABASE_URL не задан",
+        }
     try:
         init_db()
         with get_session() as session:
@@ -68,42 +71,6 @@ def upsert_people(people: list[dict[str, Any]]) -> dict[str, Any]:
                 session.add(Personnel(id=pid, **payload))
             upserted += 1
     return {"upserted": upserted, "total": len(people)}
-
-
-def load_people_from_yaml_file() -> list[dict[str, Any]]:
-    path = personnel_dir() / "personnel.yaml"
-    if not path.is_file():
-        return []
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    out: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for row in data.get("people") or []:
-        fio = _normalize_fio(str(row.get("ФИО") or ""))
-        if not fio:
-            continue
-        pid = str(row.get("id") or person_id_from_fio(fio))
-        if pid in seen:
-            pid = f"{pid}-{len(seen)}"
-        seen.add(pid)
-        out.append(
-            {
-                "id": pid,
-                "fio": fio,
-                "phone": str(row.get("Телефон") or "").strip(),
-                "position": str(row.get("Должность") or "").strip(),
-                "control_mode": str(row.get("Режим контроля") or "").strip(),
-            }
-        )
-    return out
-
-
-def import_personnel_yaml_to_db() -> dict[str, Any]:
-    people = load_people_from_yaml_file()
-    if not people:
-        raise FileNotFoundError("personnel.yaml пуст или не найден")
-    result = upsert_people(people)
-    result["source"] = "yaml"
-    return result
 
 
 def import_personnel_xlsx_to_db(path) -> dict[str, Any]:

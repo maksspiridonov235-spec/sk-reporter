@@ -1,23 +1,25 @@
 #!/usr/bin/env python3
-"""Импорт data/personnel/personnel.yaml в PostgreSQL (нужен DATABASE_URL)."""
+"""Импорт Excel со списком сотрудников в PostgreSQL (нужен DATABASE_URL)."""
 
 from __future__ import annotations
 
 import sys
 
 from sk_reporter.db.config import database_enabled
-from sk_reporter.personnel_db import db_status, import_personnel_yaml_to_db
+from sk_reporter.personnel_db import db_status, import_personnel_xlsx_to_db
+from sk_reporter.paths import personnel_dir
 
 
 def main() -> int:
     if not database_enabled():
         print("DATABASE_URL не задан", file=sys.stderr)
         return 1
-    try:
-        result = import_personnel_yaml_to_db()
-    except FileNotFoundError as exc:
-        print(str(exc), file=sys.stderr)
+    xlsx = personnel_dir() / "Справочник персонала.xlsx"
+    if not xlsx.is_file():
+        print(f"Файл не найден: {xlsx}", file=sys.stderr)
         return 1
+    try:
+        result = import_personnel_xlsx_to_db(xlsx)
     except Exception as exc:
         print(f"Ошибка: {exc}", file=sys.stderr)
         return 1
