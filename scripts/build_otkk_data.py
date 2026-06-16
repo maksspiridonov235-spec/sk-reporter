@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Собрать sk_reporter/otkk{N}_data.py дословно из .doc (textutil, без правок)."""
+"""Собрать sk_reporter/otkk{N}_data.py из .doc — текст как в Word (без HYPERLINK)."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def _py_str(s: str) -> str:
 def write_data_module(parsed: dict, out_path: Path, func_name: str, row6_var: str) -> None:
     row6 = parsed["rows"][5]["value"]
     lines = [
-        f'"""ОТКК: шесть пунктов карты — дословно из {parsed["file"]}."""',
+        f'"""ОТКК: шесть пунктов карты — как в {parsed["file"]} (без полей HYPERLINK)."""',
         "",
         "from __future__ import annotations",
         "",

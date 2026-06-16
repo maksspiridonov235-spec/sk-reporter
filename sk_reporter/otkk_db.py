@@ -10,6 +10,7 @@ from sqlalchemy import text
 from sk_reporter.db.config import database_enabled, database_url
 from sk_reporter.db.models import OtkkCard
 from sk_reporter.db.session import get_session, init_db
+from sk_reporter.otkk_text import sanitize_otkk_rows
 from sk_reporter.paths import tk_dir
 
 
@@ -117,7 +118,7 @@ def upsert_card_content(parsed: dict[str, Any], *, file_name: str | None = None)
         "code": parsed.get("code") or "",
         "title": parsed.get("title") or "",
         "file": fname,
-        "rows": parsed.get("rows") or [],
+        "rows": sanitize_otkk_rows(parsed.get("rows") or []),
         "signature": parsed.get("signature"),
         "plain_text": parsed.get("plain_text") or "",
     }

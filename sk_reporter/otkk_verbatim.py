@@ -1,4 +1,4 @@
-"""Дословное извлечение шести пунктов ОТКК из .doc (textutil, без правок текста)."""
+"""Извлечение шести пунктов ОТКК из .doc — текст как в Word (без HYPERLINK)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+
+from sk_reporter.otkk_text import normative_visible_text, sanitize_otkk_rows, strip_kodeks_fields
 
 
 def _doc_to_txt(path: Path) -> str:
@@ -41,23 +43,11 @@ def _after_label(chunk: str, label: str) -> str:
 
 
 def _visible_normative_line(norm_block: str) -> str:
-    """Коды СП/ГОСТ как видны в ячейке Word (после «Статус…», без СНиП из подсказок ссылок)."""
-    codes = re.findall(r'\)"\s*((?:СП|ГОСТ|ВСН)\s*[\d][\d.\-]*)', norm_block)
-    if not codes:
-        codes = re.findall(r"(?:СП|ГОСТ|ВСН)\s*[\d][\d.\-]*", norm_block)
-    seen: set[str] = set()
-    out: list[str] = []
-    for raw in codes:
-        code = re.sub(r"\s+", " ", raw.strip())
-        key = code.casefold()
-        if key not in seen:
-            seen.add(key)
-            out.append(code)
-    return ", ".join(out)
+    return normative_visible_text(norm_block)
 
 
 def extract_six_rows_from_doc(path: Path) -> dict[str, Any]:
-    """Шесть пунктов карты: label/value как в исходном .doc, без очистки HYPERLINK и таблиц."""
+    """Шесть пунктов карты: текст как виден в Word, без полей HYPERLINK."""
     path = Path(path)
     raw = _doc_to_txt(path)
 
@@ -100,20 +90,24 @@ def extract_six_rows_from_doc(path: Path) -> dict[str, Any]:
 
     norm_raw = _after_label(raw[norm_pos:instr_pos], "Нормативные документы")
     norm_value = _visible_normative_line(norm_raw)
-    instr_value = _after_label(raw[instr_pos:ctrl_pos], "Приборы контроля:")
-    ctrl_value = _after_label(
-        raw[ctrl_pos:sig_pos],
-        "Контролируемые параметры и необходимая документация",
+    instr_value = strip_kodeks_fields(_after_label(raw[instr_pos:ctrl_pos], "Приборы контроля:"))
+    ctrl_value = strip_kodeks_fields(
+        _after_label(
+            raw[ctrl_pos:sig_pos],
+            "Контролируемые параметры и необходимая документация",
+        )
     )
 
-    rows = [
-        {"label": code, "value": title},
-        {"label": "Наименование предприятия", "value": enterprise},
-        {"label": "Область применения", "value": scope},
-        {"label": "Нормативные документы", "value": norm_value},
-        {"label": "Приборы контроля", "value": instr_value},
-        {"label": "Контролируемые параметры и необходимая документация", "value": ctrl_value},
-    ]
+    rows = sanitize_otkk_rows(
+        [
+            {"label": code, "value": title},
+            {"label": "Наименование предприятия", "value": enterprise},
+            {"label": "Область применения", "value": scope},
+            {"label": "Нормативные документы", "value": norm_value},
+            {"label": "Приборы контроля", "value": instr_value},
+            {"label": "Контролируемые параметры и необходимая документация", "value": ctrl_value},
+        ]
+    )
 
     return {
         "id": card_id,
@@ -122,5 +116,5 @@ def extract_six_rows_from_doc(path: Path) -> dict[str, Any]:
         "file": path.name,
         "rows": rows,
         "signature": None,
-        "plain_text": raw,
+        "plain_text": strip_kodeks_fields(raw),
     }

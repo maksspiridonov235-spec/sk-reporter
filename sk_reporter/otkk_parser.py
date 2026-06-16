@@ -14,6 +14,7 @@ from typing import Any
 from lxml import html as lxml_html
 
 from sk_reporter.engineer.doc_text import extract_doc_text
+from sk_reporter.otkk_text import normative_visible_text, sanitize_otkk_rows, strip_kodeks_fields
 
 _OTKK_CODE_RE = re.compile(r"ОТКК\s*[-–—]?\s*(\d+)", re.I)
 _NORM_CODE_RE = re.compile(
@@ -32,6 +33,7 @@ def otkk_id_from_path(path: Path) -> str | None:
 def _clean_text(raw: str) -> str:
     text = unescape(raw or "")
     text = text.replace("\xa0", " ")
+    text = strip_kodeks_fields(text)
     text = _HYPERLINK_RE.sub("", text)
     text = text.replace("\x07", " ")
     return _WS_RE.sub(" ", text).strip()
@@ -181,7 +183,7 @@ def parse_otkk_document(path: Path) -> dict[str, Any]:
     if normative_text:
         norm_row = {
             "label": "Нормативные документы",
-            "value": normative_text,
+            "value": normative_visible_text(normative_text),
             "codes": _normative_codes(normative_text),
         }
         insert_at = 0
@@ -219,9 +221,9 @@ def parse_otkk_document(path: Path) -> dict[str, Any]:
         "code": code,
         "title": title,
         "file": path.name,
-        "rows": rows,
+        "rows": sanitize_otkk_rows(rows),
         "signature": signature,
-        "plain_text": plain_text,
+        "plain_text": strip_kodeks_fields(plain_text),
     }
 
 
