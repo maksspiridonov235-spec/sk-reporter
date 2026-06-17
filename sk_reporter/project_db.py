@@ -38,6 +38,9 @@ def _ensure_project_schema() -> None:
 def _count_vor_works(vor: dict[str, Any] | None) -> int:
     if not vor:
         return 0
+    rows = vor.get("rows")
+    if rows:
+        return sum(1 for row in rows if str(row.get("kind") or "") == "work")
     total = 0
     for stage in vor.get("stages") or []:
         total += len(stage.get("works") or [])

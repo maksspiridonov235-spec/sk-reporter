@@ -38,6 +38,34 @@ def load_vor_json(project_id: str) -> dict[str, Any]:
 
 def flatten_vor_works(project_id: str) -> list[dict[str, Any]]:
     vor = load_vor_json(project_id)
+    rows = vor.get("rows")
+    if rows:
+        out: list[dict[str, Any]] = []
+        section = ""
+        idx = 0
+        for row in rows:
+            kind = str(row.get("kind") or "")
+            if kind == "section":
+                section = str(row.get("name") or "")
+                continue
+            if kind != "work":
+                continue
+            name = str(row.get("name") or "")
+            key = f"{section}|{name}"
+            out.append(
+                {
+                    "key": key,
+                    "idx": idx,
+                    "stage": "",
+                    "object": section,
+                    "name": name,
+                    "unit": str(row.get("unit") or ""),
+                    "quantity": str(row.get("quantity") or ""),
+                    "tk_id": resolve_tk_for_work(name, project_dir(project_id)) or "",
+                }
+            )
+            idx += 1
+        return out
     proj = project_dir(project_id)
     out: list[dict[str, Any]] = []
     idx = 0

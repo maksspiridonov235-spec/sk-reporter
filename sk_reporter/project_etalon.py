@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from sk_reporter.project_sup_pdr_tl_data import sup_pdr_tl_card_fields, sup_pdr_tl_content
+from sk_reporter.project_sup_pdr_vor_data import sup_pdr_vor_content
 
 _DATA_DIR = Path(__file__).resolve().parent / "project_data"
 
@@ -26,4 +27,5 @@ def sup_pdr_enc_00_1_payload() -> dict[str, Any]:
     payload["tl_file"] = tl_meta["tl_file"]
     content = payload.setdefault("content", {})
     content["tl"] = sup_pdr_tl_content()
+    content["vor"] = sup_pdr_vor_content()
     return payload

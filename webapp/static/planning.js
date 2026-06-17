@@ -411,7 +411,7 @@
     if (!projects.length) {
       el.innerHTML =
         `<div class="personnel-toolbar">${storageBadge}</div>` +
-        `<p class="hint-text">${dbError || "Нет карточек в PostgreSQL. Эталоны заливаются при старте сервера."}</p>` +
+        `<p class="hint-text">${dbError || "Нет карточек в PostgreSQL."}</p>` +
         `<dialog id="projectDetailDialog" class="otkk-detail-dialog">
           <div class="otkk-detail-header project-detail-header">
             <button type="button" class="btn btn-secondary btn-sm" id="projectDetailClose">Закрыть</button>
@@ -491,16 +491,45 @@
     });
   }
 
+  function isVorFileLabel(label, vor) {
+    const t = String(label || "").trim();
+    if (!t) return true;
+    if (/\.docx?$/i.test(t)) return true;
+    const src = String(vor?.source || "").replace(/\.docx?$/i, "");
+    if (src && t === src) return true;
+    if (/ВОР[_\s-]/i.test(t) && /00\.?\d/i.test(t)) return true;
+    return false;
+  }
+
   function renderVorSection(vor) {
+    if (vor?.rows?.length) {
+      const body = vor.rows
+        .map((row) => {
+          if (row.kind === "section") {
+            return `<tr class="vor-section-row"><td></td><td colspan="4">${esc(row.name || "")}</td></tr>`;
+          }
+          return `<tr>
+            <td class="vor-num">${esc(row.num || "")}</td>
+            <td class="vor-name">${esc(row.name || "")}</td>
+            <td class="vor-unit">${esc(row.unit || "")}</td>
+            <td class="vor-qty">${esc(row.quantity || "")}</td>
+            <td class="vor-note">${esc(row.note || "")}</td>
+          </tr>`;
+        })
+        .join("");
+      return `<div class="otkk-inner-table-wrap"><table class="planning-table vor-table otkk-inner-table"><thead><tr>
+        <th>№</th><th>Наименование работ</th><th>Ед. изм.</th><th>Объем СМР</th><th>Примечание</th>
+      </tr></thead><tbody>${body}</tbody></table></div>`;
+    }
     if (!vor || !vor.stages?.length) {
       return '<p class="hint-text">ВОР не распознан.</p>';
     }
     return (vor.stages || [])
       .map((stage) => {
         const stageLabel = String(stage.title || "").trim();
-        const showStageHeading = stageLabel && !/\.docx?$/i.test(stageLabel);
+        const showStageHeading = stageLabel && !isVorFileLabel(stageLabel, vor);
         let html = showStageHeading
-          ? `<h4 class="otkk-section-heading">${esc(stageLabel || "Этап")}</h4>`
+          ? `<h4 class="otkk-section-heading">${esc(stageLabel)}</h4>`
           : "";
         const objects = stage.objects || [];
         if (!objects.length && (stage.works || []).length) {
