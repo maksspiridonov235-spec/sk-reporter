@@ -469,10 +469,24 @@
           return `<ul class="otkk-bullets">${items}</ul>`;
         }
         if (t === "table") {
+          const layout = seg.layout || "standard";
+          const headerRows = seg.header_rows || [];
           const headers = seg.headers || [];
-          const head = headers.map((h) => `<th>${esc(h)}</th>`).join("");
+          let thead = "";
+          if (headerRows.length) {
+            thead = headerRows
+              .map((row) => `<tr>${row.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>`)
+              .join("");
+          } else if (headers.length) {
+            thead = `<tr>${headers.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>`;
+          }
+          const colCount = headerRows[0]?.length || headers.length || 3;
           const body = (seg.rows || [])
             .map((row) => {
+              if (row.type === "section") {
+                const text = esc((row.cells && row.cells[0]) || "");
+                return `<tr class="otkk-section-row"><td colspan="${colCount}">${text}</td></tr>`;
+              }
               const cells = (row.cells || [])
                 .map((c) => `<td>${esc(c || "").replace(/\n/g, "<br>")}</td>`)
                 .join("");
@@ -482,7 +496,7 @@
           return (
             `<div class="otkk-inner-table-wrap">` +
             `<div class="otkk-table-caption">${esc(seg.caption || "")}</div>` +
-            `<table class="otkk-inner-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>` +
+            `<table class="otkk-inner-table otkk-inner-table--${esc(layout)}"><thead>${thead}</thead><tbody>${body}</tbody></table>` +
             `</div>`
           );
         }

@@ -985,6 +985,17 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
   background: #f1f5f9; font-weight: 600; text-align: center;
 }
 .otkk-inner-table td:nth-child(2) { text-align: center; white-space: pre-wrap; }
+.otkk-inner-table--wide { font-size: 11px; }
+.otkk-inner-table--wide th,
+.otkk-inner-table--wide td { padding: 4px 6px; }
+.otkk-inner-table--matrix { font-size: 10px; }
+.otkk-inner-table--matrix th,
+.otkk-inner-table--matrix td { padding: 3px 4px; text-align: center; }
+.otkk-inner-table--matrix td:first-child,
+.otkk-inner-table--matrix th:first-child { text-align: left; min-width: 90px; }
+.otkk-section-row td {
+  background: #f1f5f9; font-weight: 600; font-style: italic; border-top: 2px solid #94a3b8;
+}
 .otkk-bullets { margin: 8px 0 0; padding-left: 1.2em; }
 .otkk-signature { margin-top: 16px; font-size: 13px; color: #475569; }
 .otkk-admin-import { margin-top: 4px; }
