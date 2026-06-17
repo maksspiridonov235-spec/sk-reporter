@@ -949,6 +949,42 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 .personnel-table td:first-child { font-weight: 500; white-space: nowrap; }
 .personnel-table td:nth-child(2) { max-width: 280px; }
 
+.projects-table-wrap { overflow-x: visible; }
+.projects-table {
+  table-layout: fixed;
+}
+.projects-table th,
+.projects-table td {
+  vertical-align: top;
+  line-height: 1.45;
+}
+.projects-table th:nth-child(1),
+.projects-table td:nth-child(1) {
+  width: 58%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.projects-table th:nth-child(2),
+.projects-table td:nth-child(2) {
+  width: 28%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.projects-table td:nth-child(2) code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.projects-table th:nth-child(3),
+.projects-table td:nth-child(3) {
+  width: 14%;
+  min-width: 72px;
+  white-space: nowrap;
+  text-align: right;
+}
+
 .planning-subtitle { font-size: 15px; margin: 20px 0 10px; color: #1a56a0; }
 .project-create-form { margin: 16px 0 24px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fafbfc; }
 .project-create-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px; }
@@ -969,6 +1005,12 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
   padding: 14px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc;
 }
 .otkk-detail-header h3 { margin: 0; font-size: 15px; line-height: 1.35; align-self: stretch; }
+.project-detail-header {
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+}
+.project-detail-body .otkk-structure-table:first-child { margin-top: 0; }
 .otkk-detail-body { padding: 12px 16px 16px; max-height: 70vh; overflow: auto; }
 .otkk-structure-table th {
   width: 34%; vertical-align: top; text-align: left; font-weight: 600; color: #334155;

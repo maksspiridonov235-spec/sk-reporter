@@ -413,11 +413,10 @@
         `<div class="personnel-toolbar">${storageBadge}</div>` +
         `<p class="hint-text">${dbError || "Нет карточек в PostgreSQL. Эталоны заливаются при старте сервера."}</p>` +
         `<dialog id="projectDetailDialog" class="otkk-detail-dialog">
-          <div class="otkk-detail-header">
-            <h3 id="projectDetailTitle"></h3>
+          <div class="otkk-detail-header project-detail-header">
             <button type="button" class="btn btn-secondary btn-sm" id="projectDetailClose">Закрыть</button>
           </div>
-          <div id="projectDetailBody" class="otkk-detail-body"></div>
+          <div id="projectDetailBody" class="otkk-detail-body project-detail-body"></div>
         </dialog>`;
       bindProjectDetail(el);
       return;
@@ -429,8 +428,8 @@
         <p class="planning-meta">${projects.length} проектов · ${db.with_content ?? projects.filter((p) => p.has_content).length} с данными</p>
         <input type="search" id="projectsSearch" class="field-input personnel-search" placeholder="Поиск по шифру или объекту…"/>
       </div>
-      <div class="personnel-table-wrap">
-        <table class="planning-table personnel-table" id="projectsTable">
+      <div class="personnel-table-wrap projects-table-wrap">
+        <table class="planning-table projects-table" id="projectsTable">
           <thead>
             <tr>
               <th>Объект</th>
@@ -442,11 +441,10 @@
         </table>
       </div>
       <dialog id="projectDetailDialog" class="otkk-detail-dialog">
-        <div class="otkk-detail-header">
-          <h3 id="projectDetailTitle"></h3>
+        <div class="otkk-detail-header project-detail-header">
           <button type="button" class="btn btn-secondary btn-sm" id="projectDetailClose">Закрыть</button>
         </div>
-        <div id="projectDetailBody" class="otkk-detail-body"></div>
+        <div id="projectDetailBody" class="otkk-detail-body project-detail-body"></div>
       </dialog>`;
 
     bindProjectDetail(el);
@@ -499,7 +497,11 @@
     }
     return (vor.stages || [])
       .map((stage) => {
-        let html = `<h4 class="otkk-section-heading">${esc(stage.title || "Этап")}</h4>`;
+        const stageLabel = String(stage.title || "").trim();
+        const showStageHeading = stageLabel && !/\.docx?$/i.test(stageLabel);
+        let html = showStageHeading
+          ? `<h4 class="otkk-section-heading">${esc(stageLabel || "Этап")}</h4>`
+          : "";
         const objects = stage.objects || [];
         if (!objects.length && (stage.works || []).length) {
           html += renderVorWorksTable(stage.works);
@@ -560,28 +562,21 @@
 
   async function openProjectDetail(projectId) {
     const dialog = document.getElementById("projectDetailDialog");
-    const titleEl = document.getElementById("projectDetailTitle");
     const bodyEl = document.getElementById("projectDetailBody");
-    if (!dialog || !titleEl || !bodyEl) return;
-    titleEl.textContent = "Загрузка…";
-    bodyEl.innerHTML = "";
+    if (!dialog || !bodyEl) return;
+    bodyEl.innerHTML = '<p class="hint-text">Загрузка…</p>';
     dialog.showModal();
     try {
       const res = await fetch(`/api/planning/projects/${encodeURIComponent(projectId)}`);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || res.statusText);
       const content = data.content || {};
-      titleEl.textContent = data.object_name || data.title || projectId;
       bodyEl.innerHTML = `
-        <p class="planning-meta"><code>${esc(data.id)}</code></p>
-        <p class="hint-text">ВОР: ${esc(data.vor_file || "—")} · ТЛ: ${esc(data.tl_file || "—")}</p>
+        ${renderTlSection(content.tl)}
         <h4 class="otkk-section-heading">Ведомость объёмов работ</h4>
-        ${renderVorSection(content.vor)}
-        <h4 class="otkk-section-heading">Титульный лист</h4>
-        ${renderTlSection(content.tl)}`;
+        ${renderVorSection(content.vor)}`;
     } catch (e) {
       bodyEl.innerHTML = `<p class="error-text">${esc(e.message)}</p>`;
-      titleEl.textContent = projectId;
     }
   }
 
