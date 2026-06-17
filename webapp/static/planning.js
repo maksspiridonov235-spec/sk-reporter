@@ -503,13 +503,22 @@
 
   function renderVorSection(vor) {
     if (vor?.rows?.length) {
+      let workNum = 0;
       const body = vor.rows
         .map((row) => {
           if (row.kind === "section") {
-            return `<tr class="vor-section-row"><td></td><td colspan="4">${esc(row.name || "")}</td></tr>`;
+            return `<tr class="vor-section-row">
+              <td class="vor-num"></td>
+              <td class="vor-name">${esc(row.name || "")}</td>
+              <td class="vor-unit"></td>
+              <td class="vor-qty"></td>
+              <td class="vor-note"></td>
+            </tr>`;
           }
+          workNum += 1;
+          const num = String(row.num || "").trim() || String(workNum);
           return `<tr>
-            <td class="vor-num">${esc(row.num || "")}</td>
+            <td class="vor-num">${esc(num)}</td>
             <td class="vor-name">${esc(row.name || "")}</td>
             <td class="vor-unit">${esc(row.unit || "")}</td>
             <td class="vor-qty">${esc(row.quantity || "")}</td>

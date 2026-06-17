@@ -1053,6 +1053,12 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 .otkk-inner-table .otkk-subrow td:first-child { padding-left: 1.4em; }
 
 .vor-table { table-layout: fixed; }
+.vor-table thead th:nth-child(2),
+.vor-table.otkk-inner-table td.vor-name,
+.vor-table.otkk-inner-table td:nth-child(2) {
+  text-align: left;
+  white-space: normal;
+}
 .vor-table th:nth-child(1),
 .vor-table td.vor-num { width: 40px; text-align: center; }
 .vor-table th:nth-child(3),
@@ -1061,8 +1067,22 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 .vor-table td.vor-qty { width: 88px; text-align: center; }
 .vor-table th:nth-child(5),
 .vor-table td.vor-note { width: 120px; text-align: center; }
-.vor-table td.vor-name { white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
-.vor-section-row td { font-weight: 600; background: #f8fafc; }
+.vor-table td.vor-name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: left;
+}
+.vor-section-row td {
+  font-weight: 600;
+  background: #f8fafc;
+  text-align: left;
+}
+.vor-section-row td.vor-unit,
+.vor-section-row td.vor-qty,
+.vor-section-row td.vor-note {
+  background: #f8fafc;
+}
 .otkk-bullets { margin: 8px 0 0; padding-left: 1.2em; }
 .otkk-sub-bullets { margin-top: 4px; margin-bottom: 8px; padding-left: 1.2em; list-style-type: circle; }
 .otkk-lines { margin: 4px 0 8px; padding-left: 1.2em; list-style: none; }
