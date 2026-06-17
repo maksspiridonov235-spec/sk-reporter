@@ -173,10 +173,16 @@ def upsert_project_imported(payload: dict[str, Any]) -> dict[str, Any]:
         return _catalog_row(row)
 
 
+def _project_needs_reseed(existing: dict[str, Any] | None) -> bool:
+    if not existing or not existing.get("has_content"):
+        return True
+    return (existing.get("vor_works_count") or 0) == 0
+
+
 def seed_project_from_disk(project_id: str, *, overwrite: bool = False) -> dict[str, Any]:
     pid = str(project_id).strip()
     existing = get_project_catalog(pid, include_content=True)
-    if existing and existing.get("has_content") and not overwrite:
+    if existing and existing.get("has_content") and not overwrite and not _project_needs_reseed(existing):
         return {"id": pid, "skipped": True, "reason": "already in db"}
 
     payload = import_project_folder(pid)
@@ -207,8 +213,22 @@ def seed_projects_from_disk(*, overwrite: bool = False) -> dict[str, Any]:
     return {"seeded": seeded, "seeded_count": len(seeded), "skipped": skipped}
 
 
-def seed_sup_pdr_pilot(*, overwrite: bool = False) -> dict[str, Any]:
-    return seed_project_from_disk("SUP-PDR-ENC-001-DD-ST01-EV_00.1", overwrite=overwrite)
+def seed_sup_pdr_pilot(*, overwrite: bool = True) -> dict[str, Any]:
+    """Пилот SUP-PDR: ВОР из эталона в репо (как ОТКК), не зависит от .doc на сервере."""
+    from sk_reporter.project_etalon import sup_pdr_enc_00_1_payload
+
+    pid = "SUP-PDR-ENC-001-DD-ST01-EV_00.1"
+    existing = get_project_catalog(pid, include_content=True)
+    if existing and existing.get("has_content") and not overwrite and not _project_needs_reseed(existing):
+        return {"id": pid, "skipped": True, "reason": "already in db"}
+
+    payload = sup_pdr_enc_00_1_payload()
+    result = upsert_project_imported(payload)
+    vor = (payload["content"].get("vor") or {}) if payload.get("content") else {}
+    result["seeded"] = True
+    result["vor_works_count"] = _count_vor_works(vor)
+    result["source"] = "etalon"
+    return result
 
 
 # --- назначения инженеров (позже, без изменений API) ---

@@ -97,7 +97,7 @@ try:
         )
         from sk_reporter.project_db import db_status as project_db_status, seed_sup_pdr_pilot
 
-        _pr = seed_sup_pdr_pilot()
+        _pr = seed_sup_pdr_pilot(overwrite=True)
         if _pr.get("seeded"):
             print(
                 f"[INFO] PostgreSQL проекты: залит {_pr.get('id')} "
