@@ -1,4 +1,4 @@
-"""Парсинг ОТКК (.doc/.docx) в структуру как в исходной карте."""
+"""Утилиты для работы с ОТКК: конвертация .doc/.docx в HTML и плоский текст из JSON."""
 
 from __future__ import annotations
 
@@ -11,23 +11,10 @@ from html import unescape
 from pathlib import Path
 from typing import Any
 
-from lxml import html as lxml_html
+from sk_reporter.otkk_text import strip_kodeks_fields
 
-from sk_reporter.engineer.doc_text import extract_doc_text
-from sk_reporter.otkk_text import normative_visible_text, sanitize_otkk_rows, strip_kodeks_fields
-
-_OTKK_CODE_RE = re.compile(r"ОТКК\s*[-–—]?\s*(\d+)", re.I)
-_NORM_CODE_RE = re.compile(
-    r"(?:СП|ГОСТ|ВСН|СНиП)\s*[\d][\d\.\-]*(?:\s*[\d\-]*)?",
-    re.I,
-)
 _HYPERLINK_RE = re.compile(r'HYPERLINK\s+"[^"]*"\s*\\o\s*"[^"]*"', re.I)
 _WS_RE = re.compile(r"\s+")
-
-
-def otkk_id_from_path(path: Path) -> str | None:
-    m = _OTKK_CODE_RE.search(path.stem)
-    return f"otkk-{int(m.group(1))}" if m else None
 
 
 def _clean_text(raw: str) -> str:
@@ -37,40 +24,6 @@ def _clean_text(raw: str) -> str:
     text = _HYPERLINK_RE.sub("", text)
     text = text.replace("\x07", " ")
     return _WS_RE.sub(" ", text).strip()
-
-
-def _cell_text(td) -> str:
-    parts = td.xpath(".//text()")
-    return _clean_text(" ".join(parts))
-
-
-def _cell_blocks(td) -> dict[str, Any]:
-    paragraphs: list[str] = []
-    bullets: list[str] = []
-    for p in td.xpath(".//p"):
-        t = _clean_text(" ".join(p.xpath(".//text()")))
-        if not t:
-            continue
-        if t.startswith("-") or t.startswith("–"):
-            bullets.append(t.lstrip("-– ").strip())
-        else:
-            paragraphs.append(t)
-    text = _cell_text(td)
-    if not paragraphs and not bullets and text:
-        paragraphs = [text]
-    return {"text": text, "paragraphs": paragraphs, "bullets": bullets}
-
-
-def _normative_codes(text: str) -> list[str]:
-    seen: set[str] = set()
-    out: list[str] = []
-    for m in _NORM_CODE_RE.finditer(text):
-        code = _clean_text(m.group(0))
-        key = code.casefold()
-        if key not in seen:
-            seen.add(key)
-            out.append(code)
-    return out
 
 
 def doc_to_html(path: Path) -> str:
@@ -123,115 +76,6 @@ def doc_to_html(path: Path) -> str:
             )
 
     return html.replace("\x00", "")
-
-
-def parse_otkk_document(path: Path) -> dict[str, Any]:
-    """Структура карты: шапка, строки таблицы label/value, подпись."""
-    path = Path(path)
-    card_id = otkk_id_from_path(path)
-    html_body = doc_to_html(path)
-    root = lxml_html.fromstring(html_body)
-
-    rows: list[dict[str, Any]] = []
-    code = ""
-    title = ""
-    normative_text = ""
-    signature: dict[str, str] | None = None
-
-    norm_parts: list[str] = []
-    capture_norm = False
-    for p in root.xpath("//p"):
-        t = _clean_text(" ".join(p.xpath(".//text()")))
-        if not t:
-            continue
-        if t.startswith("Нормативные документы"):
-            capture_norm = True
-            norm_parts.append(t)
-            continue
-        if capture_norm and root.xpath("//table") and rows:
-            capture_norm = False
-        if capture_norm:
-            norm_parts.append(t)
-        if t.startswith("Разработал"):
-            signature = {"label": "Разработал", "text": t}
-        elif signature is not None and signature.get("text", "").rstrip(":") == "Разработал":
-            signature["text"] = t
-
-    if norm_parts:
-        normative_text = _clean_text(" ".join(norm_parts))
-
-    for table in root.xpath("//table"):
-        for tr in table.xpath(".//tr"):
-            tds = tr.xpath("./td")
-            if len(tds) >= 2:
-                label = _cell_text(tds[0])
-                value = _cell_text(tds[1])
-                if not label and not value:
-                    continue
-                if _OTKK_CODE_RE.search(label):
-                    code = label
-                    title = value
-                row: dict[str, Any] = {"label": label, "value": value}
-                if "Контролируемые параметры" in label:
-                    row["body"] = _cell_blocks(tds[1])
-                rows.append(row)
-            elif len(tds) == 1:
-                solo = _cell_text(tds[0])
-                if solo and rows and not rows[-1].get("value"):
-                    rows[-1]["value"] = solo
-
-    if normative_text:
-        norm_row = {
-            "label": "Нормативные документы",
-            "value": normative_visible_text(normative_text),
-            "codes": _normative_codes(normative_text),
-        }
-        insert_at = 0
-        for i, r in enumerate(rows):
-            if r.get("label") == "Область применения":
-                insert_at = i + 1
-                break
-        rows.insert(insert_at, norm_row)
-
-    if not title:
-        for r in rows:
-            if r.get("label") and _OTKK_CODE_RE.search(r["label"]):
-                code = r["label"]
-                title = r.get("value", "")
-                break
-
-    if not signature:
-        after_sig = False
-        for p in root.xpath("//p"):
-            t = _clean_text(" ".join(p.xpath(".//text()")))
-            if not t or ("PAGE" in t and "NUMPAGES" in t):
-                continue
-            if t.startswith("Разработал"):
-                signature = {"label": "Разработал", "text": t}
-                after_sig = True
-                continue
-            if after_sig and t:
-                signature["text"] = t
-                break
-
-    plain_text = extract_doc_text(path)
-
-    from sk_reporter.otkk_rich import extract_rich_segments
-
-    rich_segments = extract_rich_segments(path)
-    for r in rows:
-        if "Контролируемые параметры" in str(r.get("label") or ""):
-            r["segments"] = rich_segments
-
-    return {
-        "id": card_id,
-        "code": code,
-        "title": title,
-        "file": path.name,
-        "rows": sanitize_otkk_rows(rows),
-        "signature": signature,
-        "plain_text": strip_kodeks_fields(plain_text),
-    }
 
 
 def content_to_plain_text(content: dict[str, Any]) -> str:

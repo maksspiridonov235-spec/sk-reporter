@@ -998,8 +998,6 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 }
 .otkk-bullets { margin: 8px 0 0; padding-left: 1.2em; }
 .otkk-signature { margin-top: 16px; font-size: 13px; color: #475569; }
-.otkk-admin-import { margin-top: 4px; }
-.otkk-admin-import summary { cursor: pointer; user-select: none; }
 .luvr-month-select { max-width: 320px; margin-bottom: 12px; }
 .luvr-header { margin-bottom: 8px; }
 .luvr-sync-bar {

@@ -325,23 +325,13 @@
     const dbError = !db.ok ? (db.error || "PostgreSQL недоступна") : "";
     const storageBadge = `<span class="storage-badge storage-badge--db" title="${esc(dbError)}">PostgreSQL · ${cards.length}</span>`;
 
-    const importToolbar = `<div class="personnel-import-bar">
-        <label class="btn btn-primary btn-sm personnel-upload-label">
-          Загрузить карту (.doc / .docx)
-          <input type="file" id="otkkUploadDoc" accept=".doc,.docx" hidden/>
-        </label>
-        <span id="otkkImportStatus" class="hint-text" aria-live="polite"></span>
-      </div>`;
-
     if (!cards.length) {
       const emptyHint = dbError
         ? `База недоступна: ${esc(dbError)}`
-        : "В базе пока нет карт. Загрузите .doc — текст и структура сохранятся в PostgreSQL. Файл на сервере не нужен.";
+        : "В базе пока нет карт ОТКК. Эталоны заливаются при старте сервера из репозитория.";
       el.innerHTML =
         `<div class="personnel-toolbar">${storageBadge}</div>` +
-        (db.ok ? importToolbar : "") +
         `<p class="hint-text">${emptyHint}</p>`;
-      bindOtkkImport(el);
       return;
     }
 
@@ -351,8 +341,6 @@
         <p class="planning-meta">${cards.length} карт в базе</p>
         <input type="search" id="otkkSearch" class="field-input personnel-search" placeholder="Поиск по ID, коду или названию…"/>
       </div>
-      ${importToolbar}
-      <p class="hint-text">Повторная загрузка того же номера ОТКК полностью перезаписывает карту в базе.</p>
       <div class="personnel-table-wrap">
         <table class="planning-table personnel-table" id="otkkTable">
           <thead>
@@ -374,7 +362,6 @@
         <div id="otkkDetailBody" class="otkk-detail-body"></div>
       </dialog>`;
 
-    bindOtkkImport(el);
     bindOtkkDetail(el);
 
     const tbody = el.querySelector("#otkkTable tbody");
@@ -408,39 +395,6 @@
 
     search.addEventListener("input", renderRows);
     renderRows();
-  }
-
-  function bindOtkkImport(root) {
-    const docInput = root.querySelector("#otkkUploadDoc");
-    const status = root.querySelector("#otkkImportStatus");
-    if (!docInput) return;
-
-    async function setStatus(msg, isError) {
-      if (!status) return;
-      status.textContent = msg;
-      status.classList.toggle("error-text", !!isError);
-    }
-
-    docInput.addEventListener("change", async () => {
-      const file = docInput.files?.[0];
-      if (!file) return;
-      docInput.value = "";
-      await setStatus(`Загрузка ${file.name}…`);
-      try {
-        const fd = new FormData();
-        fd.append("file", file);
-        const res = await fetch("/api/planning/otkk/upload-doc", {
-          method: "POST",
-          body: fd,
-        });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(body.detail || res.statusText);
-        await setStatus(`Сохранено в базе: ${body.id}`);
-        await loadTab("otkk", true);
-      } catch (e) {
-        await setStatus(e.message, true);
-      }
-    });
   }
 
   function bindOtkkDetail(root) {

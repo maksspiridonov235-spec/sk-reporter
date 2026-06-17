@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +10,6 @@ from sk_reporter.db.config import database_enabled, database_url
 from sk_reporter.db.models import OtkkCard
 from sk_reporter.db.session import get_session, init_db
 from sk_reporter.otkk_text import sanitize_otkk_rows, strip_kodeks_fields
-from sk_reporter.paths import tk_dir
 
 
 def _ensure_otkk_schema() -> None:
@@ -194,30 +192,4 @@ def seed_otkk1(*, overwrite: bool = False) -> dict[str, Any]:
 def seed_otkk2(*, overwrite: bool = False) -> dict[str, Any]:
     """Залить эталон ОТКК-2 (6 пунктов карты) в PostgreSQL."""
     return _seed_otkk_card("otkk-2", overwrite=overwrite)
-
-
-def import_document_to_db(
-    source: Path,
-    *,
-    copy_to_tk_dir: bool = False,
-    tk_root: Path | None = None,
-) -> dict[str, Any]:
-    from sk_reporter.otkk_parser import parse_otkk_document
-
-    source = Path(source)
-    if not source.is_file():
-        raise FileNotFoundError(source)
-    parsed = parse_otkk_document(source)
-    if not parsed.get("id"):
-        raise ValueError(f"Не удалось определить id ОТКК из файла: {source.name}")
-
-    file_name = source.name
-    if copy_to_tk_dir:
-        root = tk_root or tk_dir()
-        root.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, root / file_name)
-
-    result = upsert_card_content(parsed, file_name=file_name)
-    result["rows"] = len(parsed.get("rows") or [])
-    return result
 

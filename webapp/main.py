@@ -82,8 +82,8 @@ try:
         )
         if _otkk_st.get("ok") and _otkk_st.get("with_content", 0) == 0:
             print(
-                "[WARN] PostgreSQL: в базе нет загруженных ОТКК — "
-                "загрузите .doc на /planning/otkk"
+                "[WARN] PostgreSQL: в базе нет ОТКК — "
+                "проверьте seed_otkk1/seed_otkk2 при старте или scripts/seed_otkk*.py"
             )
     else:
         print("[WARN] PostgreSQL: DATABASE_URL не задан — раздел «Сотрудники» недоступен")
@@ -479,40 +479,6 @@ async def planning_otkk_seed_otkk2(overwrite: bool = False):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/api/planning/otkk/upload-doc")
-async def planning_otkk_upload_doc(file: UploadFile = File(...)):
-    from sk_reporter.db.config import database_enabled
-    from sk_reporter.otkk_db import import_document_to_db
-
-    if not database_enabled():
-        raise HTTPException(status_code=400, detail="DATABASE_URL не задан")
-    name = (file.filename or "").lower()
-    if not name.endswith((".doc", ".docx")):
-        raise HTTPException(status_code=400, detail="Нужен файл .doc или .docx")
-    suffix = ".docx" if name.endswith(".docx") else ".doc"
-    tmp = None
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            shutil.copyfileobj(file.file, tmp)
-            tmp_path = Path(tmp.name)
-        return await asyncio.to_thread(import_document_to_db, tmp_path, copy_to_tk_dir=False)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except RuntimeError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-    finally:
-        if tmp is not None:
-            try:
-                Path(tmp.name).unlink(missing_ok=True)
-            except OSError:
-                pass
 
 
 class ProjectEngineersBody(BaseModel):
