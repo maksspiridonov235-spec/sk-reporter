@@ -9,6 +9,13 @@
       .replace(/"/g, "&quot;");
   }
 
+  function escMultiline(s) {
+    return String(s ?? "")
+      .split("\n")
+      .map((line) => esc(line))
+      .join("<br>");
+  }
+
   function fileTable(files, folder) {
     if (!files?.length) {
       return `<p class="hint-text">Нет файлов${folder ? ` в ${esc(folder)}` : ""}.</p>`;
@@ -519,9 +526,9 @@
           const num = String(row.num || "").trim() || String(workNum);
           return `<tr>
             <td class="vor-num">${esc(num)}</td>
-            <td class="vor-name">${esc(row.name || "")}</td>
-            <td class="vor-unit">${esc(row.unit || "")}</td>
-            <td class="vor-qty">${esc(row.quantity || "")}</td>
+            <td class="vor-name">${escMultiline(row.name || "")}</td>
+            <td class="vor-unit">${escMultiline(row.unit || "")}</td>
+            <td class="vor-qty">${escMultiline(row.quantity || "")}</td>
             <td class="vor-note">${esc(row.note || "")}</td>
           </tr>`;
         })

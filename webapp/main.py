@@ -95,14 +95,11 @@ try:
             "[INFO] PostgreSQL подрядчики: "
             f"ok={_ctr_st.get('ok')}, count={_ctr_st.get('count', 0)}"
         )
-        from sk_reporter.project_db import db_status as project_db_status, seed_sup_pdr_pilot
+        from sk_reporter.project_db import db_status as project_db_status, seed_projects_pilots
 
-        _pr = seed_sup_pdr_pilot(overwrite=True)
-        if _pr.get("seeded"):
-            print(
-                f"[INFO] PostgreSQL проекты: залит {_pr.get('id')} "
-                f"(ВОР: {_pr.get('vor_works_count', 0)} работ)"
-            )
+        _pr = seed_projects_pilots(overwrite=True)
+        for pid in _pr.get("seeded") or []:
+            print(f"[INFO] PostgreSQL проекты: залит {pid}")
         _proj_st = project_db_status()
         print(
             "[INFO] PostgreSQL проекты: "

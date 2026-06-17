@@ -190,22 +190,45 @@ def _project_needs_reseed(existing: dict[str, Any] | None) -> bool:
     return (existing.get("vor_works_count") or 0) == 0
 
 
-def seed_sup_pdr_pilot(*, overwrite: bool = True) -> dict[str, Any]:
-    """Пилот SUP-PDR: эталон в репо → PostgreSQL (как ОТКК)."""
-    from sk_reporter.project_etalon import sup_pdr_enc_00_1_payload
-
-    pid = "SUP-PDR-ENC-001-DD-ST01-EV_00.1"
+def seed_project_from_etalon(payload: dict[str, Any], *, overwrite: bool = True) -> dict[str, Any]:
+    pid = str(payload.get("id") or "").strip()
+    if not pid:
+        raise ValueError("Нет id проекта")
     existing = get_project_catalog(pid, include_content=True)
     if existing and existing.get("has_content") and not overwrite and not _project_needs_reseed(existing):
         return {"id": pid, "skipped": True, "reason": "already in db"}
 
-    payload = sup_pdr_enc_00_1_payload()
     result = upsert_project_card(payload)
-    vor = (payload["content"].get("vor") or {}) if payload.get("content") else {}
+    vor = (payload.get("content") or {}).get("vor") or {}
     result["seeded"] = True
     result["vor_works_count"] = _count_vor_works(vor)
     result["source"] = "etalon"
     return result
+
+
+def seed_sup_pdr_pilot(*, overwrite: bool = True) -> dict[str, Any]:
+    """Пилот SUP-PDR: эталон в репо → PostgreSQL."""
+    from sk_reporter.project_etalon import sup_pdr_enc_00_1_payload
+
+    return seed_project_from_etalon(sup_pdr_enc_00_1_payload(), overwrite=overwrite)
+
+
+def seed_projects_pilots(*, overwrite: bool = True) -> dict[str, Any]:
+    from sk_reporter.project_etalon import all_project_etalon_payloads
+
+    seeded: list[str] = []
+    skipped: list[dict[str, str]] = []
+    for payload in all_project_etalon_payloads():
+        pid = str(payload.get("id") or "")
+        try:
+            result = seed_project_from_etalon(payload, overwrite=overwrite)
+            if result.get("seeded"):
+                seeded.append(pid)
+            elif result.get("skipped"):
+                skipped.append({"id": pid, "reason": str(result.get("reason", "skip"))})
+        except Exception as exc:
+            skipped.append({"id": pid, "reason": str(exc)})
+    return {"seeded": seeded, "seeded_count": len(seeded), "skipped": skipped}
 
 
 # --- назначения инженеров (позже, без изменений API) ---
