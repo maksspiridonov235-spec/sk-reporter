@@ -400,76 +400,207 @@
     });
   }
 
-  function renderProjectFilesTable(files) {
-    if (!files?.length) {
-      return '<p class="hint-text">В папке нет файлов.</p>';
-    }
-    const rows = files
-      .map(
-        (f) =>
-          `<tr>
-            <td><a href="${esc(f.download_url)}" download>${esc(f.name)}</a></td>
-            <td>${esc(f.suffix || "—")}</td>
-            <td>${f.size_kb ?? "—"}</td>
-            <td class="hint-text">${esc(f.modified || "—")}</td>
-          </tr>`
-      )
-      .join("");
-    return `<table class="planning-table">
-      <thead><tr><th>Файл</th><th>Тип</th><th>КБ</th><th>Изменён</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
-  }
-
   function renderProjects(data) {
     const el = document.getElementById("projectsList");
     if (!el) return;
-    const disk = data.disk || {};
+    const db = data.db || {};
     const projects = data.projects || [];
-    const diskError = disk.exists === false ? "Каталог data/projects не найден" : "";
-    const storageBadge = `<span class="storage-badge storage-badge--disk" title="${esc(disk.root || "")}">Диск · ${projects.length}</span>`;
+    const dbError = !db.ok ? (db.error || "PostgreSQL недоступна") : "";
+    const storageBadge = `<span class="storage-badge storage-badge--db" title="${esc(dbError)}">PostgreSQL · ${projects.length}</span>`;
+    const seedBtn = `<button type="button" class="btn btn-secondary btn-sm" id="projectsSeedBtn">Импорт с диска</button>`;
 
     if (!projects.length) {
       el.innerHTML =
-        `<div class="personnel-toolbar">${storageBadge}</div>` +
-        `<p class="hint-text">${diskError || "Положите папки проектов в data/projects/ — по одной папке на объект."}</p>`;
+        `<div class="personnel-toolbar">${storageBadge} ${db.ok ? seedBtn : ""}</div>` +
+        `<p class="hint-text">${dbError || "Нет карточек. Положите папку в data/projects/ и нажмите «Импорт с диска»."}</p>` +
+        `<dialog id="projectDetailDialog" class="otkk-detail-dialog">
+          <div class="otkk-detail-header">
+            <h3 id="projectDetailTitle"></h3>
+            <button type="button" class="btn btn-secondary btn-sm" id="projectDetailClose">Закрыть</button>
+          </div>
+          <div id="projectDetailBody" class="otkk-detail-body"></div>
+        </dialog>`;
+      bindProjectsSeed(el);
+      bindProjectDetail(el);
       return;
     }
 
     el.innerHTML = `
       <div class="personnel-toolbar">
         ${storageBadge}
-        <p class="planning-meta">${projects.length} папок в <code>data/projects/</code></p>
-        <input type="search" id="projectsSearch" class="field-input personnel-search" placeholder="Поиск по коду проекта…"/>
+        ${seedBtn}
+        <p class="planning-meta">${projects.length} проектов · ${db.with_content ?? projects.filter((p) => p.has_content).length} с данными</p>
+        <input type="search" id="projectsSearch" class="field-input personnel-search" placeholder="Поиск по коду или объекту…"/>
       </div>
-      <div id="projectsCards" class="projects-cards"></div>`;
+      <div class="personnel-table-wrap">
+        <table class="planning-table personnel-table" id="projectsTable">
+          <thead>
+            <tr>
+              <th>Код</th>
+              <th>Объект</th>
+              <th>ВОР</th>
+              <th>ТЛ</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <dialog id="projectDetailDialog" class="otkk-detail-dialog">
+        <div class="otkk-detail-header">
+          <h3 id="projectDetailTitle"></h3>
+          <button type="button" class="btn btn-secondary btn-sm" id="projectDetailClose">Закрыть</button>
+        </div>
+        <div id="projectDetailBody" class="otkk-detail-body"></div>
+      </dialog>`;
 
-    const cardsEl = el.querySelector("#projectsCards");
+    bindProjectsSeed(el);
+    bindProjectDetail(el);
+
+    const tbody = el.querySelector("#projectsTable tbody");
     const search = el.querySelector("#projectsSearch");
 
-    function renderCards() {
+    function renderRows() {
       const q = (search?.value || "").trim().toLowerCase();
-      const rows = projects.filter((p) => !q || String(p.id).toLowerCase().includes(q));
-      if (!rows.length) {
-        cardsEl.innerHTML = '<p class="hint-text">Ничего не найдено</p>';
-        return;
-      }
-      cardsEl.innerHTML = rows
+      const rows = projects.filter((p) => {
+        if (!q) return true;
+        const hay = [p.id, p.title, p.object_name, p.vor_file, p.tl_file].join(" ").toLowerCase();
+        return hay.includes(q);
+      });
+      tbody.innerHTML = rows
         .map(
           (p) =>
-            `<article class="project-card">
-              <header class="project-card-header">
-                <h3><code>${esc(p.id)}</code></h3>
-                <p class="hint-text">${p.files_count ?? 0} файлов</p>
-              </header>
-              <div class="project-files">${renderProjectFilesTable(p.files)}</div>
-            </article>`
+            `<tr>
+              <td><code>${esc(p.id)}</code></td>
+              <td>${esc(p.object_name || p.title || "—")}</td>
+              <td>${p.has_content ? esc(p.vor_file || "—") + ` <span class="hint-text">(${p.vor_works_count ?? 0} работ)</span>` : '<span class="hint-text">нет</span>'}</td>
+              <td>${esc(p.tl_file || "—")}</td>
+              <td><button type="button" class="btn btn-link btn-sm project-open-btn" data-id="${esc(p.id)}">Открыть</button></td>
+            </tr>`
         )
         .join("");
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="hint-text">Ничего не найдено</td></tr>';
+      }
+      tbody.querySelectorAll(".project-open-btn").forEach((btn) => {
+        btn.addEventListener("click", () => openProjectDetail(btn.dataset.id));
+      });
     }
 
-    search?.addEventListener("input", renderCards);
-    renderCards();
+    search?.addEventListener("input", renderRows);
+    renderRows();
+  }
+
+  function bindProjectsSeed(root) {
+    const btn = root.querySelector("#projectsSeedBtn");
+    if (!btn) return;
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try {
+        const res = await fetch("/api/planning/projects/seed-from-disk", { method: "POST" });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.detail || res.statusText);
+        loaded.projects = false;
+        await loadTab("projects", true);
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+
+  function bindProjectDetail(root) {
+    const dialog = root.querySelector("#projectDetailDialog") || document.getElementById("projectDetailDialog");
+    const closeBtn = root.querySelector("#projectDetailClose") || document.getElementById("projectDetailClose");
+    if (!dialog || !closeBtn) return;
+    closeBtn.addEventListener("click", () => dialog.close());
+    dialog.addEventListener("click", (e) => {
+      if (e.target === dialog) dialog.close();
+    });
+  }
+
+  function renderVorSection(vor) {
+    if (!vor || !vor.stages?.length) {
+      return '<p class="hint-text">ВОР не распознан.</p>';
+    }
+    return (vor.stages || [])
+      .map((stage) => {
+        let html = `<h4 class="otkk-section-heading">${esc(stage.title || "Этап")}</h4>`;
+        const objects = stage.objects || [];
+        if (!objects.length && (stage.works || []).length) {
+          html += renderVorWorksTable(stage.works);
+          return html;
+        }
+        html += objects
+          .map((obj) => {
+            const works = obj.works || [];
+            if (!works.length) {
+              return `<p class="planning-meta">${esc(obj.title || "")}</p>`;
+            }
+            return `<p class="planning-meta">${esc(obj.title || "")}</p>${renderVorWorksTable(works)}`;
+          })
+          .join("");
+        return html;
+      })
+      .join("");
+  }
+
+  function renderVorWorksTable(works) {
+    if (!works?.length) return "";
+    const rows = works
+      .map(
+        (w) =>
+          `<tr>
+            <td>${esc(w.name || "")}</td>
+            <td>${esc(w.unit || "")}</td>
+            <td>${esc(w.quantity || "")}</td>
+            <td>${esc(w.note || "")}</td>
+          </tr>`
+      )
+      .join("");
+    return `<div class="otkk-inner-table-wrap"><table class="planning-table otkk-inner-table"><thead><tr><th>Работа</th><th>Ед.</th><th>Объём</th><th>Примечание</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+
+  function renderTlSection(tl) {
+    if (!tl?.tables?.length) {
+      return '<p class="hint-text">ТЛ не распознан или пустой.</p>';
+    }
+    return (tl.tables || [])
+      .map((table, idx) => {
+        const rows = (table.rows || [])
+          .map((cells) => `<tr>${cells.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`)
+          .join("");
+        return `<h4 class="otkk-section-heading">Таблица ${idx + 1}</h4><table class="planning-table"><tbody>${rows}</tbody></table>`;
+      })
+      .join("");
+  }
+
+  async function openProjectDetail(projectId) {
+    const dialog = document.getElementById("projectDetailDialog");
+    const titleEl = document.getElementById("projectDetailTitle");
+    const bodyEl = document.getElementById("projectDetailBody");
+    if (!dialog || !titleEl || !bodyEl) return;
+    titleEl.textContent = "Загрузка…";
+    bodyEl.innerHTML = "";
+    dialog.showModal();
+    try {
+      const res = await fetch(`/api/planning/projects/${encodeURIComponent(projectId)}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || res.statusText);
+      const content = data.content || {};
+      titleEl.textContent = data.object_name || data.title || projectId;
+      bodyEl.innerHTML = `
+        <p class="planning-meta"><code>${esc(data.id)}</code></p>
+        <p class="hint-text">ВОР: ${esc(data.vor_file || "—")} · ТЛ: ${esc(data.tl_file || "—")}</p>
+        <h4 class="otkk-section-heading">Ведомость объёмов работ</h4>
+        ${renderVorSection(content.vor)}
+        <h4 class="otkk-section-heading">Титульный лист</h4>
+        ${renderTlSection(content.tl)}`;
+    } catch (e) {
+      bodyEl.innerHTML = `<p class="error-text">${esc(e.message)}</p>`;
+      titleEl.textContent = projectId;
+    }
   }
 
   async function openOtkkDetail(cardId) {

@@ -64,14 +64,14 @@ def list_contractors() -> dict[str, Any]:
 
 
 def list_projects() -> dict[str, Any]:
-    from sk_reporter.project_disk import disk_status, list_disk_projects
+    from sk_reporter.project_db import db_status, list_projects_catalog
 
-    projects = list_disk_projects()
+    projects = list_projects_catalog()
     return {
-        "storage": "disk",
+        "storage": "postgresql",
         "count": len(projects),
         "projects": projects,
-        "disk": disk_status(),
+        "db": db_status(),
     }
 
 

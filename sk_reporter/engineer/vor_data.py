@@ -23,10 +23,17 @@ def load_project_meta(project_id: str) -> dict[str, Any]:
 
 
 def load_vor_json(project_id: str) -> dict[str, Any]:
+    from sk_reporter.project_db import get_project_vor_content
+
+    vor = get_project_vor_content(project_id)
+    if vor:
+        return vor
     path = project_dir(project_id) / "vor.json"
-    if not path.is_file():
-        raise FileNotFoundError(f"Нет vor.json для {project_id}. Запустите: python scripts/build_engineer_data.py --vor")
-    return json.loads(path.read_text(encoding="utf-8"))
+    if path.is_file():
+        return json.loads(path.read_text(encoding="utf-8"))
+    raise FileNotFoundError(
+        f"Нет ВОР в БД для {project_id}. Импортируйте проект на /planning/projects"
+    )
 
 
 def flatten_vor_works(project_id: str) -> list[dict[str, Any]]:

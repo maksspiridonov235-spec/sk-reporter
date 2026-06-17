@@ -18,7 +18,7 @@
   <p class="planning-hint">Подрядчики заводятся из болванок <code>data/templates/*.docx</code>. При старте сервера заливается <strong>Евракор</strong>.</p>
   <div id="contractorsList"></div>
   {% elif section == "projects" %}
-  <p class="planning-hint">Папки в <code>data/projects/</code> — как на диске. Скачивание файлов без разбора структуры; связи с подрядчиками и БД — позже.</p>
+  <p class="planning-hint">Карточки проектов в <strong>PostgreSQL</strong>: ВОР и ТЛ из <code>data/projects/&lt;id&gt;/</code>. Импорт при старте сервера (пилот SUP-PDR…) или кнопка ниже.</p>
   <div id="projectsList"></div>
   {% elif section == "otkk" %}
   <p class="planning-hint">Карты ОТКК — только в <strong>PostgreSQL</strong>. Эталоны заливаются при старте сервера из репозитория.</p>
