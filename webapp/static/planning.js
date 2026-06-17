@@ -563,8 +563,17 @@
   }
 
   function renderTlSection(tl) {
+    if (tl?.rows?.length) {
+      const rows = tl.rows
+        .map(
+          (row) =>
+            `<tr><th class="otkk-label-cell">${esc(row.label || "")}</th><td class="otkk-value-cell">${(row.value || "").split("\n").map(esc).join("<br>")}</td></tr>`
+        )
+        .join("");
+      return `<table class="planning-table otkk-structure-table"><tbody>${rows}</tbody></table>`;
+    }
     if (!tl?.tables?.length) {
-      return '<p class="hint-text">ТЛ не распознан или пустой.</p>';
+      return '<p class="hint-text">ТЛ не заполнен.</p>';
     }
     return (tl.tables || [])
       .map((table, idx) => {

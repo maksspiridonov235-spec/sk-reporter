@@ -60,7 +60,7 @@ def _catalog_row(project: Project, *, include_content: bool = False) -> dict[str
         "tl_file": project.tl_file or "",
         "has_content": project.content is not None,
         "vor_works_count": _count_vor_works(vor),
-        "tl_tables_count": len(tl.get("tables") or []),
+        "tl_tables_count": len(tl.get("tables") or []) or len(tl.get("rows") or []),
         "contractor_id": project.contractor_id or "",
     }
     if include_content and project.content is not None:
