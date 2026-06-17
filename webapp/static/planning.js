@@ -441,10 +441,11 @@
                 const text = esc((row.cells && row.cells[0]) || "");
                 return `<tr class="otkk-section-row"><td colspan="${colCount}">${text}</td></tr>`;
               }
+              const rowClass = row.type === "subrow" ? "otkk-subrow" : "";
               const cells = (row.cells || [])
                 .map((c) => `<td>${esc(c || "").replace(/\n/g, "<br>")}</td>`)
                 .join("");
-              return `<tr>${cells}</tr>`;
+              return `<tr class="${rowClass}">${cells}</tr>`;
             })
             .join("");
           return (
