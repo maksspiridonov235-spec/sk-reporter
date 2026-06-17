@@ -32,7 +32,7 @@ def load_vor_json(project_id: str) -> dict[str, Any]:
     if path.is_file():
         return json.loads(path.read_text(encoding="utf-8"))
     raise FileNotFoundError(
-        f"Нет ВОР в БД для {project_id}. Импортируйте проект на /planning/projects"
+        f"Нет ВОР в БД для {project_id}. Данные проекта должны быть в PostgreSQL."
     )
 
 

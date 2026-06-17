@@ -434,41 +434,6 @@ async def planning_project_detail(project_id: str):
     return project
 
 
-@app.get("/api/planning/projects/{project_id}/files/{filename}")
-async def planning_project_disk_file(project_id: str, filename: str):
-    from sk_reporter.project_disk import resolve_project_file
-
-    try:
-        path = await asyncio.to_thread(resolve_project_file, project_id, filename)
-    except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e)) from e
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    return FileResponse(path, filename=path.name)
-
-
-@app.post("/api/planning/projects/seed-from-disk")
-async def planning_projects_seed_from_disk(overwrite: bool = False):
-    from sk_reporter.project_db import seed_projects_from_disk
-
-    try:
-        return await asyncio.to_thread(seed_projects_from_disk, overwrite=overwrite)
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e)) from e
-
-
-@app.post("/api/planning/projects/{project_id}/seed")
-async def planning_project_seed(project_id: str, overwrite: bool = False):
-    from sk_reporter.project_db import seed_project_from_disk
-
-    try:
-        return await asyncio.to_thread(seed_project_from_disk, project_id, overwrite=overwrite)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e)) from e
-
-
 @app.get("/api/planning/{section}")
 async def planning_api(section: str, contractor_id: str | None = None):
     from sk_reporter.planning_data import planning_section
@@ -477,10 +442,6 @@ async def planning_api(section: str, contractor_id: str | None = None):
         return planning_section(section, contractor_id=contractor_id or None)
     except KeyError:
         raise HTTPException(status_code=404, detail="Неизвестный раздел") from None
-
-
-class ProjectCreateBody(BaseModel):
-    project_id: str
 
 
 class ProjectEngineersBody(BaseModel):
@@ -493,18 +454,6 @@ async def planning_contractors_seed_from_templates():
 
     try:
         return await asyncio.to_thread(seed_contractors_from_templates)
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e)) from e
-
-
-@app.post("/api/planning/projects")
-async def planning_project_create(body: ProjectCreateBody):
-    from sk_reporter.project_db import seed_project_from_disk
-
-    try:
-        return await asyncio.to_thread(seed_project_from_disk, body.project_id.strip())
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
 

@@ -407,12 +407,11 @@
     const projects = data.projects || [];
     const dbError = !db.ok ? (db.error || "PostgreSQL недоступна") : "";
     const storageBadge = `<span class="storage-badge storage-badge--db" title="${esc(dbError)}">PostgreSQL · ${projects.length}</span>`;
-    const seedBtn = `<button type="button" class="btn btn-secondary btn-sm" id="projectsSeedBtn">Импорт с диска</button>`;
 
     if (!projects.length) {
       el.innerHTML =
-        `<div class="personnel-toolbar">${storageBadge} ${db.ok ? seedBtn : ""}</div>` +
-        `<p class="hint-text">${dbError || "Нет карточек. Положите папку в data/projects/ и нажмите «Импорт с диска»."}</p>` +
+        `<div class="personnel-toolbar">${storageBadge}</div>` +
+        `<p class="hint-text">${dbError || "Нет карточек в PostgreSQL. Эталоны заливаются при старте сервера."}</p>` +
         `<dialog id="projectDetailDialog" class="otkk-detail-dialog">
           <div class="otkk-detail-header">
             <h3 id="projectDetailTitle"></h3>
@@ -420,7 +419,6 @@
           </div>
           <div id="projectDetailBody" class="otkk-detail-body"></div>
         </dialog>`;
-      bindProjectsSeed(el);
       bindProjectDetail(el);
       return;
     }
@@ -428,18 +426,15 @@
     el.innerHTML = `
       <div class="personnel-toolbar">
         ${storageBadge}
-        ${seedBtn}
         <p class="planning-meta">${projects.length} проектов · ${db.with_content ?? projects.filter((p) => p.has_content).length} с данными</p>
-        <input type="search" id="projectsSearch" class="field-input personnel-search" placeholder="Поиск по коду или объекту…"/>
+        <input type="search" id="projectsSearch" class="field-input personnel-search" placeholder="Поиск по шифру или объекту…"/>
       </div>
       <div class="personnel-table-wrap">
         <table class="planning-table personnel-table" id="projectsTable">
           <thead>
             <tr>
-              <th>Код</th>
               <th>Объект</th>
-              <th>ВОР</th>
-              <th>ТЛ</th>
+              <th>Шифр проекта</th>
               <th></th>
             </tr>
           </thead>
@@ -454,7 +449,6 @@
         <div id="projectDetailBody" class="otkk-detail-body"></div>
       </dialog>`;
 
-    bindProjectsSeed(el);
     bindProjectDetail(el);
 
     const tbody = el.querySelector("#projectsTable tbody");
@@ -464,23 +458,21 @@
       const q = (search?.value || "").trim().toLowerCase();
       const rows = projects.filter((p) => {
         if (!q) return true;
-        const hay = [p.id, p.title, p.object_name, p.vor_file, p.tl_file].join(" ").toLowerCase();
+        const hay = [p.id, p.cipher, p.title, p.object_name].join(" ").toLowerCase();
         return hay.includes(q);
       });
       tbody.innerHTML = rows
         .map(
           (p) =>
             `<tr>
-              <td><code>${esc(p.id)}</code></td>
               <td>${esc(p.object_name || p.title || "—")}</td>
-              <td>${p.has_content ? esc(p.vor_file || "—") + ` <span class="hint-text">(${p.vor_works_count ?? 0} работ)</span>` : '<span class="hint-text">нет</span>'}</td>
-              <td>${esc(p.tl_file || "—")}</td>
+              <td><code>${esc(p.cipher || p.id)}</code></td>
               <td><button type="button" class="btn btn-link btn-sm project-open-btn" data-id="${esc(p.id)}">Открыть</button></td>
             </tr>`
         )
         .join("");
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="hint-text">Ничего не найдено</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" class="hint-text">Ничего не найдено</td></tr>';
       }
       tbody.querySelectorAll(".project-open-btn").forEach((btn) => {
         btn.addEventListener("click", () => openProjectDetail(btn.dataset.id));
@@ -489,25 +481,6 @@
 
     search?.addEventListener("input", renderRows);
     renderRows();
-  }
-
-  function bindProjectsSeed(root) {
-    const btn = root.querySelector("#projectsSeedBtn");
-    if (!btn) return;
-    btn.addEventListener("click", async () => {
-      btn.disabled = true;
-      try {
-        const res = await fetch("/api/planning/projects/seed-from-disk", { method: "POST" });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(body.detail || res.statusText);
-        loaded.projects = false;
-        await loadTab("projects", true);
-      } catch (e) {
-        alert(e.message);
-      } finally {
-        btn.disabled = false;
-      }
-    });
   }
 
   function bindProjectDetail(root) {
