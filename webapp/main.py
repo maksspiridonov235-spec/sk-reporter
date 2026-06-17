@@ -411,6 +411,29 @@ async def planning_section_page(request: Request, section: str):
     return templates.TemplateResponse("planning_section.html", ctx)
 
 
+@app.get("/api/planning/projects/{project_id}")
+async def planning_project_disk_detail(project_id: str):
+    from sk_reporter.project_disk import get_disk_project
+
+    project = await asyncio.to_thread(get_disk_project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Проект не найден")
+    return project
+
+
+@app.get("/api/planning/projects/{project_id}/files/{filename}")
+async def planning_project_disk_file(project_id: str, filename: str):
+    from sk_reporter.project_disk import resolve_project_file
+
+    try:
+        path = await asyncio.to_thread(resolve_project_file, project_id, filename)
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e)) from e
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    return FileResponse(path, filename=path.name)
+
+
 @app.get("/api/planning/{section}")
 async def planning_api(section: str, contractor_id: str | None = None):
     from sk_reporter.planning_data import planning_section

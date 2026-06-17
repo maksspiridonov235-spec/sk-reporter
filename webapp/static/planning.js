@@ -400,156 +400,75 @@
     });
   }
 
+  function renderProjectFilesTable(files) {
+    if (!files?.length) {
+      return '<p class="hint-text">В папке нет файлов.</p>';
+    }
+    const rows = files
+      .map(
+        (f) =>
+          `<tr>
+            <td><a href="${esc(f.download_url)}" download>${esc(f.name)}</a></td>
+            <td>${esc(f.suffix || "—")}</td>
+            <td>${f.size_kb ?? "—"}</td>
+            <td class="hint-text">${esc(f.modified || "—")}</td>
+          </tr>`
+      )
+      .join("");
+    return `<table class="planning-table">
+      <thead><tr><th>Файл</th><th>Тип</th><th>КБ</th><th>Изменён</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
   function renderProjects(data) {
     const el = document.getElementById("projectsList");
     if (!el) return;
-    const db = data.db || {};
+    const disk = data.disk || {};
     const projects = data.projects || [];
-    const contractors = data.contractors || [];
-    const engineers = data.engineers || [];
-    const dbError = !db.ok ? (db.error || "PostgreSQL недоступна") : "";
-    const storageBadge = `<span class="storage-badge storage-badge--db" title="${esc(dbError)}">PostgreSQL · ${projects.length}</span>`;
+    const diskError = disk.exists === false ? "Каталог data/projects не найден" : "";
+    const storageBadge = `<span class="storage-badge storage-badge--disk" title="${esc(disk.root || "")}">Диск · ${projects.length}</span>`;
 
-    const contractorOptions = contractors
-      .map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`)
-      .join("");
-
-    const filterOptions =
-      `<option value="">Все подрядчики</option>` +
-      contractors.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("");
-
-    const createForm =
-      contractors.length && db.ok
-        ? `<form id="projectCreateForm" class="project-create-form">
-            <h3 class="planning-subtitle">Новый проект</h3>
-            <div class="project-create-grid">
-              <label>Код проекта <input class="field-input" name="project_id" required placeholder="например gkm-2025"/></label>
-              <label>Подрядчик
-                <select class="field-input" name="contractor_id" required>${contractorOptions}</select>
-              </label>
-              <label>Название <input class="field-input" name="title" placeholder="кратко"/></label>
-              <label>Объект <input class="field-input" name="object_name" placeholder="полное имя объекта"/></label>
-            </div>
-            <button type="submit" class="btn btn-primary btn-sm">Создать</button>
-            <span id="projectCreateStatus" class="hint-text" aria-live="polite"></span>
-          </form>`
-        : `<p class="hint-text">Сначала заведите подрядчика (раздел «Подрядчики»).</p>`;
+    if (!projects.length) {
+      el.innerHTML =
+        `<div class="personnel-toolbar">${storageBadge}</div>` +
+        `<p class="hint-text">${diskError || "Положите папки проектов в data/projects/ — по одной папке на объект."}</p>`;
+      return;
+    }
 
     el.innerHTML = `
       <div class="personnel-toolbar">
         ${storageBadge}
-        <label class="personnel-filter">Подрядчик
-          <select id="projectsContractorFilter" class="field-input">${filterOptions}</select>
-        </label>
+        <p class="planning-meta">${projects.length} папок в <code>data/projects/</code></p>
+        <input type="search" id="projectsSearch" class="field-input personnel-search" placeholder="Поиск по коду проекта…"/>
       </div>
-      ${createForm}
       <div id="projectsCards" class="projects-cards"></div>`;
 
-    const filter = el.querySelector("#projectsContractorFilter");
-    if (filter && data.contractor_id) filter.value = data.contractor_id;
-
-    async function saveProjectEngineers(projectId, root) {
-      const status = root.querySelector(`.project-save-status[data-project="${projectId}"]`);
-      const ids = [...root.querySelectorAll(`input[type=checkbox][data-project="${projectId}"]:checked`)].map(
-        (x) => x.value
-      );
-      try {
-        const res = await fetch(`/api/planning/projects/${encodeURIComponent(projectId)}/engineers`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ engineer_ids: ids }),
-        });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(body.detail || res.statusText);
-        if (status) status.textContent = "Сохранено";
-      } catch (e) {
-        if (status) {
-          status.textContent = e.message;
-          status.classList.add("error-text");
-        }
-      }
-    }
+    const cardsEl = el.querySelector("#projectsCards");
+    const search = el.querySelector("#projectsSearch");
 
     function renderCards() {
-      const cardsEl = el.querySelector("#projectsCards");
-      if (!projects.length) {
-        cardsEl.innerHTML = '<p class="hint-text">Проектов пока нет.</p>';
+      const q = (search?.value || "").trim().toLowerCase();
+      const rows = projects.filter((p) => !q || String(p.id).toLowerCase().includes(q));
+      if (!rows.length) {
+        cardsEl.innerHTML = '<p class="hint-text">Ничего не найдено</p>';
         return;
       }
-      cardsEl.innerHTML = projects
-        .map((p) => {
-          const assigned = new Set(p.engineer_ids || []);
-          const checks = engineers.length
-            ? engineers
-                .map(
-                  (eng) =>
-                    `<label class="project-engineer-check">
-                      <input type="checkbox" data-project="${esc(p.id)}" value="${esc(eng.id)}" ${assigned.has(eng.id) ? "checked" : ""}/>
-                      ${esc(eng.fio)}
-                    </label>`
-                )
-                .join("")
-            : '<p class="hint-text">Нет инженеров в справочнике сотрудников.</p>';
-          return `<article class="project-card" data-project-id="${esc(p.id)}">
-            <header class="project-card-header">
-              <h3><code>${esc(p.id)}</code> — ${esc(p.object_name || p.title)}</h3>
-              <p class="hint-text">Подрядчик: ${esc(p.contractor_name || p.contractor_id)}</p>
-            </header>
-            <div class="project-engineers">
-              <p class="planning-meta">Инженеры на объекте</p>
-              ${checks}
-              <button type="button" class="btn btn-secondary btn-sm project-save-engineers" data-project="${esc(p.id)}">Сохранить назначения</button>
-              <span class="hint-text project-save-status" data-project="${esc(p.id)}"></span>
-            </div>
-          </article>`;
-        })
+      cardsEl.innerHTML = rows
+        .map(
+          (p) =>
+            `<article class="project-card">
+              <header class="project-card-header">
+                <h3><code>${esc(p.id)}</code></h3>
+                <p class="hint-text">${p.files_count ?? 0} файлов</p>
+              </header>
+              <div class="project-files">${renderProjectFilesTable(p.files)}</div>
+            </article>`
+        )
         .join("");
-
-      cardsEl.querySelectorAll(".project-save-engineers").forEach((btn) => {
-        btn.addEventListener("click", async () => saveProjectEngineers(btn.dataset.project, cardsEl));
-      });
     }
 
-    const form = el.querySelector("#projectCreateForm");
-    if (form) {
-      form.addEventListener("submit", async (ev) => {
-        ev.preventDefault();
-        const status = el.querySelector("#projectCreateStatus");
-        const fd = new FormData(form);
-        const payload = {
-          project_id: String(fd.get("project_id") || "").trim(),
-          contractor_id: String(fd.get("contractor_id") || "").trim(),
-          title: String(fd.get("title") || "").trim(),
-          object_name: String(fd.get("object_name") || "").trim(),
-        };
-        try {
-          const res = await fetch("/api/planning/projects", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          const body = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(body.detail || res.statusText);
-          form.reset();
-          if (status) status.textContent = "Проект создан";
-          loaded.projects = false;
-          await loadTab("projects", true, filter?.value || "");
-        } catch (e) {
-          if (status) {
-            status.textContent = e.message;
-            status.classList.add("error-text");
-          }
-        }
-      });
-    }
-
-    if (filter) {
-      filter.addEventListener("change", async () => {
-        loaded.projects = false;
-        await loadTab("projects", true, filter.value || "");
-      });
-    }
-
+    search?.addEventListener("input", renderCards);
     renderCards();
   }
 
@@ -575,10 +494,9 @@
     }
   }
 
-  async function loadTab(name, force, contractorId) {
+  async function loadTab(name, force) {
     if (!force && loaded[name]) return;
-    const qs = name === "projects" && contractorId ? `?contractor_id=${encodeURIComponent(contractorId)}` : "";
-    const res = await fetch(`/api/planning/${name}${qs}`);
+    const res = await fetch(`/api/planning/${name}`);
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
     if (name === "otkk") renderOtkk(data);

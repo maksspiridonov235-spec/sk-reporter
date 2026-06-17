@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sk_reporter.personnel_store import is_engineer, list_engineers, load_people
+from sk_reporter.personnel_store import is_engineer, load_people
 
 _SECTIONS = frozenset({"personnel", "otkk", "contractors", "projects"})
 
@@ -63,17 +63,15 @@ def list_contractors() -> dict[str, Any]:
     }
 
 
-def list_projects(*, contractor_id: str | None = None) -> dict[str, Any]:
-    from sk_reporter.contractor_db import list_contractors as db_list_contractors
-    from sk_reporter.project_db import db_status, list_projects_rich
+def list_projects() -> dict[str, Any]:
+    from sk_reporter.project_disk import disk_status, list_disk_projects
 
+    projects = list_disk_projects()
     return {
-        "storage": "postgresql",
-        "contractor_id": contractor_id or "",
-        "projects": list_projects_rich(contractor_id=contractor_id or None),
-        "contractors": db_list_contractors(),
-        "engineers": list_engineers(),
-        "db": db_status(),
+        "storage": "disk",
+        "count": len(projects),
+        "projects": projects,
+        "disk": disk_status(),
     }
 
 
@@ -86,4 +84,4 @@ def planning_section(section: str, *, contractor_id: str | None = None) -> dict[
         return {"section": section, **list_otkk()}
     if section == "contractors":
         return {"section": section, **list_contractors()}
-    return {"section": section, **list_projects(contractor_id=contractor_id)}
+    return {"section": section, **list_projects()}
