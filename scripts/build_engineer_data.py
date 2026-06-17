@@ -7,8 +7,6 @@ import argparse
 import json
 from pathlib import Path
 
-import yaml
-
 from sk_reporter.paths import personnel_dir, projects_dir
 
 
@@ -21,6 +19,19 @@ def import_personnel() -> dict:
     return import_personnel_xlsx_to_db(xlsx)
 
 
+def _vor_meta_for_dir(proj: Path) -> dict | None:
+    meta = {"id": proj.name}
+    docx = sorted(proj.glob("*.docx"))
+    if docx:
+        meta["vor_docx"] = docx[0].name
+        return meta
+    doc = sorted(proj.glob("*.doc"))
+    if doc:
+        meta["vor_doc"] = [d.name for d in doc]
+        return meta
+    return None
+
+
 def build_vor_caches(project_ids: list[str] | None = None) -> list[Path]:
     from sk_reporter.engineer.vor_legacy import write_project_vor_cache
 
@@ -30,12 +41,7 @@ def build_vor_caches(project_ids: list[str] | None = None) -> list[Path]:
             continue
         if project_ids and proj.name not in project_ids:
             continue
-        meta_path = proj / "project.yaml"
-        if not meta_path.is_file():
-            continue
-        meta = yaml.safe_load(meta_path.read_text(encoding="utf-8")) or {}
-        has_vor = bool(meta.get("vor_docx")) or bool(meta.get("vor_doc"))
-        if not has_vor:
+        if not _vor_meta_for_dir(proj):
             continue
         try:
             built.append(write_project_vor_cache(proj))
@@ -52,22 +58,17 @@ def main() -> None:
         help="Import data/personnel/Справочник персонала.xlsx → PostgreSQL",
     )
     parser.add_argument("--vor", action="store_true", help="Parse VOR docx → vor.json")
-    parser.add_argument("--luvr", action="store_true", help="Export luvr.yaml from xlsx")
-    parser.add_argument("--all", action="store_true", help="All of the above")
+    parser.add_argument("--all", action="store_true", help="Personnel + VOR")
     parser.add_argument("--project", action="append", dest="projects", help="Project id filter")
     args = parser.parse_args()
 
-    if args.all or not any((args.personnel, args.vor, args.luvr)):
-        args.personnel = args.vor = args.luvr = True
+    if args.all or not any((args.personnel, args.vor)):
+        args.personnel = args.vor = True
 
     results: dict[str, str] = {}
     if args.personnel:
         result = import_personnel()
         results["personnel"] = f"upserted={result.get('upserted', 0)}"
-    if args.luvr:
-        from sk_reporter.luvr_store import export_luvr
-
-        results["luvr"] = str(export_luvr())
     if args.vor:
         for p in build_vor_caches(args.projects):
             results[f"vor_{p.parent.name}"] = str(p)

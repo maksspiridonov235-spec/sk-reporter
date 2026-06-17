@@ -1,6 +1,6 @@
 # SK-Reporter
 
-Веб-приложение для **строительного контроля**: ежедневные отчёты (.docx), планирование (ЛУВР), отчёт инженера по ВОР, проверка предписаний (Excel).
+Веб-приложение для **строительного контроля**: ежедневные отчёты (.docx), проверка предписаний (Excel), планирование (PostgreSQL), отчёт инженера по ВОР.
 
 - Запуск prod: **https://sk-reporter.relaxdev.ru** — см. **[docs/ДЛЯ_СОТРУДНИКОВ.md](docs/ДЛЯ_СОТРУДНИКОВ.md)**
 - Локальная разработка: **[docs/RUN_SERVER.md](docs/RUN_SERVER.md)**
@@ -62,9 +62,9 @@ sk-reporter/                         ← корень репозитория (gi
 
 | Раздел в UI | Маршруты | Код | Данные |
 |-------------|----------|-----|--------|
-| **Планирование** | `/planning`, `/luvr` | `sk_reporter/luvr_store.py`, `planning_data.py`, … | PostgreSQL `personnel`, `data/luvr/`, `data/projects/` |
+| **Планирование** | `/planning` | `planning_data.py`, `personnel_db.py`, `otkk_db.py` | PostgreSQL `personnel`, `otkk_cards` |
 | **Отчётность** | `/reporting` → `/daily`, `/prescriptions` | `sk_reporter/agent/`, `docx_processing.py`, `prescriptions/` | `data/templates/`, temp uploads |
-| **Инженер ФИО** | `/engineer-hub` → `/engineer/{person_id}` | `sk_reporter/engineer/` | PostgreSQL `personnel`, `data/projects/` |
+| **Инженер ФИО** | `/engineer-hub` → `/engineer/{person_id}` | `sk_reporter/engineer/` | PostgreSQL `personnel` |
 
 ### Частые вопросы
 

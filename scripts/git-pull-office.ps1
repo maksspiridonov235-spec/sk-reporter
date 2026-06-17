@@ -42,23 +42,6 @@ function Get-OfficeLocalTrackedFiles() {
         }
     }
 
-    $projectsDir = Join-Path $Root "data\projects"
-    if (Test-Path -LiteralPath $projectsDir) {
-        Get-ChildItem -LiteralPath $projectsDir -Directory | ForEach-Object {
-            $yaml = Join-Path $_.FullName "project.yaml"
-            if (Test-Path -LiteralPath $yaml) {
-                $rel = "data/projects/$($_.Name)/project.yaml"
-                if (Test-GitTracked $rel) { [void]$files.Add($rel) }
-            }
-        }
-    }
-
-    foreach ($rel in @("data/luvr/luvr.yaml")) {
-        $full = Join-Path $Root ($rel -replace "/", [IO.Path]::DirectorySeparatorChar)
-        if ((Test-Path -LiteralPath $full) -and (Test-GitTracked $rel)) {
-            [void]$files.Add($rel)
-        }
-    }
     return @($files)
 }
 

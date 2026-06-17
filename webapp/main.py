@@ -119,7 +119,6 @@ _HTML_TEMPLATES_DIR = _WEBAPP_DIR / "templates"
 _APP_UI_BUILD = "home+reporting+daily+weekly+weekly-photos+prescriptions+planning+planning-sections+engineer-hub+engineer"
 
 _PLANNING_SECTIONS = {
-    "projects": "Проекты",
     "personnel": "Сотрудники",
     "otkk": "ОТКК",
 }
@@ -481,39 +480,8 @@ async def planning_otkk_seed_otkk2(overwrite: bool = False):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-class ProjectEngineersBody(BaseModel):
-    engineer_ids: list[str] = []
 
-
-@app.post("/api/planning/projects/{project_id}/engineers")
-async def planning_set_project_engineers(project_id: str, body: ProjectEngineersBody):
-    from sk_reporter.project_store import set_project_engineers
-
-    try:
-        return await asyncio.to_thread(set_project_engineers, project_id, body.engineer_ids)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/api/planning/deployment/build")
-async def planning_deployment_build():
-    from sk_reporter.deployment_store import build_deployment_from_projects
-
-    try:
-        return await asyncio.to_thread(build_deployment_from_projects)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.get("/engineer-hub", response_class=HTMLResponse)
+@app.post("/api/planning/personnel/upload-xlsx")
 async def engineer_hub_page(request: Request):
     print(f"[REQ] GET /engineer-hub pid={os.getpid()} -> engineer_hub.html")
     return templates.TemplateResponse(

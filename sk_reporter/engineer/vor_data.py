@@ -3,20 +3,13 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
 
-import yaml
-
 from sk_reporter.engineer.tk_catalog import resolve_tk_for_work
-from sk_reporter.paths import project_dir, projects_dir
-from sk_reporter.project_store import get_project
+from sk_reporter.paths import project_dir
 
 
 def load_project_meta(project_id: str) -> dict[str, Any]:
-    meta_path = project_dir(project_id) / "project.yaml"
-    if meta_path.is_file():
-        return yaml.safe_load(meta_path.read_text(encoding="utf-8")) or {}
     return {"id": project_id, "title": project_id}
 
 
@@ -72,20 +65,7 @@ def flatten_vor_works(project_id: str) -> list[dict[str, Any]]:
 
 
 def _project_ids_for_profile(profile: dict[str, Any]) -> list[str]:
-    person_id = str(profile.get("person_id") or profile.get("id") or "").strip()
-    if not person_id:
-        return []
-    ids: set[str] = set()
-    root = projects_dir()
-    if root.is_dir():
-        for proj in root.iterdir():
-            if not proj.is_dir():
-                continue
-            meta = load_project_meta(proj.name)
-            assigned = meta.get("engineers") or []
-            if person_id in assigned:
-                ids.add(proj.name)
-    return sorted(ids)
+    return []
 
 
 def profile_project_ids(profile: dict[str, Any]) -> list[str]:
@@ -95,9 +75,8 @@ def profile_project_ids(profile: dict[str, Any]) -> list[str]:
 def list_profile_projects(profile: dict[str, Any]) -> list[dict[str, Any]]:
     result = []
     for pid in _project_ids_for_profile(profile):
-        rich = get_project(pid) or {}
-        meta = rich or load_project_meta(pid)
-        display = rich.get("object_name") or rich.get("title") or meta.get("title") or pid
+        meta = load_project_meta(pid)
+        display = meta.get("title") or pid
         try:
             works = flatten_vor_works(pid)
         except FileNotFoundError:
@@ -106,7 +85,7 @@ def list_profile_projects(profile: dict[str, Any]) -> list[dict[str, Any]]:
             {
                 "id": pid,
                 "title": display,
-                "object_name": rich.get("object_name") or meta.get("object_name") or "",
+                "object_name": meta.get("object_name") or "",
                 "works_count": len(works),
                 "works": works,
             }
