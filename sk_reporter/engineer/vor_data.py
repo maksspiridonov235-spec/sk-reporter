@@ -10,6 +10,15 @@ from sk_reporter.paths import project_dir
 
 
 def load_project_meta(project_id: str) -> dict[str, Any]:
+    from sk_reporter.project_store import get_project
+
+    rich = get_project(project_id)
+    if rich:
+        return {
+            "id": rich["id"],
+            "title": rich.get("title") or project_id,
+            "object_name": rich.get("object_name") or "",
+        }
     return {"id": project_id, "title": project_id}
 
 
@@ -65,7 +74,13 @@ def flatten_vor_works(project_id: str) -> list[dict[str, Any]]:
 
 
 def _project_ids_for_profile(profile: dict[str, Any]) -> list[str]:
-    return []
+    person_id = str(profile.get("person_id") or profile.get("id") or "").strip()
+    if not person_id:
+        return []
+    from sk_reporter.project_store import engineer_project_map
+
+    items = engineer_project_map().get(person_id) or []
+    return [str(p["id"]) for p in items if p.get("id")]
 
 
 def profile_project_ids(profile: dict[str, Any]) -> list[str]:

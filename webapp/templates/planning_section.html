@@ -14,6 +14,12 @@
   {% if section == "personnel" %}
   <p class="planning-hint">Справочник сотрудников — <strong>PostgreSQL</strong> (RelaxDev). Обновление списка: загрузка Excel на этой странице.</p>
   <div id="personnelList"></div>
+  {% elif section == "contractors" %}
+  <p class="planning-hint">Подрядчики заводятся из болванок <code>data/templates/*.docx</code>. При старте сервера заливается <strong>Евракор</strong>.</p>
+  <div id="contractorsList"></div>
+  {% elif section == "projects" %}
+  <p class="planning-hint">Проект привязан к подрядчику. Инженеры назначаются на объект — от этого зависит личный кабинет <code>/engineer/{id}</code>.</p>
+  <div id="projectsList"></div>
   {% elif section == "otkk" %}
   <p class="planning-hint">Карты ОТКК — только в <strong>PostgreSQL</strong>. Эталоны заливаются при старте сервера из репозитория.</p>
   <div id="otkkList"></div>

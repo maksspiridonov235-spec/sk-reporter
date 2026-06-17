@@ -946,6 +946,16 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 .personnel-table-wrap { overflow-x: auto; }
 .personnel-table td:first-child { font-weight: 500; white-space: nowrap; }
 .personnel-table td:nth-child(2) { max-width: 280px; }
+
+.planning-subtitle { font-size: 15px; margin: 20px 0 10px; color: #1a56a0; }
+.project-create-form { margin: 16px 0 24px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fafbfc; }
+.project-create-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.project-create-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #555; }
+.projects-cards { display: flex; flex-direction: column; gap: 16px; }
+.project-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; background: #fff; }
+.project-card-header h3 { font-size: 15px; margin: 0 0 6px; }
+.project-engineers { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.project-engineer-check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .otkk-title-cell { max-width: 320px; }
 .otkk-detail-dialog {
   border: none; border-radius: 10px; padding: 0; max-width: min(1100px, 98vw); width: 100%;

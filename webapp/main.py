@@ -85,6 +85,16 @@ try:
                 "[WARN] PostgreSQL: в базе нет ОТКК — "
                 "проверьте seed_otkk1/seed_otkk2 при старте или scripts/seed_otkk*.py"
             )
+        from sk_reporter.contractor_db import db_status as contractor_db_status, seed_evrakor
+
+        _ev = seed_evrakor()
+        if _ev.get("seeded"):
+            print(f"[INFO] PostgreSQL подрядчики: залит {_ev.get('name')} ({_ev.get('id')})")
+        _ctr_st = contractor_db_status()
+        print(
+            "[INFO] PostgreSQL подрядчики: "
+            f"ok={_ctr_st.get('ok')}, count={_ctr_st.get('count', 0)}"
+        )
     else:
         print("[WARN] PostgreSQL: DATABASE_URL не задан — раздел «Сотрудники» недоступен")
 except Exception as _db_err:
@@ -120,6 +130,8 @@ _APP_UI_BUILD = "home+reporting+daily+weekly+weekly-photos+prescriptions+plannin
 
 _PLANNING_SECTIONS = {
     "personnel": "Сотрудники",
+    "contractors": "Подрядчики",
+    "projects": "Проекты",
     "otkk": "ОТКК",
 }
 
@@ -400,13 +412,66 @@ async def planning_section_page(request: Request, section: str):
 
 
 @app.get("/api/planning/{section}")
-async def planning_api(section: str):
+async def planning_api(section: str, contractor_id: str | None = None):
     from sk_reporter.planning_data import planning_section
 
     try:
-        return planning_section(section)
+        return planning_section(section, contractor_id=contractor_id or None)
     except KeyError:
         raise HTTPException(status_code=404, detail="Неизвестный раздел") from None
+
+
+class ProjectCreateBody(BaseModel):
+    project_id: str
+    contractor_id: str
+    title: str = ""
+    object_name: str = ""
+
+
+class ProjectEngineersBody(BaseModel):
+    engineer_ids: list[str] = Field(default_factory=list)
+
+
+@app.post("/api/planning/contractors/seed-from-templates")
+async def planning_contractors_seed_from_templates():
+    from sk_reporter.contractor_db import seed_contractors_from_templates
+
+    try:
+        return await asyncio.to_thread(seed_contractors_from_templates)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
+
+@app.post("/api/planning/projects")
+async def planning_project_create(body: ProjectCreateBody):
+    from sk_reporter.project_db import create_project
+
+    try:
+        return await asyncio.to_thread(
+            create_project,
+            body.project_id.strip(),
+            contractor_id=body.contractor_id.strip(),
+            title=body.title.strip(),
+            object_name=body.object_name.strip(),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
+
+@app.post("/api/planning/projects/{project_id}/engineers")
+async def planning_project_set_engineers(project_id: str, body: ProjectEngineersBody):
+    from sk_reporter.project_db import set_project_engineers
+
+    try:
+        return await asyncio.to_thread(set_project_engineers, project_id, body.engineer_ids)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
 
 
 @app.post("/api/planning/personnel/upload-xlsx")
