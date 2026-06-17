@@ -422,6 +422,10 @@
           const items = (seg.items || []).map((x) => `<li>${esc(x)}</li>`).join("");
           return `<ul class="otkk-bullets">${items}</ul>`;
         }
+        if (t === "subbullets") {
+          const items = (seg.items || []).map((x) => `<li>${esc(x)}</li>`).join("");
+          return `<ul class="otkk-bullets otkk-sub-bullets">${items}</ul>`;
+        }
         if (t === "table") {
           const layout = seg.layout || "standard";
           const headerRows = seg.header_rows || [];
