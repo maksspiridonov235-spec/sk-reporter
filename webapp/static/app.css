@@ -948,7 +948,7 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 .personnel-table td:nth-child(2) { max-width: 280px; }
 .otkk-title-cell { max-width: 320px; }
 .otkk-detail-dialog {
-  border: none; border-radius: 10px; padding: 0; max-width: min(920px, 96vw); width: 100%;
+  border: none; border-radius: 10px; padding: 0; max-width: min(1100px, 98vw); width: 100%;
   box-shadow: 0 12px 40px rgba(0,0,0,.18);
 }
 .otkk-detail-dialog::backdrop { background: rgba(15,23,42,.45); }
@@ -964,6 +964,27 @@ input[type="date"].field-control::-webkit-calendar-picker-indicator {
 }
 .otkk-structure-table td { font-size: 13px; line-height: 1.45; vertical-align: top; }
 .otkk-value { white-space: pre-wrap; }
+.otkk-rich { font-size: 13px; line-height: 1.45; }
+.otkk-section-heading {
+  margin: 16px 0 8px; font-size: 14px; font-weight: 700; color: #1e293b;
+}
+.otkk-paragraph { margin: 0 0 10px; white-space: pre-wrap; }
+.otkk-inner-table-wrap { margin: 14px 0 18px; overflow-x: auto; }
+.otkk-table-caption {
+  margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #334155;
+}
+.otkk-inner-table {
+  width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.35;
+  background: #fff;
+}
+.otkk-inner-table th,
+.otkk-inner-table td {
+  border: 1px solid #64748b; padding: 6px 8px; vertical-align: top; text-align: left;
+}
+.otkk-inner-table thead th {
+  background: #f1f5f9; font-weight: 600; text-align: center;
+}
+.otkk-inner-table td:nth-child(2) { text-align: center; white-space: pre-wrap; }
 .otkk-bullets { margin: 8px 0 0; padding-left: 1.2em; }
 .otkk-signature { margin-top: 16px; font-size: 13px; color: #475569; }
 .otkk-admin-import { margin-top: 4px; }

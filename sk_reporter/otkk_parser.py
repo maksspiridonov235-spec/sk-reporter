@@ -216,6 +216,13 @@ def parse_otkk_document(path: Path) -> dict[str, Any]:
 
     plain_text = extract_doc_text(path)
 
+    from sk_reporter.otkk_rich import extract_rich_segments
+
+    rich_segments = extract_rich_segments(path)
+    for r in rows:
+        if "Контролируемые параметры" in str(r.get("label") or ""):
+            r["segments"] = rich_segments
+
     return {
         "id": card_id,
         "code": code,

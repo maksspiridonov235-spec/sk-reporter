@@ -453,10 +453,52 @@
     });
   }
 
+  function renderOtkkSegments(segments) {
+    if (!Array.isArray(segments) || !segments.length) return "";
+    return segments
+      .map((seg) => {
+        const t = seg.type;
+        if (t === "heading") {
+          return `<h4 class="otkk-section-heading">${esc(seg.text || "")}</h4>`;
+        }
+        if (t === "paragraph") {
+          return `<p class="otkk-paragraph">${esc(seg.text || "").replace(/\n/g, "<br>")}</p>`;
+        }
+        if (t === "bullets") {
+          const items = (seg.items || []).map((x) => `<li>${esc(x)}</li>`).join("");
+          return `<ul class="otkk-bullets">${items}</ul>`;
+        }
+        if (t === "table") {
+          const headers = seg.headers || [];
+          const head = headers.map((h) => `<th>${esc(h)}</th>`).join("");
+          const body = (seg.rows || [])
+            .map((row) => {
+              const cells = (row.cells || [])
+                .map((c) => `<td>${esc(c || "").replace(/\n/g, "<br>")}</td>`)
+                .join("");
+              return `<tr>${cells}</tr>`;
+            })
+            .join("");
+          return (
+            `<div class="otkk-inner-table-wrap">` +
+            `<div class="otkk-table-caption">${esc(seg.caption || "")}</div>` +
+            `<table class="otkk-inner-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>` +
+            `</div>`
+          );
+        }
+        return "";
+      })
+      .join("");
+  }
+
   function renderOtkkRowBody(row) {
     const label = esc(row.label || "");
-    const value = row.value || "";
-    const valueHtml = `<div class="otkk-value">${esc(value)}</div>`;
+    let valueHtml;
+    if (Array.isArray(row.segments) && row.segments.length) {
+      valueHtml = `<div class="otkk-rich">${renderOtkkSegments(row.segments)}</div>`;
+    } else {
+      valueHtml = `<div class="otkk-value">${esc(row.value || "")}</div>`;
+    }
     return `<tr><th scope="row">${label}</th><td>${valueHtml}</td></tr>`;
   }
 
