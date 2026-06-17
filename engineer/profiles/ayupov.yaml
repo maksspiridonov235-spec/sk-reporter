@@ -1,5 +1,0 @@
-id: ayupov
-person_id: аюпов-а
-# projects подтягиваются из project.yaml, где инженер назначен в Планировании
-projects: []
-report_template: data/engineer/report_template.docx

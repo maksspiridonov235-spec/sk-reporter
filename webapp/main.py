@@ -536,7 +536,7 @@ async def engineer_profile_page(request: Request, profile_id: str):
     print(f"[REQ] GET /engineer/{profile_id} pid={os.getpid()} -> engineer.html")
     try:
         profile = await asyncio.to_thread(load_profile, profile_id)
-    except (ValueError, FileNotFoundError) as e:
+    except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
     fio = profile.get("name") or profile_id
@@ -590,7 +590,7 @@ async def engineer_config(profile_id: str | None = None):
 
     try:
         profile = load_profile(profile_id)
-    except (ValueError, FileNotFoundError) as e:
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
     tpl = resolve_report_template(profile)
@@ -620,14 +620,14 @@ async def engineer_build(body: EngineerBuildRequest):
 
     try:
         profile = load_profile(body.profile_id)
-    except (ValueError, FileNotFoundError) as e:
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
     tpl = resolve_report_template(profile)
     if tpl is None:
         raise HTTPException(
             status_code=400,
-            detail="Шаблон отчёта не найден — задайте report_template в профиле инженера",
+            detail="Шаблон отчёта не найден — положите data/engineer/report_template.docx",
         )
 
     allowed = profile_project_ids(profile)

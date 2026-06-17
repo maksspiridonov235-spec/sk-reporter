@@ -47,12 +47,9 @@ sk-reporter/                         ← корень репозитория (gi
 ├── data/                            ← данные офиса (часть в git, часть локально)
 │   ├── templates/                   ← болванки подрядчиков (.docx)
 │   ├── projects/                    ← проекты, ВОР, назначения инженеров
-│   ├── personnel/                   ← справочник сотрудников
+│   ├── personnel/                   ← исходный Excel для импорта в PostgreSQL
 │   ├── luvr/                        ← ЛУВР, luvr.yaml, шаблоны xlsm
 │   └── tk/                          ← каталог технологических карт
-│
-├── engineer/                        ← конфиг инженеров (не Python-код!)
-│   └── profiles/                    ← yaml-профили (ФИО, person_id)
 │
 ├── scripts/                         ← утилиты из терминала (setup, сборка yaml)
 ├── docs/                            ← инструкции, memory.md, контекст продукта
@@ -65,13 +62,13 @@ sk-reporter/                         ← корень репозитория (gi
 
 | Раздел в UI | Маршруты | Код | Данные |
 |-------------|----------|-----|--------|
-| **Планирование** | `/planning`, `/luvr` | `sk_reporter/luvr_store.py`, `planning_data.py`, … | `data/luvr/`, `data/projects/`, `data/personnel/` |
+| **Планирование** | `/planning`, `/luvr` | `sk_reporter/luvr_store.py`, `planning_data.py`, … | PostgreSQL `personnel`, `data/luvr/`, `data/projects/` |
 | **Отчётность** | `/reporting` → `/daily`, `/prescriptions` | `sk_reporter/agent/`, `docx_processing.py`, `prescriptions/` | `data/templates/`, temp uploads |
-| **Инженер ФИО** | `/engineer-hub` → `/engineer/{id}` | `sk_reporter/engineer/` | `engineer/profiles/`, `data/projects/` |
+| **Инженер ФИО** | `/engineer-hub` → `/engineer/{person_id}` | `sk_reporter/engineer/` | PostgreSQL `personnel`, `data/projects/` |
 
 ### Частые вопросы
 
-- **`engineer/` в корне** и **`sk_reporter/engineer/`** — разное: в корне yaml для людей, в пакете — Python.
+- **`sk_reporter/engineer/`** — Python-модуль отчёта инженера (ВОР, docx); ФИО из PostgreSQL.
 - **`scripts/`** — не второй проект, а редкие команды (`setup.sh`, `build_engineer_data.py --luvr`).
 - **Тяжёлые xlsx/xlsm** — класть в `data/luvr/` (или `data/prescriptions/`), не в корень репо и не коммитить без необходимости (см. `.gitignore`).
 

@@ -22,7 +22,6 @@
 | `data/luvr/` | **ЛУВР**, luvr.yaml, шаблоны Прил.7 и расстановки (`manifest.yaml`) |
 | `data/templates/` | Болванки подрядчиков |
 | `data/projects/`, `data/tk/` | Планирование (проекты; файлы ОТКК на диске) |
-| `engineer/profiles/` | Профили инженеров (yaml) |
 | `sk_reporter/engineer/` | Парсер ВОР, каталог ТК, сборка отчёта инженера |
 | temp `sk_reports_work/uploads/` | Загруженные и исправленные отчёты (рабочие; не в репо) |
 

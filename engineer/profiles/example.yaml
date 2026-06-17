@@ -1,4 +1,0 @@
-id: example
-# person_id: … — при необходимости связать со справочником personnel.yaml
-projects: []
-report_template: data/engineer/report_template.docx

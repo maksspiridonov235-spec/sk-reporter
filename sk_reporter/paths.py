@@ -39,11 +39,3 @@ def luvr_dir() -> Path:
 
 def normative_dir() -> Path:
     return data_dir() / "normative"
-
-
-def engineer_dir() -> Path:
-    return _REPO_ROOT / "engineer"
-
-
-def engineer_profiles_dir() -> Path:
-    return engineer_dir() / "profiles"

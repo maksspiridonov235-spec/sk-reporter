@@ -53,7 +53,7 @@ function Get-OfficeLocalTrackedFiles() {
         }
     }
 
-    foreach ($rel in @("data/luvr/luvr.yaml", "data/personnel/personnel.yaml")) {
+    foreach ($rel in @("data/luvr/luvr.yaml")) {
         $full = Join-Path $Root ($rel -replace "/", [IO.Path]::DirectorySeparatorChar)
         if ((Test-Path -LiteralPath $full) -and (Test-GitTracked $rel)) {
             [void]$files.Add($rel)

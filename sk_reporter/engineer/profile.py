@@ -1,4 +1,4 @@
-"""Профиль инженера (yaml + env SK_ENGINEER_PROFILE)."""
+"""Профиль инженера из справочника PostgreSQL."""
 
 from __future__ import annotations
 
@@ -6,37 +6,35 @@ import os
 from pathlib import Path
 from typing import Any
 
-import yaml
+from sk_reporter.paths import repo_root
+from sk_reporter.personnel_store import get_person, is_engineer
 
-from sk_reporter.personnel_store import get_person
-from sk_reporter.paths import engineer_profiles_dir, repo_root
+DEFAULT_REPORT_TEMPLATE = "data/engineer/report_template.docx"
 
 
-def load_profile(profile_id: str | None = None) -> dict[str, Any]:
-    pid = profile_id or os.environ.get("SK_ENGINEER_PROFILE", "").strip()
+def load_profile(person_id: str | None = None) -> dict[str, Any]:
+    pid = (person_id or os.environ.get("SK_ENGINEER_PROFILE", "")).strip()
     if not pid:
-        raise ValueError("Не задан профиль: SK_ENGINEER_PROFILE или параметр profile_id")
+        raise ValueError("Не задан инженер: параметр person_id или SK_ENGINEER_PROFILE")
 
-    path = engineer_profiles_dir() / f"{pid}.yaml"
-    if not path.is_file():
-        raise FileNotFoundError(f"Профиль не найден: {path}")
+    person = get_person(pid)
+    if not person:
+        raise ValueError(f"Сотрудник не найден в справочнике: {pid}")
+    if not is_engineer(person):
+        raise ValueError(f"«{person['fio']}» не является инженером СК")
 
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    data["id"] = data.get("id") or pid
-    person_id = data.get("person_id")
-    if person_id:
-        person = get_person(str(person_id))
-        if person:
-            data.setdefault("name", person["fio"])
-            data.setdefault("position", person["position"])
-            data.setdefault("phone", person["phone"])
-    return data
+    return {
+        "id": pid,
+        "person_id": pid,
+        "name": person["fio"],
+        "position": person.get("position") or "",
+        "phone": person.get("phone") or "",
+        "report_template": DEFAULT_REPORT_TEMPLATE,
+    }
 
 
 def resolve_report_template(profile: dict[str, Any]) -> Path | None:
-    raw = profile.get("report_template")
-    if not raw:
-        return None
+    raw = profile.get("report_template") or DEFAULT_REPORT_TEMPLATE
     p = Path(raw)
     if not p.is_absolute():
         p = repo_root() / p

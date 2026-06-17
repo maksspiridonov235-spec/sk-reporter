@@ -2,10 +2,6 @@
 
 Сюда кладётся **пустой или образцовый** docx в том же формате, что инженеры загружают в «Ежедневные отчёты» (`/daily`).
 
-В профиле инженера (`engineer/profiles/*.yaml`):
+Путь по умолчанию: `data/engineer/report_template.docx` (общий для всех инженеров).
 
-```yaml
-report_template: data/engineer/report_template.docx
-```
-
-Файл `report_template.docx` в git не обязателен (может быть только на рабочих машинах).
+Файл `report_template.docx` в git не обязателен (может быть только на сервере).

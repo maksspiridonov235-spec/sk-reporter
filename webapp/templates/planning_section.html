@@ -15,7 +15,7 @@
   <p class="planning-hint">Проекты из <code>data/projects/</code>: ВОР, ТК, инженеры. Назначьте инженеров и нажмите <strong>«Сформировать расстановку»</strong>.</p>
   <div id="projectsList" class="planning-cards"></div>
   {% elif section == "personnel" %}
-  <p class="planning-hint">Справочник сотрудников хранится в <strong>PostgreSQL</strong> (RelaxDev). Обновление списка — загрузка Excel на этой странице. Назначение инженеров на объекты — в разделе «Проекты»; профиль для ежедневного отчёта — <code>engineer/profiles/{id}.yaml</code>.</p>
+  <p class="planning-hint">Справочник сотрудников хранится в <strong>PostgreSQL</strong> (RelaxDev). Обновление списка — загрузка Excel на этой странице. Назначение инженеров на объекты — в разделе «Проекты»; карточка инженера — <code>/engineer/{person_id}</code> из справочника.</p>
   <div id="personnelList"></div>
   {% elif section == "otkk" %}
   <p class="planning-hint">Карты ОТКК — только в <strong>PostgreSQL</strong>. Загрузите .doc кнопкой ниже: содержимое попадёт в базу. Файлы на диске сервера не используются.</p>
