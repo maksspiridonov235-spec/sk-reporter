@@ -539,13 +539,31 @@ async def planning_otkk_seed_otkk2(overwrite: bool = False):
 
 
 
-@app.post("/api/planning/personnel/upload-xlsx")
+@app.get("/engineer-hub", response_class=HTMLResponse)
 async def engineer_hub_page(request: Request):
     print(f"[REQ] GET /engineer-hub pid={os.getpid()} -> engineer_hub.html")
     return templates.TemplateResponse(
         "engineer_hub.html",
         _page_context(request, breadcrumbs=[{"label": "Инженер ФИО"}]),
     )
+
+
+@app.get("/engineer-hub/daily-report", response_class=HTMLResponse)
+async def engineer_daily_report_template_page(request: Request):
+    from sk_reporter.engineer.daily_report_form import render_daily_report_page
+
+    print(f"[REQ] GET /engineer-hub/daily-report pid={os.getpid()} -> engineer_daily_report.html")
+    layout_css, table_html = render_daily_report_page()
+    ctx = _page_context(
+        request,
+        breadcrumbs=[
+            {"label": "Инженер ФИО", "href": "/engineer-hub"},
+            {"label": "Ежедневный отчёт (шаблон)"},
+        ],
+    )
+    ctx["report_layout_css"] = layout_css
+    ctx["report_table_html"] = table_html
+    return templates.TemplateResponse("engineer_daily_report.html", ctx)
 
 
 @app.get("/api/engineer-hub")

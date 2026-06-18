@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ежедневный отчёт (шаблон) — SK-Reporter</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
+  <link rel="stylesheet" href="/static/app.css?v={{ git_head }}"/>
+  <style id="dr-layout-from-docx">{{ report_layout_css | safe }}</style>
+</head>
+<body class="dr-body home-body">
+{% include "_header.html" %}
+
+<main class="dr-page">
+  <div class="dr-card">
+    <form id="dailyReportForm" class="dr-form" autocomplete="off">
+      {{ report_table_html | safe }}
+    </form>
+  </div>
+</main>
+
+<script src="/static/engineer_daily_report.js?v={{ git_head }}"></script>
+</body>
+</html>
