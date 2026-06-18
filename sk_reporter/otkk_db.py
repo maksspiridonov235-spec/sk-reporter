@@ -5,29 +5,23 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import text
-from sk_reporter.db.config import database_enabled, database_url
+from sk_reporter.db.config import database_enabled
 from sk_reporter.db.models import OtkkCard
+from sk_reporter.db.schema_ensure import ensure_table_columns
 from sk_reporter.db.session import get_session, init_db
 from sk_reporter.otkk_text import sanitize_otkk_rows, strip_kodeks_fields
 
 
 def _ensure_otkk_schema() -> None:
     """Добавить колонки content/code/title в существующую таблицу (без alembic)."""
-    from sqlalchemy import create_engine
-
-    url = database_url()
-    if not url:
-        return
-    engine = create_engine(url, pool_pre_ping=True)
-    stmts = [
-        "ALTER TABLE otkk_cards ADD COLUMN IF NOT EXISTS code VARCHAR(64) NOT NULL DEFAULT ''",
-        "ALTER TABLE otkk_cards ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT ''",
-        "ALTER TABLE otkk_cards ADD COLUMN IF NOT EXISTS content JSONB",
-    ]
-    with engine.begin() as conn:
-        for stmt in stmts:
-            conn.execute(text(stmt))
+    ensure_table_columns(
+        "otkk_cards",
+        add_columns={
+            "code": "VARCHAR(64) NOT NULL DEFAULT ''",
+            "title": "TEXT NOT NULL DEFAULT ''",
+            "content": "JSONB",
+        },
+    )
 
 
 def db_status() -> dict[str, Any]:

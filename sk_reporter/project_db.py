@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import text
-
-from sk_reporter.db.config import database_enabled, database_url
+from sk_reporter.db.config import database_enabled
 from sk_reporter.db.models import Contractor, Project, ProjectEngineer
+from sk_reporter.db.schema_ensure import ensure_table_columns
 from sk_reporter.db.session import get_session, init_db
 from sk_reporter.personnel_store import get_person, list_engineers
 
@@ -18,21 +17,15 @@ def _require_database() -> None:
 
 
 def _ensure_project_schema() -> None:
-    from sqlalchemy import create_engine
-
-    url = database_url()
-    if not url:
-        return
-    engine = create_engine(url, pool_pre_ping=True)
-    stmts = [
-        "ALTER TABLE projects ADD COLUMN IF NOT EXISTS vor_file VARCHAR(512) NOT NULL DEFAULT ''",
-        "ALTER TABLE projects ADD COLUMN IF NOT EXISTS tl_file VARCHAR(512) NOT NULL DEFAULT ''",
-        "ALTER TABLE projects ADD COLUMN IF NOT EXISTS content JSONB",
-        "ALTER TABLE projects ALTER COLUMN contractor_id DROP NOT NULL",
-    ]
-    with engine.begin() as conn:
-        for stmt in stmts:
-            conn.execute(text(stmt))
+    ensure_table_columns(
+        "projects",
+        add_columns={
+            "vor_file": "VARCHAR(512) NOT NULL DEFAULT ''",
+            "tl_file": "VARCHAR(512) NOT NULL DEFAULT ''",
+            "content": "JSONB",
+        },
+        drop_not_null=["contractor_id"],
+    )
 
 
 def _count_vor_works(vor: dict[str, Any] | None) -> int:
