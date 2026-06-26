@@ -973,15 +973,21 @@ async def check_descriptions_stream():
                 yield _sse({"type": "info", "filename": filename, "msg": f"{filename}: проверяю…"})
                 await asyncio.sleep(0)
                 result = await asyncio.to_thread(check_report, str(file_path))
-                has_errors = not result.get("ok", False)
+                skipped = bool(result.get("skipped"))
+                has_errors = not result.get("ok", False) and not skipped
                 if has_errors:
                     errors_count += 1
                 check_results[filename] = result
+                if skipped:
+                    msg = f"{filename}: проверка пропущена ({result.get('skip_reason')})"
+                else:
+                    msg = f"{filename}: " + ("⚠️ найдены проблемы" if has_errors else "✓ ОК")
                 yield _sse({
                     "type": "report",
                     "filename": filename,
-                    "msg": f"{filename}: " + ("⚠️ найдены проблемы" if has_errors else "✓ ОК"),
+                    "msg": msg,
                     "hasErrors": has_errors,
+                    "skipped": skipped,
                     "result": result,
                 })
                 await asyncio.sleep(0)
@@ -1003,6 +1009,8 @@ async def check_descriptions_stream():
                 result = check_results.get(filename)
                 if not result:
                     yield _sse({"type": "error", "msg": f"{filename}: нет результата check — inject пропущен"})
+                    continue
+                if result.get("skipped"):
                     continue
                 corrected_text = (result.get("report") or "").strip()
                 if not corrected_text:

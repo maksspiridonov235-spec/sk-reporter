@@ -13,6 +13,25 @@ from docx import Document
 
 MODEL = "gemma4:31b-cloud"
 
+# AI-проверка пропускается, если тип работ есть в имени файла (после даты).
+# Порядок: длинные маркеры раньше (тэкпро до тпс).
+_CHECK_SKIP_FILENAME_MARKERS: tuple[tuple[str, str], ...] = (
+    ("озотобос", "ОЗОТОБОС"),
+    ("геодезия", "Геодезия"),
+    ("пил", "ПИЛ"),
+    ("тэкпро", "ТЭКПРО"),
+    ("тпс", "ТПС"),
+)
+
+
+def should_skip_check(filepath: str) -> tuple[bool, str | None]:
+    """True — check/inject не нужны (тип отчёта в имени файла)."""
+    low = Path(filepath).name.lower()
+    for marker, label in _CHECK_SKIP_FILENAME_MARKERS:
+        if marker in low:
+            return True, label
+    return False, None
+
 SYSTEM_PROMPT = """Ты — ведущий инженер строительного контроля. Проверяешь качество отчётов.
 
 КРИТЕРИИ ПРОВЕРКИ:
@@ -110,6 +129,17 @@ def check_report(filepath: str) -> dict:
     Проверяет отчет по всем критериям.
     """
     filename = Path(filepath).name
+
+    skip, reason = should_skip_check(filepath)
+    if skip:
+        print(f"[CHECK_AGENT] SKIP ({reason}): {filename}")
+        return {
+            "ok": True,
+            "skipped": True,
+            "skip_reason": reason,
+            "report": "",
+            "_source_file": filename,
+        }
 
     full_text = extract_full_text(filepath)
     sk_section = extract_sk_section(filepath)
