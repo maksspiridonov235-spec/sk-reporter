@@ -616,66 +616,8 @@ def format_signature_images(doc: Document) -> int:
     return changed
 
 
-def _is_page_label(text: str) -> bool:
-    return _norm_label(text) == "страница"
-
-
-def _collect_page_header_cells(doc: Document) -> list[tuple]:
-    """Строки «Страница» по порядку в документе → (ячейка номера, ячейка всего|None)."""
-    headers: list[tuple] = []
-    for table in doc.tables:
-        for row in table.rows:
-            cells = _row_unique_cells(row)
-            for i, cell in enumerate(cells):
-                if not _is_page_label(cell.text):
-                    continue
-                if i + 1 >= len(cells):
-                    continue
-                page_cell = cells[i + 1]
-                total_cell = cells[i + 2] if i + 2 < len(cells) else None
-                headers.append((page_cell, total_cell))
-    return headers
-
-
-# Оценка числа листов таблицы без Word (для склеенного отчёта).
-_TABLE_ROWS_PER_PAGE = 15
-
-
 def _element_tag(el) -> str:
     return el.tag.split("}")[-1] if "}" in el.tag else el.tag
-
-
-def _count_page_breaks_in_element(el) -> int:
-    return sum(
-        1
-        for br in el.findall(".//" + qn("w:br"))
-        if br.get(qn("w:type")) == "page"
-    )
-
-
-def _estimate_table_pages_from_xml(tbl_el) -> int:
-    internal_breaks = _count_page_breaks_in_element(tbl_el)
-    rows = len(tbl_el.findall(qn("w:tr")))
-    by_rows = max(1, (rows + _TABLE_ROWS_PER_PAGE - 1) // _TABLE_ROWS_PER_PAGE)
-    return max(by_rows, internal_breaks + 1)
-
-
-def _compute_document_page_layout(doc: Document) -> tuple[list[int], int]:
-    """
-    По порядку блоков в document.xml: стартовая страница каждой таблицы и всего листов.
-    """
-    table_starts: list[int] = []
-    current = 1
-    for el in doc.element.body:
-        tag = _element_tag(el)
-        if tag == "sectPr":
-            continue
-        if tag == "tbl":
-            table_starts.append(current)
-            current += _estimate_table_pages_from_xml(el)
-        elif tag == "p":
-            current += _count_page_breaks_in_element(el)
-    return table_starts, max(1, current - 1)
 
 
 def _body_append_elements(body, elements) -> None:
@@ -687,34 +629,6 @@ def _body_append_elements(body, elements) -> None:
         body.append(element)
     if sect_prs:
         body.append(sect_prs[-1])
-
-
-def renumber_page_headers(doc: Document) -> bool:
-    """
-    Склеенный отчёт: в шапках «Страница» — стартовый лист блока и всего листов.
-    Числа проставляются текстом (как в *_исправлен.docx), без полей Word PAGE/NUMPAGES.
-    """
-    headers = _collect_page_header_cells(doc)
-    if not headers:
-        return False
-
-    table_starts, total_pages = _compute_document_page_layout(doc)
-    changed = False
-    for idx, (page_cell, total_cell) in enumerate(headers):
-        start_page = table_starts[idx] if idx < len(table_starts) else idx + 1
-        if _write_cell_plain(page_cell, str(start_page)):
-            changed = True
-        if total_cell is not None and _write_cell_plain(total_cell, str(total_pages)):
-            changed = True
-    return changed
-
-
-def renumber_page_headers_file(path: str) -> bool:
-    doc = Document(path)
-    if not renumber_page_headers(doc):
-        return False
-    doc.save(path)
-    return True
 
 
 def set_report_number(doc: Document, target_date: str) -> bool:
@@ -985,9 +899,6 @@ def merge_reports(template_path: str, report_paths: list[str], output_path: str)
         master.save(output_path)
         inserted += 1
 
-    if inserted:
-        renumber_page_headers_file(output_path)
-
     return inserted
 
 
@@ -1040,17 +951,30 @@ def rename_files(folder: str, mode: Literal["today", "yesterday"]) -> list[str]:
 
 def rename_results(folder: str, target_date: str) -> list[str]:
     """
-    Переименовывает Евракор_merged.docx → Евракор_Ежедневный отчёт СК за DD.MM.YYYY.docx
+    Переименовывает:
+    - Евракор_merged.docx → Евракор_Ежедневный отчёт СК за DD.MM.YYYY.docx
+    - Геодезический контроль_merged_<имя>.docx → … за DD.MM.YYYY — <имя>.docx
     """
     log = []
     for filename in os.listdir(folder):
         if not filename.lower().endswith((".docx", ".doc")):
             continue
-        if "_merged" not in filename:
-            continue
-        company = filename.replace("_merged.docx", "").replace("_merged.doc", "")
         ext = ".docx" if filename.lower().endswith(".docx") else ".doc"
-        new_name = f"{company}_Ежедневный отчёт СК за {target_date}{ext}"
+        merged_suffix = None
+        company = None
+        if "_merged_" in filename:
+            company, merged_suffix = filename.rsplit("_merged_", 1)
+            merged_suffix = Path(merged_suffix).stem
+        elif "_merged" in filename:
+            company = filename.replace("_merged.docx", "").replace("_merged.doc", "")
+        else:
+            continue
+        if merged_suffix:
+            new_name = (
+                f"{company}_Ежедневный отчёт СК за {target_date} — {merged_suffix}{ext}"
+            )
+        else:
+            new_name = f"{company}_Ежедневный отчёт СК за {target_date}{ext}"
         filepath = os.path.join(folder, filename)
         try:
             doc = Document(filepath)

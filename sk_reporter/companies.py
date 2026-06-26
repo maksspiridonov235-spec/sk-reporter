@@ -17,6 +17,8 @@ class Company:
         return self.template if self.template is not None else self.name
 
 
+GEODESY_COMPANY = "Геодезический контроль"
+
 COMPANIES: list[Company] = [
     Company("Евракор", ["евракор", "еврокор"]),
     Company("Лесные технологии", ["лесн. технологии", "лесные технологии", "лестех"]),

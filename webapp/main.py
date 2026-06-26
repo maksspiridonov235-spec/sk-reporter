@@ -18,13 +18,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from sk_reporter.companies import COMPANIES
+from sk_reporter.companies import COMPANIES, GEODESY_COMPANY
 from sk_reporter.docx_processing import (
     merge_reports,
     prepare_uploaded_reports,
     rename_results,
     rename_templates,
-    renumber_page_headers_file,
 )
 from sk_reporter.paths import templates_dir
 from sk_reporter.prescriptions.normative_store import normative_store_status
@@ -238,8 +237,6 @@ def _do_merge(template_path: str, report_paths: list[str], output_path: str) -> 
         os.remove(tmp)
         if ok:
             inserted += 1
-    if inserted:
-        renumber_page_headers_file(output_path)
     return inserted
 
 
@@ -1171,11 +1168,33 @@ async def merge_all_stream():
                 done_count += 1
                 yield _sse({"type": "progress", "current": done_count, "total": len(COMPANIES), "msg": f"{name}: нет отчётов"})
                 continue
-            output_path = RESULT_DIR / f"{name}_merged.docx"
             try:
-                inserted = _do_merge(str(template), [str(r) for r in reports], str(output_path))
-                results.append({"company": name, "inserted": inserted, "file": f"{name}_merged.docx", "reports_count": len(reports)})
-                yield _sse({"type": "success", "company": name, "msg": f"Объединено: {inserted} отчётов → {name}_merged.docx"})
+                if name == GEODESY_COMPANY:
+                    for report in sorted(reports, key=lambda p: p.name.lower()):
+                        output_path = RESULT_DIR / f"{name}_merged_{report.stem}.docx"
+                        inserted = _do_merge(str(template), [str(report)], str(output_path))
+                        results.append({
+                            "company": name,
+                            "inserted": inserted,
+                            "file": output_path.name,
+                            "reports_count": 1,
+                            "source": report.name,
+                        })
+                        yield _sse({
+                            "type": "success",
+                            "company": name,
+                            "msg": f"Собран отчёт геодезии → {output_path.name}",
+                        })
+                else:
+                    output_path = RESULT_DIR / f"{name}_merged.docx"
+                    inserted = _do_merge(str(template), [str(r) for r in reports], str(output_path))
+                    results.append({
+                        "company": name,
+                        "inserted": inserted,
+                        "file": f"{name}_merged.docx",
+                        "reports_count": len(reports),
+                    })
+                    yield _sse({"type": "success", "company": name, "msg": f"Объединено: {inserted} отчётов → {name}_merged.docx"})
             except Exception as e:
                 yield _sse({"type": "error", "company": name, "msg": f"'{name}': {str(e)}"})
                 errors.append(str(e))
