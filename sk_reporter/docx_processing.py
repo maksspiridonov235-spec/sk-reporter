@@ -637,68 +637,76 @@ def _collect_page_header_cells(doc: Document) -> list[tuple]:
     return headers
 
 
-def _clear_cell_paragraphs(cell) -> None:
-    tc = cell._tc
-    for p in tc.findall(qn("w:p")):
-        tc.remove(p)
+# Оценка числа листов таблицы без Word (для склеенного отчёта).
+_TABLE_ROWS_PER_PAGE = 15
 
 
-def _append_word_field_paragraph(parent, instruction: str, placeholder: str) -> None:
-    """Один w:p с полем Word (PAGE, NUMPAGES и т.д.)."""
-    p = etree.SubElement(parent, qn("w:p"))
-    r_begin = etree.SubElement(p, qn("w:r"))
-    fld_begin = etree.SubElement(r_begin, qn("w:fldChar"))
-    fld_begin.set(qn("w:fldCharType"), "begin")
-    fld_begin.set(qn("w:dirty"), "true")
-
-    r_instr = etree.SubElement(p, qn("w:r"))
-    instr = etree.SubElement(r_instr, qn("w:instrText"))
-    instr.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
-    instr.text = f" {instruction.strip()} "
-
-    r_sep = etree.SubElement(p, qn("w:r"))
-    fld_sep = etree.SubElement(r_sep, qn("w:fldChar"))
-    fld_sep.set(qn("w:fldCharType"), "separate")
-
-    r_text = etree.SubElement(p, qn("w:r"))
-    t = etree.SubElement(r_text, qn("w:t"))
-    t.text = placeholder
-
-    r_end = etree.SubElement(p, qn("w:r"))
-    fld_end = etree.SubElement(r_end, qn("w:fldChar"))
-    fld_end.set(qn("w:fldCharType"), "end")
+def _element_tag(el) -> str:
+    return el.tag.split("}")[-1] if "}" in el.tag else el.tag
 
 
-def _write_cell_word_field(cell, instruction: str, placeholder: str = "1") -> bool:
-    _clear_cell_paragraphs(cell)
-    _append_word_field_paragraph(cell._tc, instruction, placeholder)
-    return True
+def _count_page_breaks_in_element(el) -> int:
+    return sum(
+        1
+        for br in el.findall(".//" + qn("w:br"))
+        if br.get(qn("w:type")) == "page"
+    )
 
 
-def _ensure_update_fields_on_open(doc: Document) -> None:
-    """Word пересчитает PAGE/NUMPAGES при открытии файла."""
-    settings_el = doc.settings.element
-    update = settings_el.find(qn("w:updateFields"))
-    if update is None:
-        update = etree.SubElement(settings_el, qn("w:updateFields"))
-    update.set(qn("w:val"), "true")
+def _estimate_table_pages_from_xml(tbl_el) -> int:
+    internal_breaks = _count_page_breaks_in_element(tbl_el)
+    rows = len(tbl_el.findall(qn("w:tr")))
+    by_rows = max(1, (rows + _TABLE_ROWS_PER_PAGE - 1) // _TABLE_ROWS_PER_PAGE)
+    return max(by_rows, internal_breaks + 1)
+
+
+def _compute_document_page_layout(doc: Document) -> tuple[list[int], int]:
+    """
+    По порядку блоков в document.xml: стартовая страница каждой таблицы и всего листов.
+    """
+    table_starts: list[int] = []
+    current = 1
+    for el in doc.element.body:
+        tag = _element_tag(el)
+        if tag == "sectPr":
+            continue
+        if tag == "tbl":
+            table_starts.append(current)
+            current += _estimate_table_pages_from_xml(el)
+        elif tag == "p":
+            current += _count_page_breaks_in_element(el)
+    return table_starts, max(1, current - 1)
+
+
+def _body_append_elements(body, elements) -> None:
+    """Добавляет элементы в конец тела, sectPr всегда остаётся последним."""
+    sect_prs = [child for child in body if _element_tag(child) == "sectPr"]
+    for sect_pr in sect_prs:
+        body.remove(sect_pr)
+    for element in elements:
+        body.append(element)
+    if sect_prs:
+        body.append(sect_prs[-1])
 
 
 def renumber_page_headers(doc: Document) -> bool:
     """
-    Склеенный отчёт: в шапках «Страница» — поля Word PAGE и NUMPAGES.
-    Номер текущей страницы и всего листов считает Word при открытии/печати.
+    Склеенный отчёт: в шапках «Страница» — стартовый лист блока и всего листов.
+    Числа проставляются текстом (как в *_исправлен.docx), без полей Word PAGE/NUMPAGES.
     """
     headers = _collect_page_header_cells(doc)
     if not headers:
         return False
 
-    for page_cell, total_cell in headers:
-        _write_cell_word_field(page_cell, "PAGE", "1")
-        if total_cell is not None:
-            _write_cell_word_field(total_cell, "NUMPAGES", "1")
-    _ensure_update_fields_on_open(doc)
-    return True
+    table_starts, total_pages = _compute_document_page_layout(doc)
+    changed = False
+    for idx, (page_cell, total_cell) in enumerate(headers):
+        start_page = table_starts[idx] if idx < len(table_starts) else idx + 1
+        if _write_cell_plain(page_cell, str(start_page)):
+            changed = True
+        if total_cell is not None and _write_cell_plain(total_cell, str(total_pages)):
+            changed = True
+    return changed
 
 
 def renumber_page_headers_file(path: str) -> bool:
@@ -966,11 +974,13 @@ def merge_reports(template_path: str, report_paths: list[str], output_path: str)
         if inserted > 0 and body_elements:
             master.add_page_break()
 
+        appended = []
         for element in body_elements:
             el_copy = deepcopy(element)
             if rid_remap:
                 _patch_rids(el_copy, rid_remap)
-            master.element.body.append(el_copy)
+            appended.append(el_copy)
+        _body_append_elements(master.element.body, appended)
 
         master.save(output_path)
         inserted += 1
