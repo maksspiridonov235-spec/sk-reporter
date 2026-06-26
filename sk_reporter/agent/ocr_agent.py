@@ -1,10 +1,7 @@
 """
-Агент на базе Ollama + gemma4:31b-cloud для анализа и сборки отчётов СК.
-Определяет компанию по содержимому документа, вставляет в болванку.
+Агент для сборки отчётов СК: определяет компанию по имени файла, вставляет в болванку.
 """
 
-import re
-import json
 import zipfile
 import shutil
 import os
@@ -13,126 +10,29 @@ from pathlib import Path
 from typing import Optional
 from lxml import etree
 
-from docx import Document
-
 from sk_reporter.companies import COMPANIES
 
-# Преобразуем в формат для агента: название → список ключевых слов
-COMPANIES_MAP = {c.name: c.keywords for c in COMPANIES}
-KNOWN_COMPANIES = [c.name for c in COMPANIES]
-
-MODEL = "gemma4:31b-cloud"
-
-SYSTEM_PROMPT = f"""Ты определяешь компанию-подрядчика по тексту отчёта строительного контроля.
-
-Список компаний: {json.dumps(KNOWN_COMPANIES, ensure_ascii=False)}
-
-Правила:
-1. Ищи название компании в шапке, подписях, таблицах документа.
-2. Верни ТОЛЬКО название из списка выше — без пояснений, без кавычек.
-3. Если не нашёл — верни UNKNOWN.
-"""
-
-
-def extract_text(filepath: str) -> str:
-    try:
-        doc = Document(filepath)
-        parts = []
-        for para in doc.paragraphs[:50]:
-            t = para.text.strip()
-            if t:
-                parts.append(t)
-        for table in doc.tables[:3]:
-            for row in table.rows[:5]:
-                for cell in row.cells:
-                    t = cell.text.strip()
-                    if t and len(t) > 2:
-                        parts.append(t)
-        return "\n".join(parts)
-    except Exception as e:
-        print(f"[ERROR] extract_text {filepath}: {e}")
-        return ""
-
-
-def detect_geodesy(filepath: str) -> Optional[str]:
-    """
-    Проверяет, является ли отчёт геодезическим контролем.
-    Ищет в таблице ячейку [2,3] (Направление контроля).
-    """
-    try:
-        doc = Document(filepath)
-        if len(doc.tables) == 0:
-            return None
-
-        table = doc.tables[0]
-        if len(table.rows) < 3:
-            return None
-
-        # Проверяем ячейку [2,3] — "Направление контроля"
-        row = table.rows[2]
-        if len(row.cells) < 4:
-            return None
-
-        direction_cell = row.cells[3].text.strip().lower()
-
-        if "геодезический" in direction_cell:
-            filename = Path(filepath).name
-            print(f"[GEODESY] {filename} → Геодезический контроль")
-            return "Геодезический контроль"
-
-        return None
-    except Exception as e:
-        print(f"[ERROR] detect_geodesy {filepath}: {e}")
-        return None
+PRIORITY_TYPES = ("Геодезический контроль", "ОЗОТОБОС")
 
 
 def detect_company(filepath: str) -> Optional[str]:
-    filename = Path(filepath).name
-    filename_lower = filename.lower()
+    filename_lower = Path(filepath).name.lower()
 
-    # Шаг 0: проверка геодезии (специальный случай)
-    geodesy = detect_geodesy(filepath)
-    if geodesy:
-        return geodesy
+    # 1) тип работ имеет приоритет: геодезия / озотобос по имени файла
+    for company in COMPANIES:
+        if company.name in PRIORITY_TYPES and any(kw in filename_lower for kw in company.keywords):
+            print(f"[TYPE] {filename_lower} → {company.name}")
+            return company.name
 
-    # Шаг 1: проверка по всем вариантам написания в имени файла
-    for company, keywords in COMPANIES_MAP.items():
-        if any(kw in filename_lower for kw in keywords):
-            print(f"[FILENAME] {filename} → {company}")
-            return company
+    # 2) остальное — по названию организации в имени файла
+    for company in COMPANIES:
+        if company.name in PRIORITY_TYPES:
+            continue
+        if any(kw in filename_lower for kw in company.keywords):
+            print(f"[FILENAME] {filename_lower} → {company.name}")
+            return company.name
 
-    # Шаг 2: AI анализирует содержимое документа
-    text = extract_text(filepath)
-    if not text:
-        print(f"[UNKNOWN] Не удалось прочитать текст: {filename}")
-        return None
-
-    try:
-        from sk_reporter.llm_client import llm_chat
-
-        response = llm_chat(
-            model=MODEL,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Определи компанию:\n\n{text[:2000]}"},
-            ],
-            options={"temperature": 0.0, "num_predict": 30},
-        )
-        answer = response["message"]["content"].strip()
-        answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL).strip()
-        clean = re.sub(r'["\'\.\n]', "", answer).strip()
-
-        for company in KNOWN_COMPANIES:
-            if company.lower() in clean.lower() or clean.lower() in company.lower():
-                print(f"[AI] {filename} → {company}")
-                return company
-
-        print(f"[UNKNOWN] AI не распознал компанию для: {filename}")
-        return None
-
-    except Exception as e:
-        print(f"[ERROR] ollama: {e}")
-        return None
+    return None
 
 
 def _xml_bytes(root) -> bytes:

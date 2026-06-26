@@ -115,7 +115,17 @@ EMU_PER_CM = 360000
 DRAWING_NS = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
 EMU_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 
-PREPARE_PIPELINE_ID = "2026-06-02-layout-full"
+PREPARE_PIPELINE_ID = "2026-06-26-sdt-template"
+
+# Шаги prepare_report_file: False — функция в файле есть, вызов отключён.
+PREPARE_USE_HIGHLIGHT_SECOND_ROW = False
+PREPARE_USE_RESET_PARAGRAPH_LAYOUT = False
+PREPARE_USE_TABLE_GEOMETRY = False
+PREPARE_USE_APPLY_LAYOUT = False
+PREPARE_USE_LEGACY_DATE_IN_CELL = False  # replace_date_in_report_line
+
+_W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+_W = f"{{{_W_NS}}}"
 
 
 def _iter_all_story_xml_roots(doc: Document) -> list:
@@ -315,6 +325,34 @@ def replace_date_in_report_line(doc: Document, mode: Literal["today", "yesterday
                     return True
 
     return False
+
+
+def set_report_date_sdt(doc: Document, target_date: str) -> bool:
+    """
+    Дата отчёта из календаря UI → Word date content control (w:date + w:t).
+    target_date: DD.MM.YYYY (как _parse_report_date в webapp).
+    """
+    try:
+        dt = datetime.strptime(target_date, "%d.%m.%Y")
+    except ValueError:
+        return False
+    iso = dt.strftime("%Y-%m-%dT00:00:00Z")
+    changed = False
+    for sdt in doc.element.body.findall(f".//{_W}sdt"):
+        date_el = sdt.find(f".//{_W}date")
+        if date_el is None:
+            continue
+        if date_el.get(f"{_W}fullDate") != iso:
+            date_el.set(f"{_W}fullDate", iso)
+            changed = True
+        for t in sdt.findall(f".//{_W}sdtContent//{_W}t"):
+            if (t.text or "") != target_date:
+                t.text = target_date
+                changed = True
+        return True
+    if PREPARE_USE_LEGACY_DATE_IN_CELL:
+        return replace_date_in_report_line(doc, target_date=target_date)
+    return changed
 
 
 def prepare_template_with_date(template_path: str, work_dir: str | None = None) -> str:
@@ -722,26 +760,30 @@ def prepare_report_file(filepath: str, layout: dict, target_date: str) -> tuple[
     except Exception as e:
         return False, str(e)
     parts = [f"версия {PREPARE_PIPELINE_ID}"]
-    n = highlight_second_row(doc)
-    parts.append(f"заливка {n}")
+    if PREPARE_USE_HIGHLIGHT_SECOND_ROW:
+        n = highlight_second_row(doc)
+        parts.append(f"заливка {n}")
     format_fonts_only(doc)
     parts.append("шрифт")
-    n_layout = reset_paragraph_layout(doc)
-    parts.append(f"макеты {n_layout}")
+    if PREPARE_USE_RESET_PARAGRAPH_LAYOUT:
+        n_layout = reset_paragraph_layout(doc)
+        parts.append(f"макеты {n_layout}")
     n_img = resize_inline_images(doc)
     parts.append(f"картинки {n_img}")
-    if replace_date_in_report_line(doc, target_date=target_date):
-        parts.append(f"дата в тексте {target_date}")
+    if set_report_date_sdt(doc, target_date):
+        parts.append(f"дата {target_date}")
     else:
-        parts.append("дата в тексте не найдена")
-    apply_table_geometry(doc)
-    parts.append("строки 0,6")
-    layout_warns = apply_layout(doc, layout, only_main_table=True)
-    parts.append("сетка")
-    if layout_warns:
-        parts.append("⚠ " + layout_warns[0])
-        if len(layout_warns) > 1:
-            parts.append(f"(+{len(layout_warns) - 1} предупр.)")
+        parts.append("дата не найдена")
+    if PREPARE_USE_TABLE_GEOMETRY:
+        apply_table_geometry(doc)
+        parts.append("строки 0,6")
+    if PREPARE_USE_APPLY_LAYOUT:
+        layout_warns = apply_layout(doc, layout, only_main_table=True)
+        parts.append("сетка")
+        if layout_warns:
+            parts.append("⚠ " + layout_warns[0])
+            if len(layout_warns) > 1:
+                parts.append(f"(+{len(layout_warns) - 1} предупр.)")
     doc.save(filepath)
     return True, ", ".join(parts)
 

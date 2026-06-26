@@ -1,9 +1,8 @@
 """
-Rule-based переключение руководителя в ежедневных отчётах (блок 2 UI).
+Переключение руководителя в ежедневных отчётах (блок 2 UI).
 
-Шапка — короткая должность + ФИО; подвал — полная должность + ФИО.
-Обрабатываются все подходящие ячейки в верхней/нижней зоне таблицы
-(сетки GRID_COLS_6 / GRID_COLS_7 с ghost-колонкой).
+Новые шаблоны: выпадающие списки Word (w:sdt + w:dropDownList) — должность
+и ФИО в шапке и подвале. Старые шаблоны: rule-based замена в ячейках таблицы.
 """
 
 from __future__ import annotations
@@ -41,6 +40,17 @@ LEADER_TARGETS: dict[LeaderId, dict[str, str]] = {
         "footer_fio": "Манджиев Игорь Александрович",
     },
 }
+
+_W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+_W = f"{{{_W_NS}}}"
+
+_HEADER_TITLE_OPTIONS = frozenset({"Руководитель", "И.О. Руководителя"})
+_FOOTER_ROLE_OPTIONS = frozenset(
+    {"Руководитель проекта СК", "И.О. Руководителя проекта СК"}
+)
+_LEADER_FIO_OPTIONS = frozenset(
+    {"Аниськов Владимир Иванович", "Манджиев Игорь Александрович"}
+)
 
 # Варианты должности в подвале (для замены в run'ах)
 _FOOTER_ROLE_VARIANTS = [
@@ -94,6 +104,100 @@ class LeaderSlots:
 def _norm(text: str) -> str:
     cleaned = text.replace("\xa0", " ").replace("\u200b", "").replace("\ufeff", "")
     return " ".join(cleaned.split()).strip()
+
+
+def _sdt_dropdown_options(sdt) -> frozenset[str]:
+    opts: set[str] = set()
+    for li in sdt.findall(f".//{_W}listItem"):
+        val = li.get(f"{_W}displayText") or li.get(f"{_W}value")
+        if val:
+            opts.add(val.strip())
+    return frozenset(opts)
+
+
+def _sdt_text(sdt) -> str:
+    ts = sdt.findall(f".//{_W}sdtContent//{_W}t")
+    return _norm("".join(t.text or "" for t in ts))
+
+
+def _set_sdt_text(sdt, new_text: str) -> bool:
+    if _sdt_text(sdt) == _norm(new_text):
+        return False
+    ts = sdt.findall(f".//{_W}sdtContent//{_W}t")
+    if not ts:
+        return False
+    updated = False
+    for t in ts:
+        if t.text and not updated:
+            t.text = new_text
+            updated = True
+        elif t.text:
+            t.text = ""
+    if not updated:
+        ts[0].text = new_text
+    return True
+
+
+def _classify_leader_sdt(sdt) -> str | None:
+    """header_title | footer_role | fio — по набору пунктов выпадающего списка."""
+    opts = _sdt_dropdown_options(sdt)
+    if not opts:
+        return None
+    if opts == _LEADER_FIO_OPTIONS:
+        return "fio"
+    if opts == _FOOTER_ROLE_OPTIONS:
+        return "footer_role"
+    if opts == _HEADER_TITLE_OPTIONS:
+        return "header_title"
+    joined = " ".join(opts).lower()
+    if "аниськов" in joined and "манджиев" in joined:
+        return "fio"
+    if any("проекта" in o.lower() for o in opts) and any(
+        "руководител" in o.lower() for o in opts
+    ):
+        return "footer_role"
+    if any("руководител" in o.lower() for o in opts) and not any(
+        "проект" in o.lower() for o in opts
+    ):
+        return "header_title"
+    return None
+
+
+def _apply_leader_dropdowns(doc: Document, leader: LeaderId) -> int | None:
+    """
+    Переключение через выпадающие списки Word.
+    None — в документе нет leader-SDT; иначе число изменённых полей.
+    """
+    targets = LEADER_TARGETS[leader]
+    sdts = doc.element.body.findall(f".//{_W}sdt")
+    header_title_sdts: list = []
+    footer_role_sdts: list = []
+    fio_sdts: list = []
+
+    for sdt in sdts:
+        kind = _classify_leader_sdt(sdt)
+        if kind == "header_title":
+            header_title_sdts.append(sdt)
+        elif kind == "footer_role":
+            footer_role_sdts.append(sdt)
+        elif kind == "fio":
+            fio_sdts.append(sdt)
+
+    if not header_title_sdts and not footer_role_sdts and not fio_sdts:
+        return None
+
+    changes = 0
+    for sdt in header_title_sdts:
+        if _set_sdt_text(sdt, targets["header_title"]):
+            changes += 1
+    for sdt in footer_role_sdts:
+        if _set_sdt_text(sdt, targets["footer_role"]):
+            changes += 1
+    fio_target = targets["header_fio"]
+    for sdt in fio_sdts:
+        if _set_sdt_text(sdt, fio_target):
+            changes += 1
+    return changes
 
 
 def _cell_text(cell: _Cell) -> str:
@@ -796,6 +900,14 @@ def switch_leader_in_docx(filepath: str, leader: LeaderId) -> tuple[bool, str, i
     path = Path(filepath)
     try:
         doc = Document(str(path))
+
+        dd_changes = _apply_leader_dropdowns(doc, leader)
+        if dd_changes is not None:
+            if dd_changes == 0:
+                return True, "уже нужный руководитель", 0
+            doc.save(str(path))
+            return True, f"замен: {dd_changes}", dd_changes
+
         indices = _main_table_indices(doc)
         if not indices:
             return False, "нет таблиц", 0
