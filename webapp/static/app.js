@@ -565,6 +565,24 @@ async function switchLeader(leader) {
   });
 })();
 
+(function initWeatherInput() {
+  const el = document.getElementById('weatherInput');
+  if (!el) return;
+  try {
+    const saved = localStorage.getItem('weatherInput');
+    if (saved) el.value = saved;
+  } catch (_) {}
+  el.addEventListener('change', () => {
+    try { localStorage.setItem('weatherInput', el.value.trim()); } catch (_) {}
+  });
+})();
+
+function getWeatherInput() {
+  const el = document.getElementById('weatherInput');
+  if (!el) return '';
+  return el.value.trim();
+}
+
 (function initResultsPanelResize() {
   const handle = document.getElementById('resultsResizeHandle');
   const panel = document.getElementById('resultsPanel');
@@ -807,10 +825,11 @@ async function runMacroPrepare(dateVal) {
   const { card, statusId, progressId } = createOpCard('Подготовка отчётов');
   setCardProgress(statusId, progressId, 0, 0, 'Правки внутри загруженных файлов…');
   try {
+    const weather = getWeatherInput();
     const data = await apiFetch('/macro/prepare', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: dateVal }),
+      body: JSON.stringify({ date: dateVal, weather: weather || null }),
     }, statusId);
     const lines = Array.isArray(data.log) ? data.log : [`[ERR] Нет log в ответе: ${JSON.stringify(data)}`];
     const meta = `Дата: ${data.date || '—'} · ${data.template || 'сетка'}`;

@@ -206,8 +206,22 @@ def apply_layout(
         tblW = tblPr.find(qn("w:tblW"))
         if tblW is None:
             tblW = etree.SubElement(tblPr, qn("w:tblW"))
+        old_tbl_w = int(tblW.get(qn("w:w")) or 0)
+        tblInd_el = tblPr.find(qn("w:tblInd"))
+        old_tbl_ind = int(tblInd_el.get(qn("w:w"))) if tblInd_el is not None else None
+
         tblW.set(qn("w:w"), TABLE_WIDTH)  # ← жёстко 10830
         tblW.set(qn("w:type"), "dxa")
+
+        # Центрирование таблицы на странице (tblInd) — не терять при смене ширины
+        if old_tbl_ind is not None and old_tbl_w > 0:
+            new_w = int(TABLE_WIDTH)
+            delta = new_w - old_tbl_w
+            new_ind = old_tbl_ind - delta // 2
+            if tblInd_el is None:
+                tblInd_el = etree.SubElement(tblPr, qn("w:tblInd"))
+            tblInd_el.set(qn("w:w"), str(new_ind))
+            tblInd_el.set(qn("w:type"), "dxa")
 
         tblLayout = tblPr.find(qn("w:tblLayout"))
         if tblLayout is None:

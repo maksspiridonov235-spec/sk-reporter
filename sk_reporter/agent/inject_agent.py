@@ -15,6 +15,7 @@ from pathlib import Path
 from docx import Document
 from docx.oxml.ns import qn
 from docx.table import _Row
+from lxml import etree
 
 MODEL = "gemma4:31b-cloud"
 
@@ -166,6 +167,28 @@ def _cells_for_roles(row, role_indices: dict[str, int]) -> dict:
     return cells
 
 
+def _set_cell_vertical_align_top(cell) -> None:
+    tc = cell._tc
+    tc_pr = tc.find(qn("w:tcPr"))
+    if tc_pr is None:
+        tc_pr = etree.SubElement(tc, qn("w:tcPr"))
+        tc.insert(0, tc_pr)
+    v_align = tc_pr.find(qn("w:vAlign"))
+    if v_align is None:
+        v_align = etree.SubElement(tc_pr, qn("w:vAlign"))
+    v_align.set(qn("w:val"), "top")
+
+
+def _set_row_vertical_align_top(row) -> None:
+    seen: set[int] = set()
+    for cell in row.cells:
+        tid = id(cell._tc)
+        if tid in seen:
+            continue
+        seen.add(tid)
+        _set_cell_vertical_align_top(cell)
+
+
 def _write_lines_to_cell(cell, lines: list):
     """Заменяет содержимое ячейки, сохраняя первый параграф-заголовок."""
     if not lines:
@@ -219,6 +242,7 @@ def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -
             template_ri = header_ri + 1 if header_ri + 1 < len(trs) else header_ri
             header_label_before = _row_at(table, header_ri).cells[0].text.strip()
             row_part1 = _insert_row_after(table, header_ri, template_ri)
+            _set_row_vertical_align_top(row_part1)
             header_label_after = _row_at(table, header_ri).cells[0].text.strip()
             if header_label_before != header_label_after:
                 return {
@@ -246,6 +270,7 @@ def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -
                 row1_ri = _tr_index(table, row_part1._tr)
                 template_after_row1 = template_ri + 1
                 row_part2 = _insert_row_after(table, row1_ri, template_after_row1)
+                _set_row_vertical_align_top(row_part2)
                 cells2 = _cells_for_roles(row_part2, role_indices)
                 _write_lines_to_cell_data(cells2["description"], part2_lines)
                 if "location" in cells2:

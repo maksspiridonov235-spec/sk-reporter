@@ -16,12 +16,13 @@ from typing import Literal, Optional
 from docx import Document
 from docx.oxml.ns import qn
 from docx.shared import Pt, Cm, RGBColor
+from docx.table import _Cell
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
 from lxml import etree
 
 from sk_reporter.companies import COMPANIES
-from sk_reporter.template_layout import apply_layout
+from sk_reporter.template_layout import _main_table_indices, apply_layout
 
 # Regex для поиска дат в разных форматах
 _DATE_RE = re.compile(
@@ -111,11 +112,14 @@ def highlight_second_row(doc: Document) -> int:
 
 IMG_WIDTH_CM = 5.33
 IMG_HEIGHT_CM = 4.0
+SIGNATURE_IMAGE_HEIGHT_CM = 1.0
 EMU_PER_CM = 360000
 DRAWING_NS = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
 EMU_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+_WP_DRAW = f"{{{DRAWING_NS}}}"
+_INLINE_DRAW_CHILDREN = frozenset({"extent", "effectExtent", "docPr", "cNvGraphicFramePr", "graphic"})
 
-PREPARE_PIPELINE_ID = "2026-06-26-sdt-template"
+PREPARE_PIPELINE_ID = "2026-06-26-signature-inline"
 
 # Шаги prepare_report_file: False — функция в файле есть, вызов отключён.
 PREPARE_USE_HIGHLIGHT_SECOND_ROW = False
@@ -226,22 +230,23 @@ def format_fonts_only(doc: Document) -> None:
 
 
 def _reset_paragraph_layout_element(p_el) -> None:
-    """Обнуление отступов и интервалов одного w:p (прямое форматирование)."""
+    """Обнуление отступов и интервалов одного w:p (только если уже заданы в XML)."""
     pPr = p_el.find(qn("w:pPr"))
     if pPr is None:
-        pPr = etree.SubElement(p_el, qn("w:pPr"))
+        return
+
     spacing = pPr.find(qn("w:spacing"))
-    if spacing is None:
-        spacing = etree.SubElement(pPr, qn("w:spacing"))
-    spacing.set(qn("w:before"), "0")
-    spacing.set(qn("w:after"), "0")
-    spacing.set(qn("w:line"), "240")
-    spacing.set(qn("w:lineRule"), "auto")
-    spacing.set(qn("w:beforeAutospacing"), "0")
-    spacing.set(qn("w:afterAutospacing"), "0")
+    if spacing is not None:
+        spacing.set(qn("w:before"), "0")
+        spacing.set(qn("w:after"), "0")
+        spacing.set(qn("w:line"), "240")
+        spacing.set(qn("w:lineRule"), "auto")
+        spacing.set(qn("w:beforeAutospacing"), "0")
+        spacing.set(qn("w:afterAutospacing"), "0")
+
     ind = pPr.find(qn("w:ind"))
     if ind is None:
-        ind = etree.SubElement(pPr, qn("w:ind"))
+        return
     for key in (
         "left",
         "right",
@@ -353,6 +358,323 @@ def set_report_date_sdt(doc: Document, target_date: str) -> bool:
     if PREPARE_USE_LEGACY_DATE_IN_CELL:
         return replace_date_in_report_line(doc, target_date=target_date)
     return changed
+
+
+def report_number_from_date(target_date: str) -> str | None:
+    """DD.MM.YYYY → DD-MM (например 26.06.2026 → 26-06)."""
+    try:
+        dt = datetime.strptime(target_date, "%d.%m.%Y")
+    except ValueError:
+        return None
+    return dt.strftime("%d-%m")
+
+
+def _norm_label(text: str) -> str:
+    return re.sub(r"\s+", "", text.replace("ё", "е").replace("Ё", "Е")).lower()
+
+
+def _is_report_number_label(text: str) -> bool:
+    return "отчет№" in _norm_label(text)
+
+
+def _is_report_number_placeholder(text: str) -> bool:
+    t = _norm_label(text)
+    if not t:
+        return True
+    return t in ("б/н", "бн", "б.н", "б.н.")
+
+
+def _row_unique_cells(row) -> list:
+    seen: set[int] = set()
+    out = []
+    for cell in row.cells:
+        tc_id = id(cell._tc)
+        if tc_id in seen:
+            continue
+        seen.add(tc_id)
+        out.append(cell)
+    return out
+
+
+def _write_cell_plain(cell, text: str) -> bool:
+    current = " ".join(cell.text.split()).strip()
+    if current == text:
+        return False
+    if cell.paragraphs:
+        cell.paragraphs[0].text = text
+        for para in cell.paragraphs[1:]:
+            para.text = ""
+    else:
+        cell.text = text
+    return True
+
+
+def _is_weather_label(text: str) -> bool:
+    return "погоднаяхарактеристика" in _norm_label(text)
+
+
+def format_weather_temperature(raw: str) -> str | None:
+    """«+21» → «+21℃»; суффикс ℃ не дублируется."""
+    s = raw.strip()
+    if not s:
+        return None
+    for suffix in ("℃", "°C", "°С", "°c"):
+        if s.endswith(suffix):
+            s = s[: -len(suffix)].strip()
+            break
+    if not s:
+        return None
+    return f"{s}℃"
+
+
+def set_weather_temperature(doc: Document, raw: str) -> bool:
+    """
+    Ячейка под «Погодная характеристика» — температура (заполнить или перезаписать).
+    """
+    value = format_weather_temperature(raw)
+    if not value:
+        return False
+
+    for table in doc.tables:
+        rows = table.rows
+        for ri, row in enumerate(rows[:-1]):
+            cells = _row_unique_cells(row)
+            for i, cell in enumerate(cells):
+                if not _is_weather_label(cell.text):
+                    continue
+                next_cells = _row_unique_cells(rows[ri + 1])
+                if i >= len(next_cells):
+                    return False
+                _write_cell_plain(next_cells[i], value)
+                return True
+    return False
+
+
+def _tc_text(tc) -> str:
+    return "".join(t.text or "" for t in tc.findall(".//" + qn("w:t"))).strip()
+
+
+def format_ru_phone(raw: str) -> str | None:
+    """Приводит российский номер к виду +7 (123) 456-78-90."""
+    digits = re.sub(r"\D", "", raw or "")
+    if not digits:
+        return None
+    if len(digits) == 11 and digits.startswith("8"):
+        digits = "7" + digits[1:]
+    elif len(digits) == 10:
+        digits = "7" + digits
+    elif len(digits) == 11 and digits.startswith("7"):
+        pass
+    else:
+        return None
+    if len(digits) != 11 or not digits.startswith("7"):
+        return None
+    return f"+7 ({digits[1:4]}) {digits[4:7]}-{digits[7:9]}-{digits[9:11]}"
+
+
+def _is_signature_role_label(text: str) -> bool:
+    """Подпись внизу отчёта: Инженер СК/ПБ, Супервайзер, Руководитель проекта СК."""
+    if not text.strip():
+        return False
+    norm = _norm_label(text)
+    if "инспектор" in norm or norm.startswith("фио"):
+        return False
+    if "супервайзер" in norm:
+        return True
+    if "инженер" in norm and ("ск" in norm or "пб" in norm):
+        return True
+    if "руководитель" in norm and "проект" in norm:
+        return True
+    return False
+
+
+def normalize_signature_phones(doc: Document) -> int:
+    """
+    Телефон под ФИО в блоке подписей (2 строки ниже роли) → +7 (123) 456-78-90.
+    """
+    changed = 0
+    for table in doc.tables:
+        trs = table._tbl.findall(qn("w:tr"))
+        for ri in range(len(trs) - 2):
+            label_tcs = trs[ri].findall(qn("w:tc"))
+            for ci, label_tc in enumerate(label_tcs):
+                label = _tc_text(label_tc)
+                if not _is_signature_role_label(label):
+                    continue
+                phone_row_tcs = trs[ri + 2].findall(qn("w:tc"))
+                if ci >= len(phone_row_tcs):
+                    continue
+                phone_tc = phone_row_tcs[ci]
+                phone_text = _tc_text(phone_tc)
+                if not phone_text or _norm_label(phone_text) == "подпись":
+                    continue
+                formatted = format_ru_phone(phone_text)
+                if not formatted:
+                    continue
+                cell = _Cell(phone_tc, table)
+                if _write_cell_plain(cell, formatted):
+                    changed += 1
+    return changed
+
+
+def _is_signature_caption(text: str) -> bool:
+    return _norm_label(text) == "подпись"
+
+
+def _anchor_to_inline_element(anchor) -> etree.Element:
+    """Плавающая картинка (anchor) → «В тексте» (inline)."""
+    inline = etree.Element(f"{_WP_DRAW}inline")
+    for child in anchor:
+        local = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+        if local in _INLINE_DRAW_CHILDREN:
+            inline.append(deepcopy(child))
+    return inline
+
+
+def _resize_drawing_container(container, target_height_emu: int) -> bool:
+    extent = container.find(f"{_WP_DRAW}extent")
+    if extent is None:
+        return False
+    try:
+        cx = int(extent.get("cx", 0))
+        cy = int(extent.get("cy", 0))
+    except ValueError:
+        return False
+    if cy <= 0:
+        return False
+    new_cy = target_height_emu
+    new_cx = int(cx * new_cy / cy)
+    extent.set("cx", str(new_cx))
+    extent.set("cy", str(new_cy))
+    for ext in container.iter(f"{{{EMU_NS}}}ext"):
+        ext.set("cx", str(new_cx))
+        ext.set("cy", str(new_cy))
+    return True
+
+
+def _format_signature_drawing(drawing, target_height_emu: int) -> bool:
+    anchor = drawing.find(f"{_WP_DRAW}anchor")
+    if anchor is not None:
+        inline = _anchor_to_inline_element(anchor)
+        drawing.remove(anchor)
+        drawing.append(inline)
+        container = inline
+    else:
+        container = drawing.find(f"{_WP_DRAW}inline")
+        if container is None:
+            return False
+    return _resize_drawing_container(container, target_height_emu)
+
+
+def _collect_signature_image_cells(table) -> list:
+    """Ячейка над подписью «подпись» — туда инженер вставляет скан подписи."""
+    trs = table._tbl.findall(qn("w:tr"))
+    cells: list = []
+    for ri, tr in enumerate(trs):
+        tcs = tr.findall(qn("w:tc"))
+        for ci, tc in enumerate(tcs):
+            if not _is_signature_caption(_tc_text(tc)):
+                continue
+            if ri == 0:
+                continue
+            above = trs[ri - 1].findall(qn("w:tc"))
+            if ci < len(above):
+                cells.append(above[ci])
+    return cells
+
+
+def format_signature_images(doc: Document) -> int:
+    """
+    Подпись над ячейкой «подпись»: режим «В тексте», высота 1 см, ширина по пропорциям.
+    """
+    target_h = int(SIGNATURE_IMAGE_HEIGHT_CM * EMU_PER_CM)
+    changed = 0
+    for table in doc.tables:
+        for tc in _collect_signature_image_cells(table):
+            for drawing in tc.findall(".//" + qn("w:drawing")):
+                if _format_signature_drawing(drawing, target_h):
+                    changed += 1
+    return changed
+
+
+def _is_page_label(text: str) -> bool:
+    return _norm_label(text) == "страница"
+
+
+def _collect_page_header_cells(doc: Document) -> list[tuple]:
+    """Строки «Страница» по порядку в документе → (ячейка номера, ячейка всего|None)."""
+    headers: list[tuple] = []
+    for table in doc.tables:
+        for row in table.rows:
+            cells = _row_unique_cells(row)
+            for i, cell in enumerate(cells):
+                if not _is_page_label(cell.text):
+                    continue
+                if i + 1 >= len(cells):
+                    continue
+                page_cell = cells[i + 1]
+                total_cell = cells[i + 2] if i + 2 < len(cells) else None
+                headers.append((page_cell, total_cell))
+    return headers
+
+
+def renumber_page_headers(doc: Document) -> bool:
+    """
+    Склеенный отчёт: в каждой шапке «Страница» — порядковый номер и всего листов.
+    Ячейка сразу после «Страница» — N, следующая (если есть) — общее количество.
+    """
+    headers = _collect_page_header_cells(doc)
+    if not headers:
+        return False
+
+    total = len(headers)
+    changed = False
+    for n, (page_cell, total_cell) in enumerate(headers, start=1):
+        if _write_cell_plain(page_cell, str(n)):
+            changed = True
+        if total_cell is not None and _write_cell_plain(total_cell, str(total)):
+            changed = True
+    return changed
+
+
+def renumber_page_headers_file(path: str) -> bool:
+    doc = Document(path)
+    if not renumber_page_headers(doc):
+        return False
+    doc.save(path)
+    return True
+
+
+def set_report_number(doc: Document, target_date: str) -> bool:
+    """
+    Ячейка «Отчет №» → следующая ячейка: номер DD-MM из даты календаря.
+    Заполняет пустую или «б/н»; существующий другой номер перезаписывает.
+    """
+    number = report_number_from_date(target_date)
+    if not number:
+        return False
+
+    indices = _main_table_indices(doc)
+    if not indices:
+        return False
+
+    for table in (doc.tables[i] for i in indices):
+        for row in table.rows:
+            cells = _row_unique_cells(row)
+            for i, cell in enumerate(cells):
+                if not _is_report_number_label(cell.text):
+                    continue
+                if i + 1 >= len(cells):
+                    return False
+                value_cell = cells[i + 1]
+                current = " ".join(value_cell.text.split()).strip()
+                if current == number:
+                    return True
+                if current and not _is_report_number_placeholder(current):
+                    pass
+                _write_cell_plain(value_cell, number)
+                return True
+    return False
 
 
 def prepare_template_with_date(template_path: str, work_dir: str | None = None) -> str:
@@ -589,6 +911,9 @@ def merge_reports(template_path: str, report_paths: list[str], output_path: str)
         master.save(output_path)
         inserted += 1
 
+    if inserted:
+        renumber_page_headers_file(output_path)
+
     return inserted
 
 
@@ -754,7 +1079,12 @@ def rename_templates(folder: str, target_date: str) -> list[str]:
     return log
 
 
-def prepare_report_file(filepath: str, layout: dict, target_date: str) -> tuple[bool, str]:
+def prepare_report_file(
+    filepath: str,
+    layout: dict,
+    target_date: str,
+    weather: str | None = None,
+) -> tuple[bool, str]:
     try:
         doc = Document(filepath)
     except Exception as e:
@@ -770,10 +1100,27 @@ def prepare_report_file(filepath: str, layout: dict, target_date: str) -> tuple[
         parts.append(f"макеты {n_layout}")
     n_img = resize_inline_images(doc)
     parts.append(f"картинки {n_img}")
+    n_sig = format_signature_images(doc)
+    if n_sig:
+        parts.append(f"подписи {n_sig}")
     if set_report_date_sdt(doc, target_date):
         parts.append(f"дата {target_date}")
     else:
         parts.append("дата не найдена")
+    report_no = report_number_from_date(target_date)
+    if set_report_number(doc, target_date):
+        parts.append(f"№ {report_no}")
+    else:
+        parts.append("№ не найден")
+    if weather and weather.strip():
+        w = format_weather_temperature(weather)
+        if set_weather_temperature(doc, weather):
+            parts.append(f"погода {w}")
+        else:
+            parts.append("погода не найдена")
+    n_phones = normalize_signature_phones(doc)
+    if n_phones:
+        parts.append(f"тел. {n_phones}")
     if PREPARE_USE_TABLE_GEOMETRY:
         apply_table_geometry(doc)
         parts.append("строки 0,6")
@@ -788,7 +1135,12 @@ def prepare_report_file(filepath: str, layout: dict, target_date: str) -> tuple[
     return True, ", ".join(parts)
 
 
-def prepare_uploaded_reports(upload_dir: str, layout: dict, target_date: str) -> list[str]:
+def prepare_uploaded_reports(
+    upload_dir: str,
+    layout: dict,
+    target_date: str,
+    weather: str | None = None,
+) -> list[str]:
     log = []
     folder = Path(upload_dir)
     files = sorted(f for f in folder.iterdir() if f.suffix.lower() in (".docx", ".doc"))
@@ -796,7 +1148,7 @@ def prepare_uploaded_reports(upload_dir: str, layout: dict, target_date: str) ->
         log.append("[ERR] Нет загруженных отчётов")
         return log
     for f in files:
-        ok, msg = prepare_report_file(str(f), layout, target_date)
+        ok, msg = prepare_report_file(str(f), layout, target_date, weather=weather)
         log.append(f"[{'OK' if ok else 'ERR'}] {f.name}: {msg}")
     return log
 

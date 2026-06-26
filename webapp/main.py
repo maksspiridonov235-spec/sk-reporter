@@ -24,6 +24,7 @@ from sk_reporter.docx_processing import (
     prepare_uploaded_reports,
     rename_results,
     rename_templates,
+    renumber_page_headers_file,
 )
 from sk_reporter.paths import templates_dir
 from sk_reporter.prescriptions.normative_store import normative_store_status
@@ -237,6 +238,8 @@ def _do_merge(template_path: str, report_paths: list[str], output_path: str) -> 
         os.remove(tmp)
         if ok:
             inserted += 1
+    if inserted:
+        renumber_page_headers_file(output_path)
     return inserted
 
 
@@ -1056,6 +1059,7 @@ async def check_descriptions_stream():
 
 class PrepareBody(BaseModel):
     date: str | None = None  # YYYY-MM-DD из поля «Дата в отчёте»
+    weather: str | None = None  # температура, напр. «+21» → «+21℃» в отчёте
 
 
 def _parse_report_date(body: PrepareBody | None) -> str:
@@ -1074,13 +1078,17 @@ def _parse_report_date(body: PrepareBody | None) -> str:
 async def macro_prepare(body: PrepareBody | None = None):
     target_date = _parse_report_date(body)
     layout = hardcoded_layout()
-    log = prepare_uploaded_reports(str(UPLOAD_DIR), layout, target_date)
+    weather = (body.weather if body else None) or None
+    if weather is not None:
+        weather = weather.strip() or None
+    log = prepare_uploaded_reports(str(UPLOAD_DIR), layout, target_date, weather=weather)
     return {
         "log": log,
         "template": "сетка захардкожена",
         "grid_cols": layout["grid_cols"],
         "grid_cols_7": layout.get("grid_cols_7"),
         "date": target_date,
+        "weather": weather,
     }
 
 
