@@ -119,7 +119,7 @@ EMU_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 _WP_DRAW = f"{{{DRAWING_NS}}}"
 _INLINE_DRAW_CHILDREN = frozenset({"extent", "effectExtent", "docPr", "cNvGraphicFramePr", "graphic"})
 
-PREPARE_PIPELINE_ID = "2026-06-26-signature-inline"
+PREPARE_PIPELINE_ID = "2026-06-26-signature-last"
 
 # Шаги prepare_report_file: False — функция в файле есть, вызов отключён.
 PREPARE_USE_HIGHLIGHT_SECOND_ROW = False
@@ -165,19 +165,38 @@ def _iter_all_story_xml_roots(doc: Document) -> list:
     return roots
 
 
+def _signature_image_cells(doc: Document) -> list:
+    cells: list = []
+    for table in doc.tables:
+        cells.extend(_collect_signature_image_cells(table))
+    return cells
+
+
+def _inline_in_signature_cell(inline_el, signature_tcs: list) -> bool:
+    el = inline_el.getparent()
+    while el is not None:
+        if el.tag == qn("w:tc"):
+            return el in signature_tcs
+        el = el.getparent()
+    return False
+
+
 def resize_inline_images(doc: Document) -> int:
-    """Все инлайн-картинки → 5,33 × 4 см (как старый NewMacros)."""
+    """Инлайн-картинки в теле отчёта → 5,33 × 4 см; подписи не трогаем."""
     img_w = int(IMG_WIDTH_CM * EMU_PER_CM)
     img_h = int(IMG_HEIGHT_CM * EMU_PER_CM)
+    signature_tcs = _signature_image_cells(doc)
     count = 0
     for shape in doc.inline_shapes:
+        inline = shape._inline
+        if _inline_in_signature_cell(inline, signature_tcs):
+            continue
         count += 1
-        drawing = shape._inline
-        extent = drawing.find(f"{{{DRAWING_NS}}}extent")
+        extent = inline.find(f"{{{DRAWING_NS}}}extent")
         if extent is not None:
             extent.set("cx", str(img_w))
             extent.set("cy", str(img_h))
-        for ext in drawing.iter(f"{{{EMU_NS}}}ext"):
+        for ext in inline.iter(f"{{{EMU_NS}}}ext"):
             ext.set("cx", str(img_w))
             ext.set("cy", str(img_h))
     return count
@@ -618,23 +637,68 @@ def _collect_page_header_cells(doc: Document) -> list[tuple]:
     return headers
 
 
+def _clear_cell_paragraphs(cell) -> None:
+    tc = cell._tc
+    for p in tc.findall(qn("w:p")):
+        tc.remove(p)
+
+
+def _append_word_field_paragraph(parent, instruction: str, placeholder: str) -> None:
+    """Один w:p с полем Word (PAGE, NUMPAGES и т.д.)."""
+    p = etree.SubElement(parent, qn("w:p"))
+    r_begin = etree.SubElement(p, qn("w:r"))
+    fld_begin = etree.SubElement(r_begin, qn("w:fldChar"))
+    fld_begin.set(qn("w:fldCharType"), "begin")
+    fld_begin.set(qn("w:dirty"), "true")
+
+    r_instr = etree.SubElement(p, qn("w:r"))
+    instr = etree.SubElement(r_instr, qn("w:instrText"))
+    instr.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+    instr.text = f" {instruction.strip()} "
+
+    r_sep = etree.SubElement(p, qn("w:r"))
+    fld_sep = etree.SubElement(r_sep, qn("w:fldChar"))
+    fld_sep.set(qn("w:fldCharType"), "separate")
+
+    r_text = etree.SubElement(p, qn("w:r"))
+    t = etree.SubElement(r_text, qn("w:t"))
+    t.text = placeholder
+
+    r_end = etree.SubElement(p, qn("w:r"))
+    fld_end = etree.SubElement(r_end, qn("w:fldChar"))
+    fld_end.set(qn("w:fldCharType"), "end")
+
+
+def _write_cell_word_field(cell, instruction: str, placeholder: str = "1") -> bool:
+    _clear_cell_paragraphs(cell)
+    _append_word_field_paragraph(cell._tc, instruction, placeholder)
+    return True
+
+
+def _ensure_update_fields_on_open(doc: Document) -> None:
+    """Word пересчитает PAGE/NUMPAGES при открытии файла."""
+    settings_el = doc.settings.element
+    update = settings_el.find(qn("w:updateFields"))
+    if update is None:
+        update = etree.SubElement(settings_el, qn("w:updateFields"))
+    update.set(qn("w:val"), "true")
+
+
 def renumber_page_headers(doc: Document) -> bool:
     """
-    Склеенный отчёт: в каждой шапке «Страница» — порядковый номер и всего листов.
-    Ячейка сразу после «Страница» — N, следующая (если есть) — общее количество.
+    Склеенный отчёт: в шапках «Страница» — поля Word PAGE и NUMPAGES.
+    Номер текущей страницы и всего листов считает Word при открытии/печати.
     """
     headers = _collect_page_header_cells(doc)
     if not headers:
         return False
 
-    total = len(headers)
-    changed = False
-    for n, (page_cell, total_cell) in enumerate(headers, start=1):
-        if _write_cell_plain(page_cell, str(n)):
-            changed = True
-        if total_cell is not None and _write_cell_plain(total_cell, str(total)):
-            changed = True
-    return changed
+    for page_cell, total_cell in headers:
+        _write_cell_word_field(page_cell, "PAGE", "1")
+        if total_cell is not None:
+            _write_cell_word_field(total_cell, "NUMPAGES", "1")
+    _ensure_update_fields_on_open(doc)
+    return True
 
 
 def renumber_page_headers_file(path: str) -> bool:
@@ -1093,16 +1157,11 @@ def prepare_report_file(
     if PREPARE_USE_HIGHLIGHT_SECOND_ROW:
         n = highlight_second_row(doc)
         parts.append(f"заливка {n}")
-    format_fonts_only(doc)
-    parts.append("шрифт")
     if PREPARE_USE_RESET_PARAGRAPH_LAYOUT:
         n_layout = reset_paragraph_layout(doc)
         parts.append(f"макеты {n_layout}")
     n_img = resize_inline_images(doc)
     parts.append(f"картинки {n_img}")
-    n_sig = format_signature_images(doc)
-    if n_sig:
-        parts.append(f"подписи {n_sig}")
     if set_report_date_sdt(doc, target_date):
         parts.append(f"дата {target_date}")
     else:
@@ -1131,6 +1190,11 @@ def prepare_report_file(
             parts.append("⚠ " + layout_warns[0])
             if len(layout_warns) > 1:
                 parts.append(f"(+{len(layout_warns) - 1} предупр.)")
+    format_fonts_only(doc)
+    parts.append("шрифт")
+    n_sig = format_signature_images(doc)
+    if n_sig:
+        parts.append(f"подписи {n_sig}")
     doc.save(filepath)
     return True, ", ".join(parts)
 
