@@ -10,8 +10,27 @@ from sqlalchemy import func
 from sk_reporter.companies import COMPANIES, Company
 from sk_reporter.db.config import database_enabled
 from sk_reporter.db.models import Contractor, Project
+from sk_reporter.db.schema_ensure import ensure_table_columns
 from sk_reporter.db.session import get_session, init_db
 from sk_reporter.paths import templates_dir
+
+_CONTRACTOR_EXTRA_COLUMNS: dict[str, str] = {
+    "file_label": "VARCHAR(128) NOT NULL DEFAULT ''",
+    "inspection_type": "VARCHAR(128) NOT NULL DEFAULT ''",
+    "gen_contractor": "VARCHAR(512) NOT NULL DEFAULT ''",
+    "sub_contractor": "VARCHAR(512) NOT NULL DEFAULT ''",
+    "contract_no": "VARCHAR(128) NOT NULL DEFAULT ''",
+    "contact_person": "VARCHAR(255) NOT NULL DEFAULT ''",
+    "contact_phone": "VARCHAR(64) NOT NULL DEFAULT ''",
+    "contact_fax": "VARCHAR(64) NOT NULL DEFAULT ''",
+    "contact_email": "VARCHAR(255) NOT NULL DEFAULT ''",
+    "extra_info": "TEXT NOT NULL DEFAULT ''",
+    "note_discrepancy": "TEXT NOT NULL DEFAULT ''",
+}
+
+
+def ensure_contractor_schema() -> None:
+    ensure_table_columns("contractors", add_columns=_CONTRACTOR_EXTRA_COLUMNS)
 
 # Пилот; остальных подтянем кнопкой «из болванок»
 _CONTRACTOR_ID_OVERRIDES: dict[str, str] = {
@@ -67,6 +86,7 @@ def db_status() -> dict[str, Any]:
         }
     try:
         init_db()
+        ensure_contractor_schema()
         with get_session() as session:
             count = session.query(Contractor).filter(Contractor.is_active.is_(True)).count()
         return {"enabled": True, "configured": True, "count": count, "ok": True}
@@ -76,6 +96,7 @@ def db_status() -> dict[str, Any]:
 
 def list_contractors(*, active_only: bool = True) -> list[dict[str, Any]]:
     init_db()
+    ensure_contractor_schema()
     with get_session() as session:
         q = session.query(Contractor)
         if active_only:
@@ -98,6 +119,7 @@ def upsert_contractor(
     is_active: bool = True,
 ) -> dict[str, Any]:
     init_db()
+    ensure_contractor_schema()
     with get_session() as session:
         row = session.get(Contractor, contractor_id)
         payload = {

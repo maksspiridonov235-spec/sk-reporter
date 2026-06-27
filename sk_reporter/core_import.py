@@ -7,35 +7,20 @@ from pathlib import Path
 from typing import Any
 
 from sk_reporter.companies import COMPANIES
-from sk_reporter.contractor_db import _CONTRACTOR_ID_OVERRIDES, _slugify_id
+from sk_reporter.contractor_db import (
+    _CONTRACTOR_ID_OVERRIDES,
+    _slugify_id,
+    ensure_contractor_schema,
+)
 from sk_reporter.core_xlsx import parse_core_contractors, parse_core_objects
 from sk_reporter.db.config import database_enabled
 from sk_reporter.db.models import Contractor, Project
-from sk_reporter.db.schema_ensure import ensure_table_columns
 from sk_reporter.db.session import get_session, init_db
-
-_CONTRACTOR_EXTRA_COLUMNS: dict[str, str] = {
-    "file_label": "VARCHAR(128) NOT NULL DEFAULT ''",
-    "inspection_type": "VARCHAR(128) NOT NULL DEFAULT ''",
-    "gen_contractor": "VARCHAR(512) NOT NULL DEFAULT ''",
-    "sub_contractor": "VARCHAR(512) NOT NULL DEFAULT ''",
-    "contract_no": "VARCHAR(128) NOT NULL DEFAULT ''",
-    "contact_person": "VARCHAR(255) NOT NULL DEFAULT ''",
-    "contact_phone": "VARCHAR(64) NOT NULL DEFAULT ''",
-    "contact_fax": "VARCHAR(64) NOT NULL DEFAULT ''",
-    "contact_email": "VARCHAR(255) NOT NULL DEFAULT ''",
-    "extra_info": "TEXT NOT NULL DEFAULT ''",
-    "note_discrepancy": "TEXT NOT NULL DEFAULT ''",
-}
 
 
 def _require_database() -> None:
     if not database_enabled():
         raise RuntimeError("DATABASE_URL не задан")
-
-
-def _ensure_contractor_schema() -> None:
-    ensure_table_columns("contractors", add_columns=_CONTRACTOR_EXTRA_COLUMNS)
 
 
 def _template_stem_for_label(file_label: str) -> str:
@@ -113,7 +98,7 @@ def import_core_xlsx_to_db(path: Path | str) -> dict[str, Any]:
     object_rows = parse_core_objects(path)
 
     init_db()
-    _ensure_contractor_schema()
+    ensure_contractor_schema()
 
     used_ids: set[str] = set()
     contractor_payloads: list[dict[str, Any]] = []
