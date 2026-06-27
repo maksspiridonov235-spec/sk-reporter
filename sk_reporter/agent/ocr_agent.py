@@ -1,5 +1,6 @@
 """
-Агент для сборки отчётов СК: определяет компанию по имени файла, вставляет в болванку.
+Маршрутизация отчётов СК по болванкам: detect_company по имени файла.
+Склейка docx — sk_reporter.docx_processing.merge_reports (webapp/main._do_merge).
 """
 
 import zipfile

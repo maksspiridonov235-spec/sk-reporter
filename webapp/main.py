@@ -112,7 +112,7 @@ except Exception as _db_err:
     print(f"[WARN] PostgreSQL: {_db_err}")
 
 try:
-    from sk_reporter.agent.ocr_agent import detect_company, merge_report_into_template
+    from sk_reporter.agent.ocr_agent import detect_company
     from sk_reporter.llm_client import llm_status, ping_llm
 
     AGENT_ENABLED = True
@@ -222,23 +222,8 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 def _do_merge(template_path: str, report_paths: list[str], output_path: str) -> int:
-    if not AGENT_ENABLED:
-        return merge_reports(template_path, report_paths, output_path)
-
-    shutil.copy2(template_path, output_path)
-    inserted = 0
-    for i, rp in enumerate(sorted(report_paths)):
-        tmp = output_path + ".tmp.docx"
-        shutil.copy2(output_path, tmp)
-        master = Document(tmp)
-        if i > 0:
-            master.add_page_break()
-        master.save(tmp)
-        ok = merge_report_into_template(tmp, rp, output_path)
-        os.remove(tmp)
-        if ok:
-            inserted += 1
-    return inserted
+    """Склейка болванки с отчётами — один путь через merge_reports (ZIP + rels + media)."""
+    return merge_reports(template_path, report_paths, output_path)
 
 
 def find_reports_for_company(company_name: str, keywords: list[str]):
