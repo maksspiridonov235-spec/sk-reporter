@@ -12,7 +12,6 @@ from docx import Document
 from sk_reporter.agent.inject_agent import _find_sk_section_header_cells, _write_lines_to_cell
 from sk_reporter.engineer.doc_text import control_snippet_from_tk
 from sk_reporter.engineer.tk_catalog import resolve_tk_for_work, tk_text_for_id
-from sk_reporter.paths import project_dir
 
 
 @dataclass
@@ -28,8 +27,8 @@ class ReportEntry:
     object_title: str = ""
 
 
-def _tk_snippet(work_name: str, proj: Path) -> str:
-    tk_id = resolve_tk_for_work(work_name, proj)
+def _tk_snippet(work_name: str, project_id: str) -> str:
+    tk_id = resolve_tk_for_work(work_name, project_id)
     if not tk_id:
         return ""
     try:
@@ -55,13 +54,13 @@ def _build_part1(entries: list[ReportEntry]) -> list[str]:
     return lines
 
 
-def _build_part2(entries: list[ReportEntry], proj: Path) -> list[str]:
+def _build_part2(entries: list[ReportEntry], project_id: str) -> list[str]:
     lines = [
         "Наряд-допуск проверен, работы ведутся в соответствии с проектной документацией.",
         "",
     ]
     for i, e in enumerate(entries, 1):
-        snippet = _tk_snippet(e.name, proj)
+        snippet = _tk_snippet(e.name, project_id)
         if snippet:
             lines.append(f"{i}. {snippet}")
         else:
@@ -79,7 +78,6 @@ def build_report_docx(
     if not entries:
         raise ValueError("Нет работ для отчёта")
 
-    proj = project_dir(project_id)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(template_path, output_path)
 
@@ -89,7 +87,7 @@ def build_report_docx(
         raise ValueError("В шаблоне не найдена секция СК (строка «Описание действий»)")
 
     part1 = _build_part1(entries)
-    part2 = _build_part2(entries, proj)
+    part2 = _build_part2(entries, project_id)
     desc_lines = part1 + ([""] if part1 and part2 else []) + part2
     _write_lines_to_cell(header_cells["description"], desc_lines)
 

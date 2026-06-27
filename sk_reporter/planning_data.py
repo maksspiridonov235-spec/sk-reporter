@@ -75,7 +75,7 @@ def list_projects() -> dict[str, Any]:
     }
 
 
-def planning_section(section: str, *, contractor_id: str | None = None) -> dict[str, Any]:
+def planning_section(section: str) -> dict[str, Any]:
     if section not in _SECTIONS:
         raise KeyError(section)
     if section == "personnel":

@@ -6,6 +6,13 @@
 
 ## Журнал сессий
 
+### 2026-06-26 (продолжение)
+- **Что сделано:** зачистка по фронту — удалены API без вызовов из UI (`/api/build`, `/diagnose/reports`, `/clear/results`, `/files/prescriptions`, seed ОТКК, назначение инженеров); dead functions в `project_db`, `contractor_db`, `tk_catalog`, `template_layout`; скрипты-дубликаты (`import_personnel_xlsx`, `seed_otkk*`, `purge_empty_otkk`, тесты TE/LLM/ND, `git-pull-office.ps1`); `data/tk/manifest.yaml`.
+
+### 2026-06-26
+- **Что сделано:** полное удаление ЛУВР (см. выше); зачистка dead code: `otkk_rich.py`, `otkk_verbatim.py`, `vor_legacy.py`, `vor_parser.py`, `techexpert_client.py`, `normative_web_fallback.py`, `te_env.py`, скрипты `build_otkk_data.py`, `test_techexpert.py`; парсинг B19 → `prescriptions/normative_parse.py`; `otkk_parser.py` — только `content_to_plain_text`.
+- **Решение:** планирование и ВОР — только PostgreSQL; эталоны проектов/ОТКК (`*_data.py`, `project_data/*.json`) — seed в БД, не удалять.
+
 ### 2026-06-16
 - **Что сделано:** зафиксирован протокол работы агента с памятью (4 раздела, журнал сверху).
 - **Что сделано:** удалён модуль «ЛУВР» из UI/роутов (страницы `/planning/luvr` и `/api/luvr/*` больше нет).
@@ -45,7 +52,7 @@
 3. Ollama (`gemma4:31b-cloud`) — B18, сверка B19, отчёт.
 4. В файл пишется только **B18**.
 
-**Код:** `sk_reporter/prescriptions/normative_store.py`, `check_agent.py`, `scripts/test_normative_store.py`. Старые `techexpert_client.py` / `normative_web_fallback.py` в репо, **не используются** в проверке.
+**Код:** `sk_reporter/prescriptions/normative_store.py`, `normative_parse.py`, `check_agent.py`.
 
 **Не смешивать** с docx-агентами (`sk_reporter/agent/check_agent.py`); temp uploads — `UPLOAD_DIR`.
 
@@ -73,7 +80,7 @@
 
 **П.4 «Нормативные документы» (ОТКК-2):** `СП 126.13330.2017, СП 86.13330.2022, СП 70.13330.2012, СП 45.13330.2017`
 
-**Код:** эталон `otkk{N}_data.py` + `otkk{N}_segments.json` в репо; в БД — `seed_otkk*` при старте (`otkk_db.py`). `scripts/build_otkk_data.py` и `otkk_rich.py` — только черновик из `.doc` для разработки, не prod-путь. На RelaxDev после `git pull` — **перезапуск** сервера (автосид `seed_otkk2(overwrite=True)`).
+**Код:** эталон `otkk{N}_data.py` + `otkk{N}_segments.json` в репо; в БД — `seed_otkk*` при старте (`otkk_db.py`). На RelaxDev после `git pull` — **перезапуск** сервера (автосид `seed_otkk2(overwrite=True)`).
 
 ---
 
@@ -105,13 +112,11 @@
 
 ### Справка: Планирование (архив решений, 2026-06-07)
 
-**Цепочка продукта:**
+**Цепочка продукта (актуально):**
 
 ```
-personnel.yaml + project.yaml (назначения инженеров)
+personnel + project.yaml (назначения инженеров)
   → Расстановка (xlsm из справочника, раздел «Проекты»)
-  → [позже] ЛУВР (отметки по дням)
-  → [позже] Прил.7 (время из ЛУВР)
 ```
 
 Ежедневный отчёт инженера: ФИО из PostgreSQL, проекты из `project.yaml` по `person_id`.
@@ -120,72 +125,13 @@ personnel.yaml + project.yaml (назначения инженеров)
 
 **UI:** главная → **Планирование** / **Отчётность** / **Инженер ФИО**. Отчётность: `/reporting` → `/daily` и **`/prescriptions`**.
 
-| Этап | Содержание | Статус |
-|------|------------|--------|
-| 0 | Просмотр сводной таблицы по месяцам из `luvr.yaml` | ✅ |
-| 1 | Сетка как в Excel (строки × дни) | ✅ |
-| 2 | Редактирование ячеек на сайте → `luvr.yaml` | ✅ |
-| 3 | **Синхронизация yaml ↔ xlsx** (импорт / выгрузка, авто в xlsx при правке) | ✅ (2026-06-07) |
-| 4 | Связь строк ЛУВР ↔ `person_id` | ✅ (2026-06-07, досрочно) |
-| 5 | Объекты/проекты за человеком в месяце | ✅ (2026-06-07, досрочно) |
-| 6 | Приложение 7 из xlsm | ✅ (2026-06-07) |
-| 7 | Расстановка из xlsm | ✅ (2026-06-07) |
+**ЛУВР (снят 2026-06-26):** модуль посещений, Прил.7 и расстановка из ЛУВР удалены из кода и репозитория. Исторические этапы 0–7 (yaml ↔ xlsx, appendix7, deployment) — не актуальны.
 
-**Доработки v1 (отложено, точечно):** заливка Прил.7 (детальные строки, проверка что файл не «голый» шаблон); расстановка — подрядчик, водитель (кол. 8–9), режим из project.yaml; copy/paste UX (2c).
+**Доработки v1 (отложено, точечно):** расстановка — подрядчик, водитель (кол. 8–9), режим из project.yaml.
 
-**Excel-like UX ЛУВР:**
-
-| Подэтап | Содержание | Статус |
-|---------|------------|--------|
-| 2b | Стрелки / Tab / Enter, ввод как в ячейке | ✅ |
-| 2c | Copy/paste диапазона + batch API | ✅ (UX доработать позже) |
-| 2d | Undo, поиск по ФИО | ✅ |
-
-**Принцип:** веб повторяет **редактирование сетки**; Excel — **файл обмена** и макросы (xlsm). Оба синхронизируются через yaml ↔ xlsx.
+**Принцип:** веб — основное рабочее место планирования; Excel — файлы обмена (xlsm).
 
 **Не планировать «год вперёд» содержательно** — помесячно; в xlsx листы по месяцам (Январь…).
-
-### Файлы `data/luvr/`
-
-| Файл | В git | Назначение |
-|------|-------|------------|
-| `ЛУВР.xlsx` | нет | Источник посещений (офисный ПК) |
-| `luvr.yaml` | **да** | Кэш для UI; `build_engineer_data.py --luvr` |
-| `manifest.yaml` | **да** | Имена шаблонов Прил.7 и расстановки |
-| `Прил 7 MOS.25.0008 … (макр).xlsm` | нет | Шаблон Приложения 7 (макросы) |
-| `generated/Прил7_*.xlsm` | нет | Сформированные отчёты (кнопка на сайте) |
-| `generated/Расстановка_*.xlsm` | нет | Сформированная расстановка (`Расстановка_справочник.xlsm` — из проектов) |
-| `Отчёт-расстановка ООО ТЕХРЕСУРС макр.xlsm` | нет | Шаблон расстановки (макросы) |
-
-Шаблоны **перенесены из корня репо** в `data/luvr/` (2026-06-07). На офисном ПК после `git pull` — положить xlsx/xlsm в ту же папку (или скопировать с Mac).
-
-**Код:** `sk_reporter/luvr_store.py`, `sk_reporter/appendix7_store.py`, `sk_reporter/deployment_store.py`, UI — `webapp/static/luvr_render.js`.
-
-**Этап 1 (2026-06-07):** в `luvr.yaml` у каждого месяца — `days[]` и у каждого человека `marks[]` (нормализация: `""`, `"1"`, `"0.5"`, прочее). UI — горизонтальная сетка, sticky №/ФИО/должность, только чтение. Пересборка: `python scripts/build_engineer_data.py --luvr`.
-
-**Этап 2 (2026-06-07):** клик по ячейке — цикл · → 1 → 0.5 → ·; POST `/api/luvr/mark` → `luvr.yaml`.
-
-**Подэтап 2b (2026-06-07):** стрелки, Tab (с переносом строки), Enter/Shift+Enter — переход по сетке; Space — цикл; ввод `1`, `0.5` (набор цифрами), `0`/Del — очистка.
-
-**Подэтап 2c (2026-06-07):** выделение Shift+клик / протянуть; Ctrl+C/V (TSV как Excel); POST `/api/luvr/marks-batch` — пакетное сохранение yaml + один проход по xlsx.
-
-**Подэтап 2d (2026-06-07):** Ctrl+Z — отмена последней правки (до 50 шагов, одиночная ячейка и batch); поле «Поиск по ФИО» + Ctrl+F, Enter/Shift+Enter — переход по совпадениям, подсветка строки.
-
-**Этап 3 (2026-06-07):** POST `/api/luvr/import-from-xlsx`, POST `/api/luvr/export-to-xlsx`; авто-запись в xlsx при правке ячейки.
-
-**Этап 4 (2026-06-07):** у строки в `luvr.yaml` — `person_id`, `link_source` (`auto` / `manual` / `unmatched`); автосопоставление по ФИО с `personnel.yaml`; POST `/api/luvr/link`, POST `/api/luvr/auto-link`; колонка «Справ.» в сетке.
-
-**Этап 5 (2026-06-07):** у строки — `project_ids[]`, `projects_source` (`auto` / `manual`); автозаполнение из `project.yaml` → `engineers`; POST `/api/luvr/projects`, POST `/api/luvr/auto-projects`; колонка «Объект» (multi-select).
-
-**Этап 6 (2026-06-07):** `sk_reporter/appendix7_store.py` — копия шаблона xlsm → `data/luvr/generated/Прил7_{месяц}_{год}.xlsm`; заливка **сводных строк ФИО** на листе «Отчет о ВОУ» из `luvr.yaml` (детальные строки по объектам — в Excel/макросами). POST `/api/luvr/appendix7/build`, GET `/api/luvr/appendix7/status`, скачивание `/download/luvr/generated/{имя}`. Кнопка «Сформировать Прил.7» на странице ЛУВР.
-
-**Этап 7 (2026-06-07):** `sk_reporter/deployment_store.py` — два режима:
-- **Из справочника** (основной): `build_deployment_from_projects()` → `generated/Расстановка_справочник.xlsm`; POST `/api/planning/deployment/build`; кнопка на **Проекты**.
-- **Из ЛУВР** (вторичный): `build_deployment_from_luvr(month)` → `generated/Расстановка_{месяц}_{год}.xlsm`; POST `/api/luvr/deployment/build`.
-
-**Доработки v1 (отложено, точечно):** заливка Прил.7 (детальные строки, проверка что файл не «голый» шаблон); расстановка — подрядчик, водитель (кол. 8–9), режим из project.yaml; copy/paste UX (2c).
-
-**Фикс (2026-06-07):** UI показывает данные из `luvr.yaml` **без** xlsx на диске (раньше требовал xlsx — на Windows было «пусто»).
 
 ---
 
@@ -196,7 +142,6 @@ personnel.yaml + project.yaml (назначения инженеров)
 - `/reporting` → `/prescriptions`: Excel xlsx/xls, проверка B18/B19, SSE, ZIP.
 - Нормативка: TE → интернет-fallback → Ollama; B19 в файле = **краткий title источника** + пункты инженера (`f91ec0a`).
 - Guard B18: сохранение объективных фактов; «Предложение модели» при откате.
-- Тест TE: `python scripts/test_techexpert.py` (нужны env). Блокер dev: `toomanyusers`.
 
 ### 2026-06-08 — Предписания (постановка, архив)
 
@@ -227,7 +172,7 @@ personnel.yaml + project.yaml (назначения инженеров)
 ## Фон проекта (кратко)
 
 - ~20 инженеров, ~40–45 ежедневных отчётов docx
-- SK-Reporter: отчёты СК + **планирование по ЛУВР** + отчёт инженера по ВОР
+- SK-Reporter: отчёты СК + планирование (PostgreSQL) + отчёт инженера по ВОР
 - Детали продукта — `docs/PROJECT_CONTEXT.md`
 
 ---
@@ -235,5 +180,4 @@ personnel.yaml + project.yaml (назначения инженеров)
 ## Не делать / осторожно
 
 - Не возвращать `verify_agent`
-- Не коммитить `data/luvr/*.xlsx`, `*.xlsm` (макросы, локальные данные)
-- Не класть рабочие xlsx в **корень** репо — только `data/luvr/`
+- Не класть рабочие xlsx в **корень** репо — только `data/prescriptions/` или локально на диске

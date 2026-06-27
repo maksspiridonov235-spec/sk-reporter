@@ -246,27 +246,6 @@ def nudge_report_number_object_border(doc) -> bool:
     return True
 
 
-def diagnose_document(doc, layout: dict | None = None) -> list[str]:
-    """Минимальная диагностика геометрии таблиц для /diagnose/reports."""
-    grid_cols = (layout or {}).get("grid_cols") or list(DEFAULT_GRID_COLS)
-    expected = len(grid_cols)
-    out: list[str] = []
-    if not doc.tables:
-        return ["нет таблиц"]
-    for i, table in enumerate(doc.tables):
-        issues: list[str] = []
-        grid = table._tbl.find(qn("w:tblGrid"))
-        if grid is not None:
-            actual_cols = len(grid.findall(qn("w:gridCol")))
-            if actual_cols != expected:
-                issues.append(f"в файле {actual_cols} колонок сетки, ожид. {expected}")
-        if _detect_ghost_cols(table):
-            issues.append("обнаружены строки с sum(span)=7 (ghost)")
-        if issues:
-            out.append(f"табл.{i + 1} ({len(table.rows)} стр.): " + "; ".join(issues))
-    return out
-
-
 def apply_layout(
     doc,
     layout: dict = None,

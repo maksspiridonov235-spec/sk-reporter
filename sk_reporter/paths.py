@@ -28,14 +28,3 @@ def project_dir(project_id: str) -> Path:
 def tk_dir() -> Path:
     return data_dir() / "tk"
 
-
-def personnel_dir() -> Path:
-    return data_dir() / "personnel"
-
-
-def luvr_dir() -> Path:
-    return data_dir() / "luvr"
-
-
-def normative_dir() -> Path:
-    return data_dir() / "normative"

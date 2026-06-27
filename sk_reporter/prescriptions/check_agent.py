@@ -15,10 +15,10 @@ from typing import Any
 from openpyxl import load_workbook
 
 from sk_reporter.prescriptions.normative_store import lookup_normative
-from sk_reporter.prescriptions.techexpert_client import (
-    _short_doc_title,
-    _title_from_reference,
+from sk_reporter.prescriptions.normative_parse import (
     parse_normative_reference,
+    short_doc_title,
+    title_from_reference,
 )
 
 MODEL = "gemma4:31b-cloud"
@@ -275,10 +275,10 @@ def _b19_title_from_lookup(
         normative_lookup.get("list_title"),
         normative_lookup.get("doc_title"),
     ):
-        short = _short_doc_title(str(raw or ""), ref)
+        short = short_doc_title(str(raw or ""), ref)
         if short and _usable_short_title(short, engineer_norm):
             return short.rstrip(" .,")
-    built = _title_from_reference(ref)
+    built = title_from_reference(ref)
     return built.rstrip(" .,") if built else ""
 
 

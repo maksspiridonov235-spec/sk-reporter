@@ -37,10 +37,7 @@ sk-reporter/                         ← корень репозитория (gi
 │   ├── agent/                       ← Ollama: проверка описаний в docx
 │   ├── docx_processing.py           ← подготовка и сборка ежедневных отчётов
 │   ├── companies.py                 ← список подрядчиков и болванок
-│   ├── luvr_store.py                ← ЛУВР (yaml ↔ xlsx)
 │   ├── planning_data.py             ← API данных для раздела «Планирование»
-│   ├── deployment_store.py          ← расстановка из xlsm
-│   ├── appendix7_store.py           ← Приложение 7
 │   ├── prescriptions/               ← проверка Excel предписаний
 │   └── engineer/                    ← код «Инженер ФИО» (ВОР, сборка docx)
 │
@@ -48,7 +45,6 @@ sk-reporter/                         ← корень репозитория (gi
 │   ├── templates/                   ← болванки подрядчиков (.docx)
 │   ├── projects/                    ← проекты, ВОР, назначения инженеров
 │   ├── personnel/                   ← исходный Excel для импорта в PostgreSQL
-│   ├── luvr/                        ← ЛУВР, luvr.yaml, шаблоны xlsm
 │   └── tk/                          ← каталог технологических карт
 │
 ├── scripts/                         ← утилиты из терминала (setup, сборка yaml)
@@ -69,8 +65,8 @@ sk-reporter/                         ← корень репозитория (gi
 ### Частые вопросы
 
 - **`sk_reporter/engineer/`** — Python-модуль отчёта инженера (ВОР, docx); ФИО из PostgreSQL.
-- **`scripts/`** — не второй проект, а редкие команды (`setup.sh`, `build_engineer_data.py --luvr`).
-- **Тяжёлые xlsx/xlsm** — класть в `data/luvr/` (или `data/prescriptions/`), не в корень репо и не коммитить без необходимости (см. `.gitignore`).
+- **`scripts/`** — `setup.sh` / `setup.ps1`, `run-server.ps1`, `rebuild_bolvanki.py` (обслуживание болванок).
+- **Тяжёлые xlsx/xlsm** — в `data/prescriptions/` или локально, не в корень репо (см. `.gitignore`).
 
 ## Сценарий: ежедневные отчёты
 

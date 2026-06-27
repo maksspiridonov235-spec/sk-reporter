@@ -89,7 +89,7 @@
     workStats.textContent = shown
       ? `Показано ${shown} из ${currentWorks.length}`
       : projectId
-        ? "Нет работ (обновите vor.json)"
+        ? "Нет работ (данные ВОР в PostgreSQL)"
         : "";
     selectAll.checked = false;
   }

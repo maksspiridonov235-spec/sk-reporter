@@ -24,22 +24,12 @@ Thumbs.db
 *.docx
 !data/templates/
 !data/templates/*.docx
-!data/projects/**/*.docx
 !data/engineer/*.docx
 *_debug.json
 
-# Данные инженера (локально; в git — yaml/json/manifest)
-data/projects/**/*.pdf
-data/projects/**/*.doc
+# Данные инженера (локально)
 data/tk/*.doc
 data/tk/*.DOC
 data/personnel/*.xlsx
-data/luvr/*.xlsx
-data/luvr/*.xlsm
-data/luvr/generated/
-!data/luvr/luvr.yaml
-!data/luvr/manifest.yaml
-!data/luvr/README.md
 
 # Локальные секреты (офис / dev)
-data/local/te_expert.env

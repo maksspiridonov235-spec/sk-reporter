@@ -1,12 +1,10 @@
-"""Загрузка vor.json для UI."""
+"""Загрузка ВОР проекта из PostgreSQL для UI."""
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from sk_reporter.engineer.tk_catalog import resolve_tk_for_work
-from sk_reporter.paths import project_dir
 
 
 def load_project_meta(project_id: str) -> dict[str, Any]:
@@ -28,9 +26,6 @@ def load_vor_json(project_id: str) -> dict[str, Any]:
     vor = get_project_vor_content(project_id)
     if vor:
         return vor
-    path = project_dir(project_id) / "vor.json"
-    if path.is_file():
-        return json.loads(path.read_text(encoding="utf-8"))
     raise FileNotFoundError(
         f"Нет ВОР в БД для {project_id}. Данные проекта должны быть в PostgreSQL."
     )
@@ -61,12 +56,11 @@ def flatten_vor_works(project_id: str) -> list[dict[str, Any]]:
                     "name": name,
                     "unit": str(row.get("unit") or ""),
                     "quantity": str(row.get("quantity") or ""),
-                    "tk_id": resolve_tk_for_work(name, project_dir(project_id)) or "",
+                    "tk_id": resolve_tk_for_work(name, project_id) or "",
                 }
             )
             idx += 1
         return out
-    proj = project_dir(project_id)
     out: list[dict[str, Any]] = []
     idx = 0
     for stage in vor.get("stages") or []:
@@ -85,7 +79,7 @@ def flatten_vor_works(project_id: str) -> list[dict[str, Any]]:
                         "name": name,
                         "unit": work.get("unit") or "",
                         "quantity": work.get("quantity") or "",
-                        "tk_id": resolve_tk_for_work(name, proj) or "",
+                        "tk_id": resolve_tk_for_work(name, project_id) or "",
                     }
                 )
                 idx += 1
@@ -101,7 +95,7 @@ def flatten_vor_works(project_id: str) -> list[dict[str, Any]]:
                     "name": name,
                     "unit": work.get("unit") or "",
                     "quantity": work.get("quantity") or "",
-                    "tk_id": resolve_tk_for_work(name, proj) or "",
+                    "tk_id": resolve_tk_for_work(name, project_id) or "",
                 }
             )
             idx += 1

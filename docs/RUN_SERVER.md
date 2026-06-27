@@ -108,18 +108,6 @@ curl -s https://ollama.com/api/tags -H "Authorization: Bearer $OLLAMA_API_KEY"
 
 ---
 
-## Отладка (dev)
-
-Эндпоинт **`GET /diagnose/reports`** — только для разработки, кнопки в UI нет. Проверяет сетку таблиц в загруженных отчётах. Ответ содержит `"dev_only": true`.
-
-Пример (после загрузки отчётов в UI):
-
-```bash
-curl http://127.0.0.1:8000/diagnose/reports
-```
-
----
-
 ## Локальный Windows-ПК: git pull без «грязного дерева»
 
 На сервере **ежедневно меняются** файлы, которые лежат в git:
@@ -127,26 +115,18 @@ curl http://127.0.0.1:8000/diagnose/reports
 | Путь | Почему «modified» |
 |------|-------------------|
 | `data/templates/*.docx` | сборка отчётов переименовывает/трогает болванки |
-| `data/projects/*/project.yaml` | назначения инженеров в «Проекты» |
-| `data/luvr/luvr.yaml` | отметки ЛУВР на сайте |
 | PostgreSQL `personnel` | справочник сотрудников (RelaxDev) |
 
 Cursor/VS Code и `git pull` блокируются, пока эти изменения не убраны — **это нормально**, если на этом ПК ещё лежат рабочие data.
 
-**Решение:** скрипт `scripts/git-pull-office.ps1`:
-1. Резервная копия локальных data (болванки, yaml).
-2. `git reset --hard origin/main` — код с GitHub без merge-конфликтов.
-3. Восстановление data с диска + **`skip-worktree`**.
+**Решение:** `git fetch` + `git reset --hard origin/main` (данные планирования — в PostgreSQL на RelaxDev, не в yaml на диске).
 
-**Важно:** `git stash -- data/` **не убирает** файлы с уже включённым `skip-worktree` — pull всё равно падает. Не используйте stash для обновления; только скрипт или блок ниже.
-
-**Разблокировка прямо сейчас** (Anton / если `reset --hard` пишет *not uptodate* — виноват **skip-worktree**):
+**Разблокировка** (если `reset --hard` пишет *not uptodate* из‑за skip-worktree на болванках):
 
 ```powershell
 cd C:\Users\Anton\Desktop\sk-reporter
 
-git update-index --no-skip-worktree data/projects/SVA-WLL-K058-002-DD-00-AS_00.4/project.yaml
-git update-index --no-skip-worktree data/projects/SUP-WLL-K084-003-DD-00-TX_00.2/project.yaml
+git update-index --no-skip-worktree data/templates/*.docx
 
 git fetch origin
 git reset --hard origin/main
@@ -154,97 +134,17 @@ git reset --hard origin/main
 git log -1 --oneline
 ```
 
-Должно показать свежий коммит (не `961e927`). Потом:
-
-```powershell
-.\scripts\git-pull-office.ps1 -MarkOnly
-```
-
-Если скрипта ещё нет — после `reset --hard` он появится, команда сработает.
-
-**Полный цикл с backup** (если нужно):
-
-```powershell
-$bak = "$env:TEMP\sk-reporter-backup"
-Copy-Item -Recurse -Force data\templates $bak\templates -ErrorAction SilentlyContinue
-Copy-Item -Recurse -Force data\projects $bak\projects -ErrorAction SilentlyContinue
-
-git update-index --no-skip-worktree data/projects/SVA-WLL-K058-002-DD-00-AS_00.4/project.yaml
-git update-index --no-skip-worktree data/projects/SUP-WLL-K084-003-DD-00-TX_00.2/project.yaml
-git fetch origin
-git reset --hard origin/main
-
-Copy-Item -Recurse -Force $bak\templates\* data\templates\ -ErrorAction SilentlyContinue
-Copy-Item -Recurse -Force $bak\projects\* data\projects\ -ErrorAction SilentlyContinue
-.\scripts\git-pull-office.ps1 -MarkOnly
-```
-
-**Обычное обновление** (если на этом ПК ещё клон репозитория):
-
-```powershell
-.\scripts\git-pull-office.ps1
-```
+Должно показать свежий коммит. Болванки при необходимости восстановите из backup или `git checkout -- data/templates/`.
 
 На **Mac (разработка)** skip-worktree **не включать** — иначе не увидите изменения в `git status`.
 
 ---
 
-## Предписания: доступ к Техэксперт
+## Предписания: локальная база НД
 
-Проверка предписаний (`/prescriptions`) ищет нормативный документ из ячейки **B19** в **Техэксперт** (или в интернете при fallback) и сверяет фрагмент с текстом замечания (**B18**). В исправленный Excel в **B19** записывается **краткий заголовок** из выдачи TE (например «Приказ Ростехнадзора от 11.12.2020 N 519») и пункты инженера — не развёрнутое название из текста документа и не текст модели.
+Проверка (`/prescriptions`) берёт фрагмент нормативки из **`data/normative/`** (`manifest.yaml` + `texts/*.txt`). Техэксперт и интернет **не используются**. B19 в файле **не переписывается** — только B18.
 
-**Рекомендуется:** скопировать `data/local/te_expert.env.example` → `data/local/te_expert.env`, вписать логин и пароль. Файл в `.gitignore`; сервер подхватывает его при старте.
-
-Альтернатива — переменные окружения перед запуском (пароль **не** хранить в репозитории):
-
-| Переменная | Пример | Назначение |
-|------------|--------|------------|
-| `TE_EXPERT_BASE_URL` | `http://248960.te-cloud.ru` | Адрес облачного сервера |
-| `TE_EXPERT_CATALOG` | `/docs` | Виртуальный каталог (по умолчанию `/docs`) |
-| `TE_EXPERT_LOGIN` | *(логин)* | Учётная запись Техэксперт |
-| `TE_EXPERT_PASSWORD` | *(пароль)* | Пароль |
-| `TE_EXPERT_USE_BROWSER` | `0` | `0` — HTTP API (рекомендуется), `1` — запасной Playwright |
-| `TE_EXPERT_INTERNET_FALLBACK` | `1` | `1` — искать НД в интернете, если Техэксперт недоступен; `0` — только Техэксперт |
-
-**Windows (PowerShell, перед uvicorn):**
-
-```powershell
-$env:TE_EXPERT_BASE_URL = "http://248960.te-cloud.ru"
-$env:TE_EXPERT_LOGIN = "ваш_логин"
-$env:TE_EXPERT_PASSWORD = "ваш_пароль"
-```
-
-**macOS / Linux:**
-
-```bash
-export TE_EXPERT_BASE_URL="http://248960.te-cloud.ru"
-export TE_EXPERT_LOGIN="ваш_логин"
-export TE_EXPERT_PASSWORD="ваш_пароль"
-```
-
-Для te-cloud достаточно HTTP API; Playwright нужен только как запасной вариант (`TE_EXPERT_USE_BROWSER=1`):
-
-```bash
-pip install "sk-reporter[browser]"
-playwright install chromium
-```
-
-Если вход в Техэксперт не проходит — проверьте логин/пароль в браузере на том же URL. В отчёте проверки будет предупреждение «нормативка не сверена онлайн».
-
-**Проверка с Mac / перед деплоем:**
-
-```bash
-export TE_EXPERT_BASE_URL="http://248960.te-cloud.ru"
-export TE_EXPERT_LOGIN="..."
-export TE_EXPERT_PASSWORD="..."
-python scripts/test_techexpert.py "Приказ 519, п. 44"
-```
-
-| Симптом | Что делать |
-|---------|------------|
-| `toomanyusers` | Закрыть лишние вкладки/сессии TE в браузере; подождать и повторить |
-| В отчёте источник «интернет» при открытом TE | TE API вернул ошибку — смотреть `te_fallback_error` в отчёте или лог сервера |
-| B19 без полного названия приказа | Ожидаемо: в ячейку пишется **краткий title** из TE + пункты |
+См. `data/normative/README.md` — как добавить документы.
 
 ---
 

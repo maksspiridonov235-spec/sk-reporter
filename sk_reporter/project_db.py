@@ -8,7 +8,7 @@ from sk_reporter.db.config import database_enabled
 from sk_reporter.db.models import Contractor, Project, ProjectEngineer
 from sk_reporter.db.schema_ensure import ensure_table_columns
 from sk_reporter.db.session import get_session, init_db
-from sk_reporter.personnel_store import get_person, list_engineers
+from sk_reporter.personnel_store import get_person
 
 
 def _require_database() -> None:
@@ -199,13 +199,6 @@ def seed_project_from_etalon(payload: dict[str, Any], *, overwrite: bool = True)
     return result
 
 
-def seed_sup_pdr_pilot(*, overwrite: bool = True) -> dict[str, Any]:
-    """Пилот SUP-PDR: эталон в репо → PostgreSQL."""
-    from sk_reporter.project_etalon import sup_pdr_enc_00_1_payload
-
-    return seed_project_from_etalon(sup_pdr_enc_00_1_payload(), overwrite=overwrite)
-
-
 def seed_projects_pilots(*, overwrite: bool = True) -> dict[str, Any]:
     from sk_reporter.project_etalon import all_project_etalon_payloads
 
@@ -223,8 +216,6 @@ def seed_projects_pilots(*, overwrite: bool = True) -> dict[str, Any]:
             skipped.append({"id": pid, "reason": str(exc)})
     return {"seeded": seeded, "seeded_count": len(seeded), "skipped": skipped}
 
-
-# --- назначения инженеров (позже, без изменений API) ---
 
 def _resolve_engineers(ids: list[str]) -> list[dict[str, Any]]:
     resolved = []
@@ -257,14 +248,12 @@ def _project_row_to_dict(
     return base
 
 
-def list_projects_rich(*, contractor_id: str | None = None) -> list[dict[str, Any]]:
+def list_projects_rich() -> list[dict[str, Any]]:
     _require_database()
     init_db()
     _ensure_project_schema()
     with get_session() as session:
         q = session.query(Project).filter(Project.is_active.is_(True))
-        if contractor_id:
-            q = q.filter(Project.contractor_id == contractor_id)
         projects = q.order_by(Project.title, Project.id).all()
         if not projects:
             return []
@@ -304,23 +293,6 @@ def get_project(project_id: str) -> dict[str, Any] | None:
             .all()
         ]
         return _project_row_to_dict(project, contractor, engineer_ids)
-
-
-def set_project_engineers(project_id: str, engineer_ids: list[str]) -> dict[str, Any]:
-    _require_database()
-    init_db()
-    valid_ids = {e["id"] for e in list_engineers()}
-    cleaned = [str(eid).strip() for eid in engineer_ids if str(eid).strip() in valid_ids]
-    with get_session() as session:
-        project = session.get(Project, project_id)
-        if not project or not project.is_active:
-            raise FileNotFoundError(f"Проект не найден: {project_id}")
-        session.query(ProjectEngineer).filter(ProjectEngineer.project_id == project_id).delete()
-        for eid in cleaned:
-            session.add(ProjectEngineer(project_id=project_id, person_id=eid))
-        session.flush()
-        contractor = session.get(Contractor, project.contractor_id) if project.contractor_id else None
-        return _project_row_to_dict(project, contractor, cleaned)
 
 
 def engineer_project_map() -> dict[str, list[dict[str, str]]]:

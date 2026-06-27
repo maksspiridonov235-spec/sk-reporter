@@ -14,11 +14,11 @@ from typing import Any
 import yaml
 
 from sk_reporter.paths import data_dir
-from sk_reporter.prescriptions.techexpert_client import (
-    _extract_points_excerpt,
-    _short_doc_title,
-    _title_from_reference,
+from sk_reporter.prescriptions.normative_parse import (
+    extract_points_excerpt,
     parse_normative_reference,
+    short_doc_title,
+    title_from_reference,
 )
 
 _NORMATIVE_DIR = data_dir() / "normative"
@@ -182,8 +182,8 @@ def lookup_normative(normative_text: str) -> dict[str, Any]:
         }
 
     title = str(best_entry.get("title") or "")
-    short = _short_doc_title(title, reference) or _title_from_reference(reference)
-    excerpt = _extract_points_excerpt(plain, reference.points) or plain[:_MAX_EXCERPT]
+    short = short_doc_title(title, reference) or title_from_reference(reference)
+    excerpt = extract_points_excerpt(plain, reference.points) or plain[:_MAX_EXCERPT]
 
     return {
         "ok": True,

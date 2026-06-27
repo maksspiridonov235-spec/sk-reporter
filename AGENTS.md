@@ -17,11 +17,10 @@
 | Путь | Назначение |
 |------|------------|
 | `webapp/` | FastAPI + UI: `/`, `/planning`, `/reporting`, `/daily`, `/prescriptions`, `/engineer-hub`, `/engineer` |
-| `sk_reporter/` | docx, компании, агенты Ollama, `luvr_store.py`, `planning_data.py` |
+| `sk_reporter/` | docx, компании, агенты Ollama, `planning_data.py` |
 | `sk_reporter/prescriptions/` | проверка Excel предписаний: `check_agent.py`, `normative_store.py` (локальная база НД), Ollama |
-| `data/luvr/` | **ЛУВР**, luvr.yaml, шаблоны Прил.7 и расстановки (`manifest.yaml`) |
 | `data/templates/` | Болванки подрядчиков |
-| `data/projects/`, `data/tk/` | Планирование (проекты; файлы ОТКК на диске) |
+| `data/tk/` | Файлы ОТКК на диске (каталог ТК) |
 | `sk_reporter/engineer/` | Парсер ВОР, каталог ТК, сборка отчёта инженера |
 | temp `sk_reports_work/uploads/` | Загруженные и исправленные отчёты (рабочие; не в репо) |
 

@@ -83,20 +83,6 @@ def list_contractors(*, active_only: bool = True) -> list[dict[str, Any]]:
         return [_row_to_dict(r, projects_count=counts.get(r.id, 0)) for r in rows]
 
 
-def get_contractor(contractor_id: str) -> dict[str, Any] | None:
-    init_db()
-    with get_session() as session:
-        row = session.get(Contractor, contractor_id)
-        if not row:
-            return None
-        cnt = (
-            session.query(Project)
-            .filter(Project.contractor_id == contractor_id, Project.is_active.is_(True))
-            .count()
-        )
-        return _row_to_dict(row, projects_count=cnt)
-
-
 def upsert_contractor(
     contractor_id: str,
     *,

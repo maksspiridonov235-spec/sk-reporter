@@ -83,8 +83,7 @@ try:
         )
         if _otkk_st.get("ok") and _otkk_st.get("with_content", 0) == 0:
             print(
-                "[WARN] PostgreSQL: в базе нет ОТКК — "
-                "проверьте seed_otkk1/seed_otkk2 при старте или scripts/seed_otkk*.py"
+                "[WARN] PostgreSQL: в базе нет ОТКК — перезапустите сервис после git pull"
             )
         from sk_reporter.contractor_db import db_status as contractor_db_status, seed_evrakor
 
@@ -418,17 +417,13 @@ async def planning_project_detail(project_id: str):
 
 
 @app.get("/api/planning/{section}")
-async def planning_api(section: str, contractor_id: str | None = None):
+async def planning_api(section: str):
     from sk_reporter.planning_data import planning_section
 
     try:
-        return planning_section(section, contractor_id=contractor_id or None)
+        return planning_section(section)
     except KeyError:
         raise HTTPException(status_code=404, detail="Неизвестный раздел") from None
-
-
-class ProjectEngineersBody(BaseModel):
-    engineer_ids: list[str] = Field(default_factory=list)
 
 
 @app.post("/api/planning/contractors/seed-from-templates")
@@ -437,18 +432,6 @@ async def planning_contractors_seed_from_templates():
 
     try:
         return await asyncio.to_thread(seed_contractors_from_templates)
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e)) from e
-
-
-@app.post("/api/planning/projects/{project_id}/engineers")
-async def planning_project_set_engineers(project_id: str, body: ProjectEngineersBody):
-    from sk_reporter.project_db import set_project_engineers
-
-    try:
-        return await asyncio.to_thread(set_project_engineers, project_id, body.engineer_ids)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
 
@@ -494,35 +477,6 @@ async def planning_otkk_get(card_id: str):
     if not card:
         raise HTTPException(status_code=404, detail="Карта не найдена")
     return card
-
-
-@app.post("/api/planning/otkk/seed/otkk-1")
-async def planning_otkk_seed_otkk1(overwrite: bool = False):
-    from sk_reporter.db.config import database_enabled
-    from sk_reporter.otkk_db import seed_otkk1
-
-    if not database_enabled():
-        raise HTTPException(status_code=400, detail="DATABASE_URL не задан")
-    try:
-        return await asyncio.to_thread(seed_otkk1, overwrite=overwrite)
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/api/planning/otkk/seed/otkk-2")
-async def planning_otkk_seed_otkk2(overwrite: bool = False):
-    from sk_reporter.db.config import database_enabled
-    from sk_reporter.otkk_db import seed_otkk2
-
-    if not database_enabled():
-        raise HTTPException(status_code=400, detail="DATABASE_URL не задан")
-    try:
-        return await asyncio.to_thread(seed_otkk2, overwrite=overwrite)
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
 
 
 @app.get("/engineer-hub", response_class=HTMLResponse)
@@ -745,15 +699,6 @@ async def upload_prescriptions(files: list[UploadFile] = File(...)):
     return {"uploaded": saved, "count": len(saved)}
 
 
-@app.get("/files/prescriptions")
-async def list_prescription_uploads():
-    files = [
-        f.name for f in PRESCRIPTIONS_UPLOAD_DIR.iterdir()
-        if f.suffix.lower() in _PRESCRIPTION_SUFFIXES
-    ]
-    return {"files": sorted(files)}
-
-
 @app.get("/prescriptions/results")
 async def list_prescription_results():
     files = [
@@ -896,43 +841,11 @@ async def clear_prescriptions_all():
     return {"ok": True}
 
 
-@app.get("/api/build")
-async def api_build():
-    return {"git": _git_head}
-
-
 @app.get("/files/reports")
 async def list_reports():
     files = [f.name for f in UPLOAD_DIR.iterdir() if f.suffix.lower() in (".docx", ".doc")]
     return {"files": sorted(files)}
 
-
-
-
-@app.get("/diagnose/reports", tags=["dev"], include_in_schema=False)
-async def diagnose_reports():
-    """DEV ONLY: диагностика сетки загруженных отчётов. В UI нет кнопки; только для отладки."""
-    from sk_reporter.template_layout import diagnose_document, hardcoded_layout
-
-    layout = hardcoded_layout()
-    out = []
-    for f in sorted(UPLOAD_DIR.iterdir()):
-        if f.suffix.lower() not in (".docx", ".doc"):
-            continue
-        try:
-            doc = Document(os.fspath(f))
-            warns = diagnose_document(doc, layout)
-            out.append({
-                "file": f.name,
-                "tables": len(doc.tables),
-                "rows": [len(t.rows) for t in doc.tables],
-                "images": len(doc.inline_shapes),
-                "issues": warns,
-                "ok": not warns,
-            })
-        except Exception as e:
-            out.append({"file": f.name, "ok": False, "issues": [str(e)]})
-    return {"dev_only": True, "reports": out, "grid_cols": layout["grid_cols"]}
 
 @app.post("/check/descriptions/stream")
 async def check_descriptions_stream():
@@ -1289,25 +1202,6 @@ async def download_fixed_all():
     )
 
 
-@app.get("/download/luvr/generated/{filename}")
-async def download_luvr_generated(filename: str):
-    from sk_reporter.appendix7_store import appendix7_output_dir
-
-    if ".." in filename or "/" in filename or "\\" in filename:
-        raise HTTPException(status_code=400, detail="Недопустимое имя файла")
-    out_dir = appendix7_output_dir().resolve()
-    path = (out_dir / filename).resolve()
-    if not str(path).startswith(str(out_dir)):
-        raise HTTPException(status_code=400, detail="Недопустимый путь")
-    if not path.is_file():
-        raise HTTPException(status_code=404, detail="Файл не найден")
-    return FileResponse(
-        path=str(path),
-        filename=filename,
-        media_type="application/vnd.ms-excel.sheet.macroEnabled.12",
-    )
-
-
 @app.get("/download/fixed/{filename}")
 async def download_fixed(filename: str):
     path = _upload_path_for_fixed_download(filename)
@@ -1340,13 +1234,6 @@ async def list_results():
 async def clear_reports():
     shutil.rmtree(UPLOAD_DIR)
     UPLOAD_DIR.mkdir()
-    return {"ok": True}
-
-
-@app.delete("/clear/results")
-async def clear_results():
-    shutil.rmtree(RESULT_DIR)
-    RESULT_DIR.mkdir()
     return {"ok": True}
 
 
