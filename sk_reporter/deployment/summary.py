@@ -7,6 +7,8 @@ from typing import Callable
 
 from openpyxl import Workbook, load_workbook
 
+from sk_reporter.deployment.lookup import resolve_person_fio
+
 COLUMNS = ["Файл", "Дата", "Объект", "Инженер СК", "Генподрядчик"]
 
 
@@ -45,9 +47,10 @@ def read_summary_rows(summary_path: str | Path) -> list[dict[str, str]]:
 def validate_and_filter_rows(
     rows: list[dict[str, str]],
     *,
-    known_fio: set[str],
+    known_fio: set[str] | None = None,
     log_func: Callable[[str], None] = print,
 ) -> list[dict[str, str]]:
+    _ = known_fio  # совместимость; используем resolve_person_fio
     accepted: list[dict[str, str]] = []
     for row in rows:
         fio = row.get("Инженер СК", "").strip()
@@ -61,9 +64,14 @@ def validate_and_filter_rows(
         if not fio:
             log_func(f"  Пропуск {fname}: нет инженера СК")
             continue
-        if fio not in known_fio:
+        canonical = resolve_person_fio(fio)
+        if not canonical:
             log_func(f"  Пропуск {fname}: инженер «{fio}» не в справочнике сотрудников")
             continue
+        if canonical != fio:
+            log_func(f"  {fname}: «{fio}» → «{canonical}»")
+            row = dict(row)
+            row["Инженер СК"] = canonical
         if not obj:
             log_func(f"  Пропуск {fname}: нет объекта")
             continue

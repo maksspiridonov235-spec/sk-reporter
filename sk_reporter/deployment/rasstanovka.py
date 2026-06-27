@@ -11,6 +11,7 @@ from typing import Callable
 import openpyxl
 
 from sk_reporter.deployment.lookup import DEFAULT_REZHIM, load_sprav_dict
+from sk_reporter.deployment.xlsx_save import save_xlsm_workbook
 
 SHEET_RAB = "Рабочая исходник"
 SHEET_REPORT = "Отчет расстановка"
@@ -387,7 +388,7 @@ def _fill_template_report(
         ws.cell(total_emp_row, 3, len({d["fio"] for d in rows_data}))
 
     try:
-        wb.save(out_path)
+        save_xlsm_workbook(wb, out_path)
     except OSError as exc:
         log_func(f"  ОШИБКА сохранения: {exc}")
         return False
@@ -430,7 +431,10 @@ def generate_rasstanovka(
             return out_path
         log_func("  Шаблон не применён — формирую упрощённый Excel")
         wb = _build_excel(rows_data, today, groups)
-        wb.save(out_path)
+        if str(out_path).lower().endswith(".xlsm"):
+            save_xlsm_workbook(wb, out_path)
+        else:
+            wb.save(out_path)
     except OSError as exc:
         log_func(f"ОШИБКА записи файла: {exc}")
         return None

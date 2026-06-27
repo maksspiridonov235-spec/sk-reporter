@@ -109,6 +109,54 @@ def known_fio_set() -> set[str]:
     return set(personnel_by_fio().keys())
 
 
+def _fio_tokens(fio: str) -> tuple[str, tuple[str, ...]]:
+    """Фамилия и инициалы: «Иванов И.И.» / «Иванов Иван Иванович» → ('ИВАНОВ', ('И','И'))."""
+    cleaned = fio.replace(".", " ").strip()
+    parts = [p for p in cleaned.split() if p]
+    if not parts:
+        return "", ()
+    surname = parts[0].upper()
+    if len(parts) == 1:
+        return surname, ()
+    if all(len(p) == 1 for p in parts[1:]):
+        return surname, tuple(p.upper() for p in parts[1:])
+    return surname, tuple(p[0].upper() for p in parts[1:])
+
+
+def resolve_person_fio(raw_fio: str) -> str | None:
+    """Сопоставляет ФИО из docx со справочником (точное или фамилия + инициалы)."""
+    raw = _normalize_fio(raw_fio)
+    if not raw:
+        return None
+    by_fio = personnel_by_fio()
+    if raw in by_fio:
+        return raw
+
+    rs, ri = _fio_tokens(raw)
+    if not rs:
+        return None
+
+    candidates: list[str] = []
+    for canon in by_fio:
+        cs, ci = _fio_tokens(canon)
+        if cs != rs:
+            continue
+        if not ri:
+            candidates.append(canon)
+            continue
+        if not ci:
+            continue
+        if len(ri) == len(ci) and ri == ci:
+            candidates.append(canon)
+            continue
+        if len(ri) <= len(ci) and ci[: len(ri)] == ri:
+            candidates.append(canon)
+
+    if len(candidates) == 1:
+        return candidates[0]
+    return None
+
+
 def load_desc_map() -> dict[str, str]:
     """{ФИО: описание действий} через personnel.position → position_descriptions."""
     pos_desc = _position_descriptions()

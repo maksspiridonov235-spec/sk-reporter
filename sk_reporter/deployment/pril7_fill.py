@@ -8,6 +8,7 @@ from typing import Callable
 
 from sk_reporter.deployment.lookup import DEFAULT_DESC, load_desc_map
 from sk_reporter.deployment.summary import read_summary_rows
+from sk_reporter.deployment.xlsx_save import save_xlsm_workbook
 
 SHEET_NAME = "Отчет о ВОУ"
 DATE_ROW = 12
@@ -242,7 +243,7 @@ def _fill_openpyxl(df, pril7_path, log_func, desc_map=None):
 
     log_func("Сохраняю файл...")
     try:
-        wb.save(pril7_path)
+        save_xlsm_workbook(wb, pril7_path)
     except Exception as e:
         log_func(f"ОШИБКА при сохранении: {e}")
         log_func(traceback.format_exc())
