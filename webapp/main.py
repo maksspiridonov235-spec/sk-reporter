@@ -22,6 +22,7 @@ from sk_reporter.companies import COMPANIES, GEODESY_COMPANY
 from sk_reporter.docx_processing import (
     merge_reports,
     prepare_uploaded_reports,
+    remove_editing_restrictions,
     rename_results,
     rename_templates,
 )
@@ -731,6 +732,8 @@ async def upload_reports(files: list[UploadFile] = File(...)):
         dest = UPLOAD_DIR / f.filename
         with open(dest, "wb") as out:
             shutil.copyfileobj(f.file, out)
+        if dest.suffix.lower() == ".docx":
+            remove_editing_restrictions(str(dest))
         saved.append(f.filename)
     return {"uploaded": saved, "count": len(saved)}
 

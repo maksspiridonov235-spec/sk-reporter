@@ -132,6 +132,71 @@ _W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 _W = f"{{{_W_NS}}}"
 
 
+def remove_editing_restrictions(filepath: str) -> bool:
+    """
+    Снять ограничение на редактирование Word (защита формы / readOnly).
+
+    Инженеры получают шаблон с documentProtection и permStart/permEnd;
+    python-docx правит XML напрямую — Word потом ведёт себя странно.
+    Вызывать при загрузке отчёта в СК и в начале prepare/inject/leader.
+    """
+    path = Path(filepath)
+    if path.suffix.lower() != ".docx" or not path.is_file():
+        return False
+
+    changed = False
+    tmp = str(path) + ".unlock.tmp"
+    perm_tags = (qn("w:permStart"), qn("w:permEnd"))
+    prot_tags = (qn("w:documentProtection"), qn("w:writeProtection"))
+
+    with zipfile.ZipFile(path, "r") as zin:
+        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
+            for item in zin.infolist():
+                data = zin.read(item.filename)
+                if item.filename == "word/settings.xml":
+                    root = etree.fromstring(data)
+                    settings_changed = False
+                    for tag in prot_tags:
+                        for el in root.findall(f".//{tag}"):
+                            parent = el.getparent()
+                            if parent is not None:
+                                parent.remove(el)
+                                settings_changed = True
+                    if settings_changed:
+                        changed = True
+                        data = etree.tostring(
+                            root,
+                            xml_declaration=True,
+                            encoding="UTF-8",
+                            standalone="yes",
+                        )
+                elif item.filename.startswith("word/") and item.filename.endswith(".xml"):
+                    if b"permStart" in data or b"permEnd" in data:
+                        root = etree.fromstring(data)
+                        part_changed = False
+                        for tag in perm_tags:
+                            for el in root.findall(f".//{tag}"):
+                                parent = el.getparent()
+                                if parent is not None:
+                                    parent.remove(el)
+                                    part_changed = True
+                        if part_changed:
+                            changed = True
+                            data = etree.tostring(
+                                root,
+                                xml_declaration=True,
+                                encoding="UTF-8",
+                                standalone="yes",
+                            )
+                zout.writestr(item, data)
+
+    if not changed:
+        Path(tmp).unlink(missing_ok=True)
+        return False
+    os.replace(tmp, path)
+    return True
+
+
 def _iter_all_story_xml_roots(doc: Document) -> list:
     """Корни основного текста и колонтитулов (без повторной обработки linked)."""
     roots: list = []
@@ -1084,6 +1149,8 @@ def prepare_report_file(
     weather: str | None = None,
 ) -> tuple[bool, str]:
     try:
+        if remove_editing_restrictions(filepath):
+            pass
         doc = Document(filepath)
     except Exception as e:
         return False, str(e)

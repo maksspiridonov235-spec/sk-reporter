@@ -228,6 +228,9 @@ def inject_into_docx(filepath: str, corrected_text: str, source_filename: str) -
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir) / Path(filepath).name
             shutil.copy2(filepath, tmp_path)
+            from sk_reporter.docx_processing import remove_editing_restrictions
+
+            remove_editing_restrictions(str(tmp_path))
 
             doc = Document(str(tmp_path))
             table, header_ri, role_indices = _find_sk_section_header_row(doc)

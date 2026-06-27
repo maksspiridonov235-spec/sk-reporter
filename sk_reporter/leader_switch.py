@@ -899,6 +899,9 @@ def _apply_footer_zone(
 def switch_leader_in_docx(filepath: str, leader: LeaderId) -> tuple[bool, str, int]:
     path = Path(filepath)
     try:
+        from sk_reporter.docx_processing import remove_editing_restrictions
+
+        remove_editing_restrictions(str(path))
         doc = Document(str(path))
 
         dd_changes = _apply_leader_dropdowns(doc, leader)
