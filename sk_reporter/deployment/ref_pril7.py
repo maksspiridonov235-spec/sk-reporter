@@ -7,9 +7,9 @@ from datetime import datetime
 import os
 import sys
 import traceback
-import pandas as pd
+from pathlib import Path
 
-from sk_reporter.deployment.xlsx_save import save_xlsm_workbook
+import pandas as pd
 
 from sk_reporter.deployment.lookup import DEFAULT_DESC as _DEFAULT_DESC, load_desc_map as _load_desc_map
 
@@ -205,8 +205,7 @@ def _fill_openpyxl(df, pril7_path, log_func, desc_map=None):
         return nr
 
     log_func("Открываю Приложение 7 (openpyxl)...")
-    keep_vba = str(pril7_path).lower().endswith('.xlsm')
-    wb = load_workbook(pril7_path, keep_vba=keep_vba)
+    wb = load_workbook(pril7_path)
     if SHEET_NAME not in wb.sheetnames:
         log_func(f"ОШИБКА: Лист '{SHEET_NAME}' не найден.")
         return False
@@ -241,10 +240,7 @@ def _fill_openpyxl(df, pril7_path, log_func, desc_map=None):
 
     log_func("Сохраняю файл...")
     try:
-        if keep_vba:
-            save_xlsm_workbook(wb, pril7_path)
-        else:
-            wb.save(pril7_path)
+        wb.save(pril7_path)
     except Exception as e:
         log_func(f"ОШИБКА при сохранении: {e}")
         log_func(traceback.format_exc())
@@ -479,5 +475,12 @@ def fill_pril7(summary_path, pril7_path, log_func=print):
         log_func("Формат .xlsm → Excel COM (Windows)")
         return _fill_win32(df, pril7_path, log_func, desc_map)
     if pril7_path.lower().endswith('.xlsm'):
-        log_func("Формат .xlsm → openpyxl (Linux; на Windows — Excel COM)")
+        from sk_reporter.deployment.excel_engine import fill_xlsm_via_libreoffice
+
+        log_func("Формат .xlsm → LibreOffice + openpyxl")
+        return fill_xlsm_via_libreoffice(
+            Path(pril7_path),
+            lambda xlsx: _fill_openpyxl(df, str(xlsx), log_func, desc_map),
+            log_func,
+        )
     return _fill_openpyxl(df, pril7_path, log_func, desc_map)

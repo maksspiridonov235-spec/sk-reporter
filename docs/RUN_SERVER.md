@@ -160,3 +160,4 @@ git log -1 --oneline
 | `Permission denied` на `venv\Scripts\python.exe` | venv занят. Закройте uvicorn и все `(venv)` терминалы, `deactivate`, удалите `venv`, setup снова |
 | После `git pull` старый UI | Перезапуск uvicorn (Ctrl+C → снова run). Проверка: `/health` |
 | `No module named 'openpyxl'` | `pip install -e .` в активированном venv |
+| Расстановка: «LibreOffice не найден» | Linux-сервер: LibreOffice Calc (`soffice` в PATH) или `LIBREOFFICE_PATH` |

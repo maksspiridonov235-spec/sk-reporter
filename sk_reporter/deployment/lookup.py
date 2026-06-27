@@ -81,6 +81,14 @@ def normalize_contractor(name: str) -> str:
 
 @lru_cache(maxsize=1)
 def _position_descriptions() -> dict[str, str]:
+    try:
+        from sk_reporter.position_db import position_descriptions_map
+
+        db_map = position_descriptions_map()
+        if db_map:
+            return db_map
+    except Exception:
+        pass
     path = data_dir() / "planning" / "position_descriptions.json"
     if not path.is_file():
         return {}

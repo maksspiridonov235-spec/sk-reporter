@@ -88,7 +88,10 @@ async function refreshStatus() {
     const el = document.getElementById('uploadStatus');
     const parts = [];
     parts.push(`<div class="result-file">Отчёты: ${data.reports.length ? escHtml(data.reports.join(', ')) : '—'}</div>`);
-    parts.push(`<div class="result-file">Прил.7: ${data.has_pril7 ? '✓ загружено' : '—'}</div>`);
+    const pril7Label = data.has_pril7
+      ? (data.pril7_source === 'upload' ? '✓ загружено' : '✓ с сервера')
+      : '—';
+    parts.push(`<div class="result-file">Прил.7: ${escHtml(pril7Label)}${data.pril7_name ? ' (' + escHtml(data.pril7_name) + ')' : ''}</div>`);
     el.innerHTML = parts.join('');
 
     const resEl = document.getElementById('resultFiles');

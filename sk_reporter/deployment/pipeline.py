@@ -15,13 +15,32 @@ from sk_reporter.deployment.ref_pril7 import fill_pril7
 from sk_reporter.deployment.ref_rasstanovka import generate_rasstanovka
 
 
-def _build_summary_df(reports_dir: Path, log_func: Callable[[str], None]) -> pd.DataFrame | None:
+def _validate_row(row: dict[str, str]) -> tuple[list[str], bool]:
+    """Проблемы парсинга; ok=True если строку можно писать в Прил.7."""
+    problems: list[str] = []
+    date = str(row.get("Дата") or "").strip()
+    fio = str(row.get("Инженер СК") or "").strip()
+    obj = str(row.get("Объект") or "").strip()
+
+    if date.startswith("Ошибка:"):
+        problems.append(date)
+    elif not date:
+        problems.append("нет даты")
+    if not fio:
+        problems.append("нет инженера СК")
+    if not obj:
+        problems.append("нет объекта")
+    return problems, len(problems) == 0
+
+
+def _build_summary_df(reports_dir: Path, log_func: Callable[[str], None]) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
+    """Полный summary (все файлы) и подмножество для заполнения Прил.7."""
     docx_files = sorted(
         f for f in reports_dir.iterdir() if f.suffix.lower() in (".docx", ".doc")
     )
     if not docx_files:
         log_func("ОШИБКА: нет загруженных отчётов .docx")
-        return None
+        return None, None
 
     log_func(f"Парсинг отчётов: {len(docx_files)} файлов")
     rows: list[dict[str, str]] = []
@@ -29,21 +48,23 @@ def _build_summary_df(reports_dir: Path, log_func: Callable[[str], None]) -> pd.
         log_func(f"[{i}/{len(docx_files)}] {path.name}")
         row = extract_from_docx(path)
         row["Файл"] = path.name
+        problems, ok = _validate_row(row)
+        row["Проблемы"] = "; ".join(problems)
+        if not ok:
+            log_func(f"  ⚠ в summary с пометкой: {row['Проблемы']}")
         rows.append(row)
 
-    df = pd.DataFrame(rows, columns=["Файл", "Дата", "Объект", "Инженер СК", "Генподрядчик"])
-    df = df.dropna(subset=["Инженер СК", "Дата", "Объект"])
-    df["Инженер СК"] = df["Инженер СК"].astype(str).str.strip()
-    df["Дата"] = df["Дата"].astype(str).str.strip()
-    df["Объект"] = df["Объект"].astype(str).str.strip()
-    df["Генподрядчик"] = df["Генподрядчик"].fillna("").astype(str).str.strip()
-    df = df[(df["Инженер СК"] != "") & (df["Объект"] != "") & (~df["Дата"].str.startswith("Ошибка:"))]
+    cols = ["Файл", "Дата", "Объект", "Инженер СК", "Генподрядчик", "Проблемы"]
+    df_all = pd.DataFrame(rows, columns=cols)
+    for col in ("Дата", "Объект", "Инженер СК", "Генподрядчик"):
+        df_all[col] = df_all[col].fillna("").astype(str).str.strip()
 
-    if df.empty:
-        log_func("ОШИБКА: после парсинга нет валидных строк")
-        return None
-    log_func(f"Строк в summary: {len(df)}")
-    return df
+    df_fill = df_all[df_all["Проблемы"] == ""].drop(columns=["Проблемы"])
+    log_func(f"Summary: {len(df_all)} строк (в Прил.7 пойдёт: {len(df_fill)})")
+    if df_fill.empty:
+        log_func("ОШИБКА: нет ни одной строки для заполнения Прил.7")
+        return df_all, None
+    return df_all, df_fill
 
 
 def run_deployment(
@@ -67,17 +88,20 @@ def run_deployment(
         shutil.rmtree(work)
     work.mkdir()
 
-    df = _build_summary_df(reports_dir, log)
-    if df is None:
+    df_all, df_fill = _build_summary_df(reports_dir, log)
+    if df_all is None or df_fill is None:
         return None, logs
 
     summary_path = work / "summary.xlsx"
-    df.to_excel(summary_path, index=False)
-    log(f"Summary: {summary_path.name}")
+    df_all.to_excel(summary_path, index=False)
+    log(f"Summary: {summary_path.name} ({len(df_all)} строк)")
+
+    summary_fill_path = work / "summary_fill.xlsx"
+    df_fill.to_excel(summary_fill_path, index=False)
 
     pril7_work = work / pril7_path.name
     shutil.copy2(pril7_path, pril7_work)
-    if not fill_pril7(str(summary_path), str(pril7_work), log_func=log):
+    if not fill_pril7(str(summary_fill_path), str(pril7_work), log_func=log):
         log("ОШИБКА: не удалось заполнить Приложение 7")
         return None, logs
 

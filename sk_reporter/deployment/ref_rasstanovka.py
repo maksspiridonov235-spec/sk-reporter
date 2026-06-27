@@ -38,6 +38,18 @@ _DOLZH_ORDER = [
 _DOLZH_IDX = {d: i for i, d in enumerate(_DOLZH_ORDER)}
 
 
+def _dolzh_sort_key(dolzh: str) -> int:
+    try:
+        from sk_reporter.position_db import position_sort_map
+
+        sm = position_sort_map()
+        if sm and dolzh in sm:
+            return sm[dolzh]
+    except Exception:
+        pass
+    return _DOLZH_IDX.get(dolzh, 999)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 from sk_reporter.deployment.lookup import load_sprav_dict as _load_sprav
 
@@ -483,7 +495,7 @@ def generate_rasstanovka(pril7_path, template_path, output_dir, report_date='', 
         return None, []
 
     # Сортируем по порядку должностей, внутри — по ФИО
-    rows_data.sort(key=lambda d: (_DOLZH_IDX.get(d['dolzh'], 999), d['fio']))
+    rows_data.sort(key=lambda d: (_dolzh_sort_key(d['dolzh']), d['fio']))
 
     # Группировка по должности (после сортировки одинаковые должности стоят рядом)
     groups = []

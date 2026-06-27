@@ -36,3 +36,7 @@ def deployment_dir() -> Path:
 def default_rasstanovka_template_path() -> Path:
     return deployment_dir() / "rasstanovka_template.xlsm"
 
+
+def default_pril7_template_path() -> Path:
+    return deployment_dir() / "pril7_template.xlsm"
+

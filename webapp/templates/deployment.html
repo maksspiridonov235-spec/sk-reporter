@@ -34,7 +34,7 @@
       </div>
       <div class="upload-zone" onclick="document.getElementById('inp-pril7').click()">
         <input type="file" id="inp-pril7" accept=".xlsm,.xlsx" onchange="uploadPril7(this)"/>
-        <span id="pril7Hint">Шаблон Прил.7</span>
+        <span id="pril7Hint">Прил.7 — опционально (есть на сервере)</span>
       </div>
     </div>
 
@@ -74,11 +74,11 @@
       <div class="empty-hint" id="emptyHint">
         <span class="empty-hint-icon" aria-hidden="true">📋</span>
         <span class="empty-hint-title">Расстановка персонала</span>
-        <span class="empty-hint-lead">Загрузите отчёты и Прил.7 → нажмите «Сформировать».</span>
+        <span class="empty-hint-lead">Загрузите отчёты → нажмите «Сформировать». Прил.7 и шаблон расстановки уже на сервере.</span>
         <ol class="empty-hint-steps">
           <li>Суточные отчёты подрядчиков (.docx) — несколько файлов.</li>
-          <li>Приложение 7 (.xlsm) — таблица ВОУ.</li>
-          <li>Дата → «Сформировать» → ZIP: summary.xlsx, заполненное Прил.7, расстановка .xlsm.</li>
+          <li>Прил.7 (.xlsm) — только если нужен свой файл вместо серверного.</li>
+          <li>Дата → «Сформировать» → ZIP: summary.xlsx, заполненное Прил.7, расстановка .xlsx.</li>
         </ol>
       </div>
       </div>

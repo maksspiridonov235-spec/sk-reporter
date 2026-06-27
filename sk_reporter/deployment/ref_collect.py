@@ -5,36 +5,24 @@ import pandas as pd
 from docx import Document
 from datetime import datetime
 
-
-# Ключевые слова → каноническое название подрядчика
-CONTRACTOR_MAP = [
-    (['НГСК', 'НОВАЯ ГАЗОВАЯ'],          'ООО «Новая Газовая Строительная Компания»'),
-    (['ЛЕСНЫЕ'],                          'ООО «Лесные Технологии»'),
-    (['ЮГРАНЕФТЕ', 'ЮГРАНЕФТЕСТРОЙ'],    'ООО «ЮграНефтеСтрой»'),
-    (['НЕФТЕСПЕЦСТРОЙ', 'НСС'],          'ООО «НефтеСпецСтрой»'),
-    (['ЕВРАКОР'],                         'АО «Евракор»'),
-    (['ТРУБОПРОВОДСЕРВИС'],               'ООО ЭПЦ «Трубопроводсервис»'),
-    (['ТЭКПРО'],                          'ООО «ТЭКПРО»'),
-    (['СИБИТЕК'],                         'АО «Сибитек»'),
-    (['ЭНЕРГОСТРОЙМОНТАЖ'],              'ООО «ЭнергоСтройМонтаж»'),
-    (['СТРОЙФИНАНСГРУПП'],               'ООО «СтройФинансГрупп»'),
-    (['НИПИ', 'НЕФТЕГАЗПРОЕКТ'],         'ООО НИПИ «Нефтегазпроект»'),
-    (['РНГМ'],                            'АО «РНГМ-ГРУПП»'),
-    (['ТЮМЕНЬВТОРСЫРЬЕ', 'ТВС'],         'ООО «ТюменьВторСырье»'),
-    (['ТЮМЕНЬГЕОКОМ', 'ТГК'],            'ООО «ТюменьГеоКом»'),
-    (['УРАЛГЕОГРУПП', 'УГГ'],            'ООО «УралГеоГрупп»'),
-    (['ЮГРАГИДРОСТРОЙ', 'ЮГС'],          'ООО «Юграгидрострой»'),
-    (['ЮГОРСКИЙ ПРОЕКТНЫЙ', 'ЮПИ'],      'ООО «Югорский проектный институт»'),
-    (['РОСЭКСПО'],                        'ООО «РОСЭКСПО»'),
-]
+from sk_reporter.deployment.lookup import normalize_contractor
 
 
-def normalize_contractor(name):
-    upper = name.upper()
-    for keywords, canonical in CONTRACTOR_MAP:
-        if any(kw in upper for kw in keywords):
-            return canonical
-    return name
+def _parse_object_text(text: str) -> str:
+    t = text.strip().replace("\n", " ")
+    if not t:
+        return ""
+    t = re.sub(r"(?i)^объект\s*:?\s*", "", t).strip()
+    start = t.find("«")
+    end = t.rfind("»")
+    if start != -1 and end > start:
+        return t[start + 1 : end].strip()
+    for q1, q2 in (('"', '"'), ("«", "»"), ("'", "'")):
+        start = t.find(q1)
+        end = t.rfind(q2)
+        if start != -1 and end > start and start != end:
+            return t[start + 1 : end].strip()
+    return t
 
 
 def normalize_date(text):
@@ -88,15 +76,14 @@ def extract_from_docx(file_path):
                             last_obj_idx = i
                     if last_obj_idx >= 0:
                         for j in range(last_obj_idx + 1, len(cells)):
-                            cell_text = cells[j].text.strip().replace('\n', ' ')
+                            cell_text = cells[j].text.strip()
                             if cell_text:
-                                start = cell_text.find('«')
-                                end = cell_text.rfind('»')
-                                if start != -1 and end > start:
-                                    data['Объект'] = cell_text[start + 1:end].strip()
-                                else:
-                                    data['Объект'] = cell_text
+                                data['Объект'] = _parse_object_text(cell_text)
                                 break
+                        if not data['Объект'] and last_obj_idx < len(cells):
+                            same = cells[last_obj_idx].text.strip()
+                            if same.upper() != 'ОБЪЕКТ':
+                                data['Объект'] = _parse_object_text(same)
 
                 # Генподрядчик
                 if not genpodr and 'ГЕНПОДРЯДЧИК' in row_text_upper:
@@ -121,6 +108,16 @@ def extract_from_docx(file_path):
                 val = table.rows[-2].cells[0].text.strip()
                 if val:
                     data['Инженер СК'] = val
+
+        if not data['Объект']:
+            for para in doc.paragraphs:
+                txt = para.text.strip()
+                upper = txt.upper()
+                if 'ОБЪЕКТ' in upper and 'СТРАНИЦА' not in upper:
+                    obj = _parse_object_text(txt)
+                    if obj and obj.upper() not in ('ОБЪЕКТ', 'ОБЪЕКТ:'):
+                        data['Объект'] = obj
+                        break
 
         # Выбор подрядчика: Генподрядчик, если заполнен, иначе Субподрядчик
         raw = genpodr if genpodr else subpodr

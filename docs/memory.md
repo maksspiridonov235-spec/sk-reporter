@@ -6,6 +6,13 @@
 
 ## Журнал сессий
 
+### 2026-06-27 — расстановка: чистая архитектура
+- **Summary:** все docx в `summary.xlsx` + колонка «Проблемы»; в Прил.7 только строки без проблем.
+- **Шаблоны на сервере:** `data/deployment/pril7_template.xlsm`, `rasstanovka_template.xlsm`; загрузка Прил.7 в UI опциональна.
+- **Прил.7 на Linux:** LibreOffice headless (xlsm→xlsx→openpyxl→xlsm); Windows — Excel COM. openpyxl напрямую в `.xlsm` убран.
+- **PostgreSQL:** таблица `positions` (seed из `position_descriptions.json` при старте); подрядчики в парсере — через `lookup.normalize_contractor` (БД + fallback).
+- **RelaxDev:** после деплоя — `pip install -e .`, LibreOffice на сервере, перезапуск сервиса.
+
 ### 2026-06-26 — UX: форма и меню
 - **Docx:** multiselect как `/daily`.
 - **Шаблон расстановки:** обязателен (файл на отправку каждый день).
@@ -50,14 +57,11 @@
 
 ## Быстрое состояние *(ранее «СЕЙЧАС В РАБОТЕ»)*
 
-**Дата:** 2026-06-26  
-**Главный фокус:** **планирование — расстановка / Прил.7** (согласование, без кода до закрытия открытых вопросов)  
+**Дата:** 2026-06-27  
+**Главный фокус:** **расстановка /deployment** — деплой на RelaxDev (LibreOffice + шаблоны в репо)  
 **Документ:** [`docs/planning_deployment.md`](planning_deployment.md)  
-**Параллельно:** предписания и `/daily` — не ломать  
-**Статус планирования:** personnel, contractors (частично), projects, ОТКК — PostgreSQL; ждём Excel подрядчиков и проектов; таблица `positions` — запланирована  
-**Референс:** `Noviy proekt AI/` — удалить после v1
-
-**Новый чат:** начать с `docs/planning_deployment.md` → раздел «Открытые вопросы».
+**Статус:** v1 в коде; prod — нужен LibreOffice и перезапуск после push  
+**Справочники:** `personnel`, `contractors`, `projects`, `positions` (PostgreSQL)
 
 ---
 
