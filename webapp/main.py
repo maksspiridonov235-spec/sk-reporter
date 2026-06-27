@@ -466,6 +466,40 @@ async def planning_personnel_upload_xlsx(file: UploadFile = File(...)):
                 pass
 
 
+@app.post("/api/planning/core/upload-xlsx")
+async def planning_core_upload_xlsx(file: UploadFile = File(...)):
+    from sk_reporter.core_import import import_core_xlsx_to_db
+    from sk_reporter.db.config import database_enabled
+
+    if not database_enabled():
+        raise HTTPException(status_code=400, detail="DATABASE_URL не задан")
+    name = (file.filename or "").lower()
+    if not name.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="Нужен файл Excel (.xlsx)")
+    suffix = ".xlsx" if name.endswith('.xlsx') else '.xls'
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            shutil.copyfileobj(file.file, tmp)
+            tmp_path = Path(tmp.name)
+        return await asyncio.to_thread(import_core_xlsx_to_db, tmp_path)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    finally:
+        if tmp_path is not None:
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
 @app.get("/api/planning/otkk/{card_id}")
 async def planning_otkk_get(card_id: str):
     from sk_reporter.db.config import database_enabled

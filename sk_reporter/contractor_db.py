@@ -41,6 +41,13 @@ def _row_to_dict(row: Contractor, *, projects_count: int = 0) -> dict[str, Any]:
         "id": row.id,
         "name": row.name,
         "template_stem": row.template_stem or "",
+        "file_label": row.file_label or "",
+        "gen_contractor": row.gen_contractor or "",
+        "sub_contractor": row.sub_contractor or "",
+        "contract_no": row.contract_no or "",
+        "contact_person": row.contact_person or "",
+        "contact_phone": row.contact_phone or "",
+        "contact_email": row.contact_email or "",
         "is_active": bool(row.is_active),
         "projects_count": projects_count,
         "template_exists": (templates_dir() / f"{row.template_stem}.docx").is_file()
