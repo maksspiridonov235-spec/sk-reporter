@@ -119,7 +119,7 @@ EMU_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 _WP_DRAW = f"{{{DRAWING_NS}}}"
 _INLINE_DRAW_CHILDREN = frozenset({"extent", "effectExtent", "docPr", "cNvGraphicFramePr", "graphic"})
 
-PREPARE_PIPELINE_ID = "2026-06-26-signature-last"
+PREPARE_PIPELINE_ID = "2026-06-26-signature-footer-cols"
 
 # Шаги prepare_report_file: False — функция в файле есть, вызов отключён.
 PREPARE_USE_HIGHLIGHT_SECOND_ROW = False
@@ -230,6 +230,83 @@ def _iter_all_story_xml_roots(doc: Document) -> list:
     return roots
 
 
+FOOTER_SIGNATURE_ROWS = 6
+
+
+def _drawing_parent_tc(drawing):
+    el = drawing.getparent()
+    while el is not None:
+        if el.tag == qn("w:tc"):
+            return el
+        el = el.getparent()
+    return None
+
+
+def _signature_footer_columns(table) -> set[int]:
+    """Номера колонок (логическая сетка), где внизу таблицы есть «подпись»."""
+    cols: set[int] = set()
+    n = len(table.rows)
+    start = max(0, n - FOOTER_SIGNATURE_ROWS)
+    for ri in range(start, n):
+        for ci, cell in enumerate(table.rows[ri].cells):
+            if _is_signature_caption(cell.text):
+                cols.add(ci)
+    return cols
+
+
+def _collect_signature_image_cells(table) -> list:
+    """
+    Ячейки со сканом подписи: колонка с «подпись» внизу таблицы,
+    строки над подписью или уже с w:drawing (учёт объединённых ячеек через row.cells).
+    """
+    n = len(table.rows)
+    if n < 2:
+        return []
+
+    sig_cols = _signature_footer_columns(table)
+    seen: set[int] = set()
+    cells: list = []
+
+    def add_tc(tc) -> None:
+        tid = id(tc)
+        if tid not in seen:
+            seen.add(tid)
+            cells.append(tc)
+
+    if sig_cols:
+        start = max(0, n - FOOTER_SIGNATURE_ROWS)
+        for ri in range(start, n):
+            for ci, cell in enumerate(table.rows[ri].cells):
+                if ci not in sig_cols:
+                    continue
+                tc = cell._tc
+                has_drawing = tc.find(".//" + qn("w:drawing")) is not None
+                below_caption = any(
+                    _is_signature_caption(table.rows[below].cells[ci].text)
+                    for below in range(ri + 1, n)
+                    if ci < len(table.rows[below].cells)
+                )
+                if has_drawing or below_caption:
+                    add_tc(tc)
+        if cells:
+            return cells
+
+    for ri, row in enumerate(table.rows):
+        for ci, cell in enumerate(row.cells):
+            if not _is_signature_caption(cell.text):
+                continue
+            if ri == 0:
+                continue
+            for up in range(1, min(5, ri + 1)):
+                cand_tc = table.rows[ri - up].cells[ci]._tc
+                if cand_tc.find(".//" + qn("w:drawing")) is not None:
+                    add_tc(cand_tc)
+                    break
+            else:
+                add_tc(table.rows[ri - 1].cells[ci]._tc)
+    return cells
+
+
 def _signature_image_cells(doc: Document) -> list:
     cells: list = []
     for table in doc.tables:
@@ -237,33 +314,41 @@ def _signature_image_cells(doc: Document) -> list:
     return cells
 
 
-def _inline_in_signature_cell(inline_el, signature_tcs: list) -> bool:
+def _inline_in_signature_cell(inline_el, signature_tc_ids: set[int]) -> bool:
     el = inline_el.getparent()
     while el is not None:
-        if el.tag == qn("w:tc"):
-            return el in signature_tcs
+        if el.tag == qn("w:tc") and id(el) in signature_tc_ids:
+            return True
         el = el.getparent()
     return False
+
+
+def _drawing_in_signature_zone(drawing, signature_tc_ids: set[int]) -> bool:
+    tc = _drawing_parent_tc(drawing)
+    return tc is not None and id(tc) in signature_tc_ids
 
 
 def resize_inline_images(doc: Document) -> int:
     """Инлайн-картинки в теле отчёта → 5,33 × 4 см; подписи не трогаем."""
     img_w = int(IMG_WIDTH_CM * EMU_PER_CM)
     img_h = int(IMG_HEIGHT_CM * EMU_PER_CM)
-    signature_tcs = _signature_image_cells(doc)
+    signature_tc_ids = {id(tc) for tc in _signature_image_cells(doc)}
     count = 0
-    for shape in doc.inline_shapes:
-        inline = shape._inline
-        if _inline_in_signature_cell(inline, signature_tcs):
-            continue
-        count += 1
-        extent = inline.find(f"{{{DRAWING_NS}}}extent")
-        if extent is not None:
-            extent.set("cx", str(img_w))
-            extent.set("cy", str(img_h))
-        for ext in inline.iter(f"{{{EMU_NS}}}ext"):
-            ext.set("cx", str(img_w))
-            ext.set("cy", str(img_h))
+    for root in _iter_all_story_xml_roots(doc):
+        for drawing in root.findall(".//" + qn("w:drawing")):
+            if _drawing_in_signature_zone(drawing, signature_tc_ids):
+                continue
+            inline = drawing.find(f"{_WP_DRAW}inline")
+            if inline is None:
+                continue
+            count += 1
+            extent = inline.find(f"{_WP_DRAW}extent")
+            if extent is not None:
+                extent.set("cx", str(img_w))
+                extent.set("cy", str(img_h))
+            for ext in inline.iter(f"{{{EMU_NS}}}ext"):
+                ext.set("cx", str(img_w))
+                ext.set("cy", str(img_h))
     return count
 
 
@@ -648,23 +733,6 @@ def _format_signature_drawing(drawing, target_height_emu: int) -> bool:
         if container is None:
             return False
     return _resize_drawing_container(container, target_height_emu)
-
-
-def _collect_signature_image_cells(table) -> list:
-    """Ячейка над подписью «подпись» — туда инженер вставляет скан подписи."""
-    trs = table._tbl.findall(qn("w:tr"))
-    cells: list = []
-    for ri, tr in enumerate(trs):
-        tcs = tr.findall(qn("w:tc"))
-        for ci, tc in enumerate(tcs):
-            if not _is_signature_caption(_tc_text(tc)):
-                continue
-            if ri == 0:
-                continue
-            above = trs[ri - 1].findall(qn("w:tc"))
-            if ci < len(above):
-                cells.append(above[ci])
-    return cells
 
 
 def format_signature_images(doc: Document) -> int:
