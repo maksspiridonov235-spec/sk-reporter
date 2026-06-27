@@ -1032,7 +1032,117 @@ def merge_reports(template_path: str, report_paths: list[str], output_path: str)
         master.save(output_path)
         inserted += 1
 
+    if inserted > 0:
+        renumber_page_headers_file(output_path)
+
     return inserted
+
+
+def _is_page_label(text: str) -> bool:
+    return _norm_label(text) == "страница"
+
+
+def _collect_page_header_rows(doc: Document) -> list[tuple]:
+    """По каждой таблице: (строка шапки, ячейка номера, ячейка «всего»|None)."""
+    headers: list[tuple] = []
+    for table in doc.tables:
+        for row in table.rows:
+            cells = _row_unique_cells(row)
+            for i, cell in enumerate(cells):
+                if not _is_page_label(cell.text):
+                    continue
+                if i + 1 >= len(cells):
+                    break
+                page_cell = cells[i + 1]
+                total_cell = cells[i + 2] if i + 2 < len(cells) else None
+                headers.append((row, page_cell, total_cell))
+                break
+            else:
+                continue
+            break
+    return headers
+
+
+def _ensure_row_tbl_header(row) -> None:
+    """Повторять строку шапки на каждой странице таблицы (Word: «Повторять как заголовок»)."""
+    tr = row._tr
+    trPr = tr.find(qn("w:trPr"))
+    if trPr is None:
+        trPr = etree.SubElement(tr, qn("w:trPr"))
+    if trPr.find(qn("w:tblHeader")) is None:
+        etree.SubElement(trPr, qn("w:tblHeader"))
+
+
+def _clear_cell_paragraphs(cell) -> None:
+    tc = cell._tc
+    for p in tc.findall(qn("w:p")):
+        tc.remove(p)
+
+
+def _append_word_field_paragraph(parent, instruction: str, placeholder: str) -> None:
+    """Один w:p с полем Word (PAGE, NUMPAGES и т.д.)."""
+    p = etree.SubElement(parent, qn("w:p"))
+    r_begin = etree.SubElement(p, qn("w:r"))
+    fld_begin = etree.SubElement(r_begin, qn("w:fldChar"))
+    fld_begin.set(qn("w:fldCharType"), "begin")
+    fld_begin.set(qn("w:dirty"), "true")
+
+    r_instr = etree.SubElement(p, qn("w:r"))
+    instr = etree.SubElement(r_instr, qn("w:instrText"))
+    instr.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+    instr.text = f" {instruction.strip()} "
+
+    r_sep = etree.SubElement(p, qn("w:r"))
+    fld_sep = etree.SubElement(r_sep, qn("w:fldChar"))
+    fld_sep.set(qn("w:fldCharType"), "separate")
+
+    r_text = etree.SubElement(p, qn("w:r"))
+    t = etree.SubElement(r_text, qn("w:t"))
+    t.text = placeholder
+
+    r_end = etree.SubElement(p, qn("w:r"))
+    fld_end = etree.SubElement(r_end, qn("w:fldChar"))
+    fld_end.set(qn("w:fldCharType"), "end")
+
+
+def _write_cell_word_field(cell, instruction: str, placeholder: str = "1") -> None:
+    _clear_cell_paragraphs(cell)
+    _append_word_field_paragraph(cell._tc, instruction, placeholder)
+
+
+def _ensure_update_fields_on_open(doc: Document) -> None:
+    """Word пересчитает PAGE/NUMPAGES при открытии файла."""
+    settings_el = doc.settings.element
+    update = settings_el.find(qn("w:updateFields"))
+    if update is None:
+        update = etree.SubElement(settings_el, qn("w:updateFields"))
+    update.set(qn("w:val"), "true")
+
+
+def renumber_page_headers(doc: Document) -> bool:
+    """
+    Склеенный отчёт: строка «Страница» повторяется на каждом листе таблицы (tblHeader),
+    в ячейках — поля Word PAGE и NUMPAGES (считает сам Word).
+    """
+    headers = _collect_page_header_rows(doc)
+    if not headers:
+        return False
+
+    for row, page_cell, total_cell in headers:
+        _ensure_row_tbl_header(row)
+        _write_cell_word_field(page_cell, "PAGE", "1")
+        if total_cell is not None:
+            _write_cell_word_field(total_cell, "NUMPAGES", "1")
+    _ensure_update_fields_on_open(doc)
+    return True
+
+
+def renumber_page_headers_file(path: str) -> bool:
+    doc = Document(path)
+    if not renumber_page_headers(doc):
+        return False
+    doc.save(path)
+    return True
 
 
 def _patch_rids(element, rid_remap: dict[str, str]) -> None:
