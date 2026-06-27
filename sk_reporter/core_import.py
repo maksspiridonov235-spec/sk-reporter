@@ -38,23 +38,22 @@ def _contractor_id_for_row(row: dict[str, Any], *, used: set[str]) -> str:
     base = _CONTRACTOR_ID_OVERRIDES.get(file_label) or _slugify_id(file_label or row.get("gen_contractor") or "contractor")
 
     parts = [base]
-    if sub and sub not in {"—", "-"}:
+    if sub and sub not in {"—", "-", "–"}:
         parts.append(_slugify_id(sub))
-    elif contact:
-        # Две строки с одним «Файл», но разными контактами (напр. ТПС)
-        token = re.sub(r"[^\w]+", "-", contact.lower()).strip("-")[:24]
-        if token:
-            parts.append(token)
 
     cid = "-".join(p for p in parts if p)
     if cid not in used:
         used.add(cid)
         return cid
 
+    if contact:
+        token = re.sub(r"[^\w]+", "-", contact.lower()).strip("-")[:20]
+        if token:
+            cid = f"{cid}-{token}"
     n = 2
-    while f"{cid}-{n}" in used:
+    while cid in used:
+        cid = f"{base}-{n}"
         n += 1
-    cid = f"{cid}-{n}"
     used.add(cid)
     return cid
 
@@ -81,11 +80,12 @@ def _contractor_payload(row: dict[str, Any], contractor_id: str) -> dict[str, An
     }
 
 
-def _project_stub_id(cipher: str, contractor_id: str, *, cipher_counts: dict[str, int]) -> str:
+def _project_stub_id(cipher: str, org_label: str, *, cipher_counts: dict[str, int]) -> str:
     cipher = cipher.strip()
     if cipher_counts.get(cipher, 0) <= 1:
-        return cipher
-    return f"{cipher}__{contractor_id}"
+        return cipher[:64]
+    pid = f"{cipher}__{_slugify_id(org_label)}"[:64]
+    return pid
 
 
 def import_core_xlsx_to_db(path: Path | str) -> dict[str, Any]:
@@ -155,7 +155,7 @@ def import_core_xlsx_to_db(path: Path | str) -> dict[str, Any]:
             if not contractor_id:
                 raise ValueError(f"Не найден подрядчик для организации {org!r}")
 
-            pid = _project_stub_id(cipher, contractor_id, cipher_counts=cipher_counts)
+            pid = _project_stub_id(cipher, org, cipher_counts=cipher_counts)
             existing = session.get(Project, pid)
             if existing and existing.content is not None:
                 projects_skipped_content += 1
