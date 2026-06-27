@@ -37,6 +37,11 @@ GRID_COLS_6 = ["2041", "1757", "1787", "1898", "1701", "1646"]  # базовый
 GRID_COLS_7 = ["2000", "1798", "1787", "1898", "1701", "1646"]  # 7-кол документы (тоже 6 чисел!)
 # Обе суммы = 10830. Проверка: assert sum(int(w) for w in GRID_COLS_6) == 10830
 
+# Новые шаблоны инженера (6 gridCol, сумма 10915). Базовая сетка до сдвига границы №/Объект.
+ENGINEER_GRID_COLS_6 = ["2268", "1560", "1842", "1701", "1701", "1843"]
+# Один «рывок» границы столбца в Word ≈ 0,25 см (567 twips/см → 141 dxa).
+REPORT_NUMBER_OBJECT_BORDER_NUDGE_DXA = 141
+
 TABLE_WIDTH = "10830"  # жёстко — не вычислять из ширины страницы
 
 # Пайплайн prepare (/macro/prepare): сетка задаётся в новом шаблоне Word.
@@ -133,6 +138,105 @@ def _main_table_indices(doc) -> list[int]:
     if best_n >= 8:
         return [best_i]
     return [i for i, n in scored if n >= 3] or [0]
+
+
+def _read_tbl_grid_cols(table) -> list[str] | None:
+    grid = table._tbl.find(qn("w:tblGrid"))
+    if grid is None:
+        return None
+    cols = [gc.get(qn("w:w"), "0") for gc in grid.findall(qn("w:gridCol"))]
+    return cols if cols else None
+
+
+def engineer_grid_after_border_nudge() -> list[str]:
+    """Сетка 6 col: граница № отчёта | «Объект» сдвинута на один шаг Word влево."""
+    cols = list(ENGINEER_GRID_COLS_6)
+    n = REPORT_NUMBER_OBJECT_BORDER_NUDGE_DXA
+    cols[1] = str(int(cols[1]) - n)
+    cols[2] = str(int(cols[2]) + n)
+    return cols
+
+
+def apply_table_grid_cols(table, cols: list[str], *, fix_ghost_spans: bool = False) -> None:
+    """
+    Обновляет tblGrid и tcW по gridSpan, не трогая tblW таблицы и высоты строк.
+    """
+    cumsum = _build_cumsum(cols)
+    tbl = table._tbl
+    needs_fix = fix_ghost_spans or _detect_ghost_cols(table)
+
+    old_grid = tbl.find(qn("w:tblGrid"))
+    new_grid = _build_tblGrid(cols)
+    if old_grid is not None:
+        tbl.replace(old_grid, new_grid)
+    else:
+        tblPr = tbl.find(qn("w:tblPr"))
+        if tblPr is not None:
+            tblPr.addnext(new_grid)
+        else:
+            tbl.insert(0, new_grid)
+
+    for row in table.rows:
+        tr = row._tr
+        tcs = tr.findall(qn("w:tc"))
+        raw_spans = []
+        for tc in tcs:
+            tcPr = tc.find(qn("w:tcPr"))
+            gs = tcPr.find(qn("w:gridSpan")) if tcPr is not None else None
+            raw_spans.append(int(gs.get(qn("w:val"))) if gs is not None else 1)
+        spans = _fix_ghost_spans(raw_spans) if needs_fix else raw_spans
+
+        col_idx = 0
+        for tc, span in zip(tcs, spans):
+            if col_idx >= len(cols):
+                break
+            span = max(1, min(span, len(cols) - col_idx))
+            cell_w = str(cumsum[col_idx + span] - cumsum[col_idx])
+
+            tcPr = tc.find(qn("w:tcPr"))
+            if tcPr is None:
+                tcPr = etree.SubElement(tc, qn("w:tcPr"))
+                tc.insert(0, tcPr)
+
+            gs_el = tcPr.find(qn("w:gridSpan"))
+            if span > 1:
+                if gs_el is None:
+                    gs_el = etree.SubElement(tcPr, qn("w:gridSpan"))
+                gs_el.set(qn("w:val"), str(span))
+            elif gs_el is not None:
+                tcPr.remove(gs_el)
+
+            tcW = tcPr.find(qn("w:tcW"))
+            if tcW is None:
+                tcW = etree.SubElement(tcPr, qn("w:tcW"))
+            tcW.set(qn("w:w"), cell_w)
+            tcW.set(qn("w:type"), "dxa")
+
+            col_idx += span
+
+
+def nudge_report_number_object_border(doc) -> bool:
+    """
+    Сдвигает границу между № отчёта (col 1) и «Объект» (col 2) на один шаг Word влево.
+    Идемпотентно: только если сетка ещё базовая ENGINEER_GRID_COLS_6.
+    """
+    indices = _main_table_indices(doc)
+    if not indices:
+        return False
+
+    baseline = list(ENGINEER_GRID_COLS_6)
+    target = engineer_grid_after_border_nudge()
+    table = doc.tables[indices[0]]
+    current = _read_tbl_grid_cols(table)
+    if current is None or len(current) != 6:
+        return False
+    if current == target:
+        return False
+    if current != baseline:
+        return False
+
+    apply_table_grid_cols(table, target)
+    return True
 
 
 def diagnose_document(doc, layout: dict | None = None) -> list[str]:

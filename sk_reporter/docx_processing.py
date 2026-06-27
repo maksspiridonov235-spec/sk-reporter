@@ -22,7 +22,7 @@ from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
 from lxml import etree
 
 from sk_reporter.companies import COMPANIES
-from sk_reporter.template_layout import _main_table_indices, apply_layout
+from sk_reporter.template_layout import _main_table_indices, apply_layout, nudge_report_number_object_border
 
 # Regex для поиска дат в разных форматах
 _DATE_RE = re.compile(
@@ -119,7 +119,7 @@ EMU_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 _WP_DRAW = f"{{{DRAWING_NS}}}"
 _INLINE_DRAW_CHILDREN = frozenset({"extent", "effectExtent", "docPr", "cNvGraphicFramePr", "graphic"})
 
-PREPARE_PIPELINE_ID = "2026-06-26-signature-footer-cols"
+PREPARE_PIPELINE_ID = "2026-06-27-grid-border-nudge"
 
 # Шаги prepare_report_file: False — функция в файле есть, вызов отключён.
 PREPARE_USE_HIGHLIGHT_SECOND_ROW = False
@@ -1240,6 +1240,8 @@ def prepare_report_file(
         parts.append(f"№ {report_no}")
     else:
         parts.append("№ не найден")
+    if nudge_report_number_object_border(doc):
+        parts.append("граница №/Объект")
     if weather and weather.strip():
         w = format_weather_temperature(weather)
         if set_weather_temperature(doc, weather):
