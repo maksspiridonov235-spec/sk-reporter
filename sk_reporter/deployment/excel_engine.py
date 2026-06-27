@@ -23,6 +23,7 @@ def find_soffice() -> str | None:
     for candidate in (
         "/usr/bin/libreoffice",
         "/usr/bin/soffice",
+        "/usr/lib/libreoffice/program/soffice",
         "/Applications/LibreOffice.app/Contents/MacOS/soffice",
     ):
         if Path(candidate).is_file():

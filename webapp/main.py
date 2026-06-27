@@ -301,10 +301,17 @@ async def health():
         or not has_engineer_hub
     )
     db_info = None
+    lo_info = None
     try:
         from sk_reporter.personnel_db import db_status
 
         db_info = db_status()
+    except Exception:
+        pass
+    try:
+        from sk_reporter.deployment.excel_engine import find_soffice, libreoffice_available
+
+        lo_info = {"available": libreoffice_available(), "path": find_soffice()}
     except Exception:
         pass
     return {
@@ -312,6 +319,7 @@ async def health():
         "stale_process": stale,
         "app_ui_build": _APP_UI_BUILD,
         "database": db_info,
+        "libreoffice": lo_info,
         "has_daily_route": has_daily,
         "has_prescriptions_route": has_prescriptions,
         "has_reporting_route": has_reporting,

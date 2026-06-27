@@ -1,0 +1,15 @@
+.git
+.cursor
+.vscode
+venv
+__pycache__
+*.pyc
+*.pyo
+Noviy proekt AI
+data/local
+sk_reports_work
+*.md
+!README.md
+docs
+scripts
+Noviy proekt AI/
