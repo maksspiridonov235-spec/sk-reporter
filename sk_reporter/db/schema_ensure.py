@@ -28,7 +28,7 @@ def ensure_table_columns(
     drop_not_null = drop_not_null or []
 
     engine = create_engine(url, pool_pre_ping=True)
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         meta = {
             row[0]: row[1]
             for row in conn.execute(
@@ -52,9 +52,8 @@ def ensure_table_columns(
             return
 
         try:
-            with conn.begin():
-                for stmt in pending:
-                    conn.execute(text(stmt))
+            for stmt in pending:
+                conn.execute(text(stmt))
         except ProgrammingError as exc:
             if _is_privilege_error(exc):
                 raise RuntimeError(
