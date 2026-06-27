@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Расстановка — SK-Reporter</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
+  <link rel="stylesheet" href="/static/app.css?v={{ asset_ver('app.css') }}"/>
+</head>
+<body>
+{% include "_header.html" %}
+
+<div class="layout">
+
+  <div class="sidebar-shell">
+  <div class="sidebar-track">
+  <div class="sidebar">
+
+    <div class="sidebar-block-help">
+      <div class="section-header-row section-header-row--solo">
+        <span class="section-label">Отчёты .docx</span>
+      </div>
+      <div class="upload-zone" onclick="document.getElementById('inp-reports').click()">
+        <input type="file" id="inp-reports" multiple accept=".docx,.doc" onchange="uploadReports(this)"/>
+        <span>Перетащите или нажмите<br>суточные отчёты</span>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <div class="sidebar-block-help">
+      <div class="section-header-row section-header-row--solo">
+        <span class="section-label">Приложение 7 (.xlsm)</span>
+      </div>
+      <div class="upload-zone" onclick="document.getElementById('inp-pril7').click()">
+        <input type="file" id="inp-pril7" accept=".xlsm,.xlsx" onchange="uploadPril7(this)"/>
+        <span id="pril7Hint">Шаблон Прил.7</span>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <div class="sidebar-block-help">
+      <div class="section-header-row section-header-row--solo">
+        <span class="section-label">Шаблон расстановки (.xlsm)</span>
+      </div>
+      <div class="upload-zone" onclick="document.getElementById('inp-template').click()">
+        <input type="file" id="inp-template" accept=".xlsm,.xlsx" onchange="uploadTemplate(this)"/>
+        <span id="templateHint">Рабочая исходник</span>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <div id="dateBlock">
+      <div class="field-box">
+        <input type="date" class="field-control" id="reportDate" aria-label="Дата расстановки"/>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <button class="btn btn-green" id="btnGenerate" onclick="generateDeployment()">Сформировать</button>
+
+    <hr class="divider"/>
+
+    <button class="btn btn-gray" id="btnDownload" onclick="downloadResult()" disabled>Скачать (ZIP)</button>
+
+    <hr class="divider"/>
+
+    <div class="btn-row">
+      <button class="btn btn-gray" onclick="clearReports()">Очистить отчёты</button>
+      <button class="btn btn-red" onclick="resetAll()">Сбросить всё</button>
+    </div>
+
+  </div>
+  </div>
+  </div>
+
+  <div class="main-shell" id="mainShell">
+    <div class="main" id="mainPanel">
+    <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="activity-panel" id="activityPanel">
+      <div class="activity-panel-scroll" id="activityPanelScroll">
+      <div class="activity-panel-inner" id="activityPanelInner">
+      <div class="empty-hint" id="emptyHint">
+        <span class="empty-hint-icon" aria-hidden="true">📋</span>
+        <span class="empty-hint-title">Расстановка персонала</span>
+        <span class="empty-hint-lead">Загрузите отчёты, Прил.7 и шаблон расстановки → нажмите «Сформировать».</span>
+        <ol class="empty-hint-steps">
+          <li>Суточные отчёты подрядчиков (.docx) — несколько файлов.</li>
+          <li>Приложение 7 (.xlsm) — таблица ВОУ.</li>
+          <li>Шаблон расстановки (.xlsm) — лист «Рабочая исходник».</li>
+          <li>Дата → «Сформировать» → ZIP: summary.xlsx, заполненное Прил.7, расстановка .xlsm.</li>
+        </ol>
+      </div>
+      </div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <div class="results-shell">
+    <div class="results-resize-handle" id="resultsResizeHandle" title="Потяните — изменить ширину" aria-hidden="true"></div>
+    <div class="results-panel" id="resultsPanel">
+      <div class="results-track">
+        <div class="results-inner">
+          <div class="result-section-title">Загружено</div>
+          <div id="uploadStatus"><div class="no-results">Обновление…</div></div>
+          <div class="result-section-title">Результат</div>
+          <div id="resultFiles"><div class="no-results">Пока нет</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+  <script src="/static/deployment.js?v={{ asset_ver('deployment.js') }}"></script>
+</body>
+</html>

@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 from docx import Document
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -136,7 +136,7 @@ except ImportError as e:
 
 _WEBAPP_DIR = Path(__file__).resolve().parent
 _HTML_TEMPLATES_DIR = _WEBAPP_DIR / "templates"
-_APP_UI_BUILD = "home+reporting+daily+weekly+weekly-photos+prescriptions+planning+planning-sections+engineer-hub+engineer"
+_APP_UI_BUILD = "home+reporting+daily+deployment+weekly+weekly-photos+prescriptions+planning+planning-sections+engineer-hub+engineer"
 
 _PLANNING_SECTIONS = {
     "personnel": "Сотрудники",
@@ -178,8 +178,23 @@ RESULT_DIR = WORK_DIR / "results"
 PRESCRIPTIONS_UPLOAD_DIR = WORK_DIR / "prescriptions_uploads"
 PRESCRIPTIONS_RESULT_DIR = WORK_DIR / "prescriptions_results"
 ENGINEER_OUT_DIR = WORK_DIR / "engineer_out"
+DEPLOYMENT_DIR = WORK_DIR / "deployment"
+DEPLOYMENT_REPORTS_DIR = DEPLOYMENT_DIR / "reports"
+DEPLOYMENT_RESULT_DIR = DEPLOYMENT_DIR / "results"
+DEPLOYMENT_PRIL7_PATH = DEPLOYMENT_DIR / "pril7.xlsm"
+DEPLOYMENT_TEMPLATE_PATH = DEPLOYMENT_DIR / "template.xlsm"
 
-for d in (WORK_DIR, UPLOAD_DIR, RESULT_DIR, PRESCRIPTIONS_UPLOAD_DIR, PRESCRIPTIONS_RESULT_DIR, ENGINEER_OUT_DIR):
+for d in (
+    WORK_DIR,
+    UPLOAD_DIR,
+    RESULT_DIR,
+    PRESCRIPTIONS_UPLOAD_DIR,
+    PRESCRIPTIONS_RESULT_DIR,
+    ENGINEER_OUT_DIR,
+    DEPLOYMENT_DIR,
+    DEPLOYMENT_REPORTS_DIR,
+    DEPLOYMENT_RESULT_DIR,
+):
     d.mkdir(exist_ok=True)
 
 TEMPLATES_DIR = templates_dir()
@@ -187,7 +202,7 @@ if not TEMPLATES_DIR.exists():
     raise RuntimeError(f"Папка с болванками не найдена: {TEMPLATES_DIR}")
 print(f"[INFO] Templates dir: {TEMPLATES_DIR} ({len(list(TEMPLATES_DIR.glob('*.docx')))} шаблонов)")
 
-for _tpl in ("home.html", "reporting.html", "daily.html", "weekly.html", "weekly_photos.html", "prescriptions.html", "planning.html", "planning_section.html", "engineer_hub.html", "engineer.html"):
+for _tpl in ("home.html", "reporting.html", "daily.html", "deployment.html", "weekly.html", "weekly_photos.html", "prescriptions.html", "planning.html", "planning_section.html", "engineer_hub.html", "engineer.html"):
     _tpl_path = _HTML_TEMPLATES_DIR / _tpl
     if not _tpl_path.is_file():
         raise RuntimeError(f"HTML-шаблон не найден: {_tpl_path} — выполните git pull и перезапустите сервер")
@@ -329,6 +344,21 @@ async def daily_reports(request: Request):
             breadcrumbs=[
                 {"label": "Отчётность", "href": "/reporting"},
                 {"label": "Ежедневные отчёты"},
+            ],
+        ),
+    )
+
+
+@app.get("/deployment", response_class=HTMLResponse)
+async def deployment_page(request: Request):
+    print(f"[REQ] GET /deployment pid={os.getpid()} -> deployment.html")
+    return templates.TemplateResponse(
+        "deployment.html",
+        _page_context(
+            request,
+            breadcrumbs=[
+                {"label": "Отчётность", "href": "/reporting"},
+                {"label": "Расстановка"},
             ],
         ),
     )
@@ -709,6 +739,145 @@ async def upload_reports(files: list[UploadFile] = File(...)):
             remove_editing_restrictions(str(dest))
         saved.append(f.filename)
     return {"uploaded": saved, "count": len(saved)}
+
+
+_DEPLOYMENT_SUFFIXES = {".xlsm", ".xlsx"}
+
+
+@app.get("/api/deployment/status")
+async def deployment_status():
+    reports = sorted(
+        f.name for f in DEPLOYMENT_REPORTS_DIR.iterdir()
+        if f.suffix.lower() in (".docx", ".doc")
+    )
+    results = sorted(f.name for f in DEPLOYMENT_RESULT_DIR.iterdir() if f.suffix.lower() == ".zip")
+    return {
+        "reports": reports,
+        "has_pril7": DEPLOYMENT_PRIL7_PATH.is_file(),
+        "has_template": DEPLOYMENT_TEMPLATE_PATH.is_file(),
+        "results": results,
+    }
+
+
+@app.post("/upload/deployment/reports")
+async def upload_deployment_reports(files: list[UploadFile] = File(...)):
+    saved = []
+    for f in files:
+        if not f.filename:
+            continue
+        suffix = Path(f.filename).suffix.lower()
+        if suffix not in (".docx", ".doc"):
+            raise HTTPException(status_code=400, detail=f"Нужен .docx: {f.filename}")
+        dest = DEPLOYMENT_REPORTS_DIR / f.filename
+        with open(dest, "wb") as out:
+            shutil.copyfileobj(f.file, out)
+        saved.append(f.filename)
+    return {"uploaded": saved, "count": len(saved)}
+
+
+@app.post("/upload/deployment/pril7")
+async def upload_deployment_pril7(file: UploadFile = File(...)):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Файл не выбран")
+    suffix = Path(file.filename).suffix.lower()
+    if suffix not in _DEPLOYMENT_SUFFIXES:
+        raise HTTPException(status_code=400, detail="Нужен .xlsm или .xlsx")
+    with open(DEPLOYMENT_PRIL7_PATH, "wb") as out:
+        shutil.copyfileobj(file.file, out)
+    return {"uploaded": DEPLOYMENT_PRIL7_PATH.name}
+
+
+@app.post("/upload/deployment/template")
+async def upload_deployment_template(file: UploadFile = File(...)):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Файл не выбран")
+    suffix = Path(file.filename).suffix.lower()
+    if suffix not in _DEPLOYMENT_SUFFIXES:
+        raise HTTPException(status_code=400, detail="Нужен .xlsm или .xlsx")
+    with open(DEPLOYMENT_TEMPLATE_PATH, "wb") as out:
+        shutil.copyfileobj(file.file, out)
+    return {"uploaded": DEPLOYMENT_TEMPLATE_PATH.name}
+
+
+@app.post("/api/deployment/generate/stream")
+async def deployment_generate_stream(report_date: str = Form(...)):
+    from sk_reporter.deployment.pipeline import run_deployment
+
+    async def event_generator():
+        reports = list(DEPLOYMENT_REPORTS_DIR.glob("*.docx")) + list(
+            DEPLOYMENT_REPORTS_DIR.glob("*.doc")
+        )
+        if not reports:
+            yield _sse({"type": "error", "msg": "Загрузите отчёты .docx"})
+            yield _sse({"type": "done", "ok": False})
+            return
+        if not DEPLOYMENT_PRIL7_PATH.is_file():
+            yield _sse({"type": "error", "msg": "Загрузите Приложение 7 (.xlsm)"})
+            yield _sse({"type": "done", "ok": False})
+            return
+        if not DEPLOYMENT_TEMPLATE_PATH.is_file():
+            yield _sse({"type": "error", "msg": "Загрузите шаблон расстановки (.xlsm)"})
+            yield _sse({"type": "done", "ok": False})
+            return
+
+        yield _sse({"type": "start", "msg": "Формирую расстановку…"})
+
+        zip_path, logs = await asyncio.to_thread(
+            run_deployment,
+            reports_dir=DEPLOYMENT_REPORTS_DIR,
+            pril7_path=DEPLOYMENT_PRIL7_PATH,
+            template_path=DEPLOYMENT_TEMPLATE_PATH,
+            output_dir=DEPLOYMENT_RESULT_DIR,
+            report_date=report_date,
+        )
+        for line in logs:
+            yield _sse({"type": "log", "msg": line})
+            await asyncio.sleep(0)
+
+        if zip_path and zip_path.is_file():
+            yield _sse({
+                "type": "done",
+                "ok": True,
+                "download": f"/download/deployment/{zip_path.name}",
+                "filename": zip_path.name,
+            })
+        else:
+            yield _sse({"type": "error", "msg": "Не удалось сформировать архив"})
+            yield _sse({"type": "done", "ok": False})
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.get("/download/deployment/{filename}")
+async def download_deployment(filename: str):
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Недопустимое имя файла")
+    path = (DEPLOYMENT_RESULT_DIR / filename).resolve()
+    if not str(path).startswith(str(DEPLOYMENT_RESULT_DIR.resolve())) or not path.is_file():
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    return FileResponse(path, filename=filename)
+
+
+@app.delete("/clear/deployment/reports")
+async def clear_deployment_reports():
+    shutil.rmtree(DEPLOYMENT_REPORTS_DIR)
+    DEPLOYMENT_REPORTS_DIR.mkdir()
+    return {"cleared": True}
+
+
+@app.delete("/clear/deployment/all")
+async def clear_deployment_all():
+    for d in (DEPLOYMENT_REPORTS_DIR, DEPLOYMENT_RESULT_DIR):
+        shutil.rmtree(d)
+        d.mkdir()
+    for p in (DEPLOYMENT_PRIL7_PATH, DEPLOYMENT_TEMPLATE_PATH):
+        if p.is_file():
+            p.unlink()
+    return {"cleared": True}
 
 
 _PRESCRIPTION_SUFFIXES = {".xlsx", ".xlsm", ".xls"}
