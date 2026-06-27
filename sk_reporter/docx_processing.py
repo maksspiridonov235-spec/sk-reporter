@@ -119,7 +119,7 @@ EMU_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 _WP_DRAW = f"{{{DRAWING_NS}}}"
 _INLINE_DRAW_CHILDREN = frozenset({"extent", "effectExtent", "docPr", "cNvGraphicFramePr", "graphic"})
 
-PREPARE_PIPELINE_ID = "2026-06-27-grid-border-nudge"
+PREPARE_PIPELINE_ID = "2026-06-27-grid-border-nudge2"
 
 # Шаги prepare_report_file: False — функция в файле есть, вызов отключён.
 PREPARE_USE_HIGHLIGHT_SECOND_ROW = False
