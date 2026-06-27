@@ -13,6 +13,8 @@ import openpyxl
 from sk_reporter.deployment.lookup import DEFAULT_REZHIM, load_sprav_dict
 
 SHEET_RAB = "Рабочая исходник"
+SHEET_REPORT = "Отчет расстановка"
+DATA_START_ROW = 5
 
 _DOLZH_ORDER = [
     "Инженер СК (общестроительные работы, сварочные технологии)",
@@ -329,6 +331,72 @@ def _build_excel(rows_data, today, groups):
     return wb
 
 
+def _fill_template_report(
+    template_path: str | Path,
+    out_path: Path,
+    rows_data: list[dict],
+    log_func: Callable[[str], None],
+) -> bool:
+    """Копирует шаблон и заполняет лист «Отчет расстановка»."""
+    import shutil
+
+    template_path = Path(template_path)
+    if not template_path.is_file():
+        return False
+    shutil.copy2(template_path, out_path)
+    try:
+        wb = openpyxl.load_workbook(out_path, keep_vba=True)
+    except Exception as exc:
+        log_func(f"  ОШИБКА открытия шаблона: {exc}")
+        return False
+    if SHEET_REPORT not in wb.sheetnames:
+        log_func(f"  Лист «{SHEET_REPORT}» не найден — простой Excel")
+        wb.close()
+        return False
+
+    ws = wb[SHEET_REPORT]
+    total_obj_row = total_emp_row = None
+    for r in range(ws.max_row, DATA_START_ROW - 1, -1):
+        label = ws.cell(r, 2).value
+        if label == "Итого объектов":
+            total_obj_row = r
+        elif label == "Количество сотрудников":
+            total_emp_row = r
+
+    end_clear = (min(total_obj_row, total_emp_row) - 1) if total_obj_row and total_emp_row else ws.max_row
+    for r in range(DATA_START_ROW, end_clear + 1):
+        for c in range(1, 9):
+            ws.cell(r, c).value = None
+
+    write_row = DATA_START_ROW
+    for num, d in enumerate(rows_data, 1):
+        zakr = " ".join(filter(None, [d["zakr_fio"], d["zakr_tel"]]))
+        ws.cell(write_row, 1, num)
+        ws.cell(write_row, 2, d["obj"])
+        ws.cell(write_row, 3, d["rezhim"])
+        ws.cell(write_row, 4, d["contractor"] or None)
+        ws.cell(write_row, 5, d["dolzh"])
+        ws.cell(write_row, 6, d["fio"])
+        ws.cell(write_row, 7, d["tel"] or None)
+        ws.cell(write_row, 8, zakr or None)
+        write_row += 1
+
+    if total_obj_row:
+        ws.cell(total_obj_row, 3, len({d["obj"] for d in rows_data if d["obj"]}))
+    if total_emp_row:
+        ws.cell(total_emp_row, 3, len({d["fio"] for d in rows_data}))
+
+    try:
+        wb.save(out_path)
+    except OSError as exc:
+        log_func(f"  ОШИБКА сохранения: {exc}")
+        return False
+    finally:
+        wb.close()
+    log_func(f"  Заполнен лист «{SHEET_REPORT}» по шаблону {template_path.name}")
+    return True
+
+
 def generate_rasstanovka(
     pril7_path: str | Path,
     template_path: str | Path,
@@ -357,6 +425,10 @@ def generate_rasstanovka(
     out_path = Path(output_dir) / out_name
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     try:
+        if _fill_template_report(template_path, out_path, rows_data, log_func):
+            log_func(f"Готово! Строк: {len(rows_data)}. Файл: {out_name}")
+            return out_path
+        log_func("  Шаблон не применён — формирую упрощённый Excel")
         wb = _build_excel(rows_data, today, groups)
         wb.save(out_path)
     except OSError as exc:

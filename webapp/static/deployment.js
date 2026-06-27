@@ -89,7 +89,12 @@ async function refreshStatus() {
     const parts = [];
     parts.push(`<div class="result-file">Отчёты: ${data.reports.length ? escHtml(data.reports.join(', ')) : '—'}</div>`);
     parts.push(`<div class="result-file">Прил.7: ${data.has_pril7 ? '✓ загружено' : '—'}</div>`);
-    parts.push(`<div class="result-file">Шаблон: ${data.has_template ? '✓ загружено' : '—'}</div>`);
+    if (data.has_template) {
+      const src = data.template_source === 'upload' ? 'загружен пользователем' : 'шаблон с сервера';
+      parts.push(`<div class="result-file">Расстановка: ✓ ${escHtml(src)}${data.template_name ? ' (' + escHtml(data.template_name) + ')' : ''}</div>`);
+    } else {
+      parts.push('<div class="result-file">Расстановка: —</div>');
+    }
     el.innerHTML = parts.join('');
 
     const resEl = document.getElementById('resultFiles');

@@ -28,3 +28,11 @@ def project_dir(project_id: str) -> Path:
 def tk_dir() -> Path:
     return data_dir() / "tk"
 
+
+def deployment_dir() -> Path:
+    return data_dir() / "deployment"
+
+
+def default_rasstanovka_template_path() -> Path:
+    return deployment_dir() / "rasstanovka_template.xlsm"
+

@@ -746,15 +746,20 @@ _DEPLOYMENT_SUFFIXES = {".xlsm", ".xlsx"}
 
 @app.get("/api/deployment/status")
 async def deployment_status():
+    from sk_reporter.deployment.templates_store import template_status
+
     reports = sorted(
         f.name for f in DEPLOYMENT_REPORTS_DIR.iterdir()
         if f.suffix.lower() in (".docx", ".doc")
     )
     results = sorted(f.name for f in DEPLOYMENT_RESULT_DIR.iterdir() if f.suffix.lower() == ".zip")
+    tpl = template_status(DEPLOYMENT_DIR)
     return {
         "reports": reports,
         "has_pril7": DEPLOYMENT_PRIL7_PATH.is_file(),
-        "has_template": DEPLOYMENT_TEMPLATE_PATH.is_file(),
+        "has_template": tpl["available"],
+        "template_source": tpl["source"],
+        "template_name": tpl["name"],
         "results": results,
     }
 
@@ -802,6 +807,7 @@ async def upload_deployment_template(file: UploadFile = File(...)):
 @app.post("/api/deployment/generate/stream")
 async def deployment_generate_stream(report_date: str = Form(...)):
     from sk_reporter.deployment.pipeline import run_deployment
+    from sk_reporter.deployment.templates_store import resolve_rasstanovka_template
 
     async def event_generator():
         reports = list(DEPLOYMENT_REPORTS_DIR.glob("*.docx")) + list(
@@ -815,18 +821,23 @@ async def deployment_generate_stream(report_date: str = Form(...)):
             yield _sse({"type": "error", "msg": "Загрузите Приложение 7 (.xlsm)"})
             yield _sse({"type": "done", "ok": False})
             return
-        if not DEPLOYMENT_TEMPLATE_PATH.is_file():
-            yield _sse({"type": "error", "msg": "Загрузите шаблон расстановки (.xlsm)"})
+        try:
+            template_path, template_source = resolve_rasstanovka_template(DEPLOYMENT_DIR)
+        except FileNotFoundError:
+            yield _sse({"type": "error", "msg": "Шаблон расстановки не найден на сервере"})
             yield _sse({"type": "done", "ok": False})
             return
 
-        yield _sse({"type": "start", "msg": "Формирую расстановку…"})
+        yield _sse({
+            "type": "start",
+            "msg": f"Формирую расстановку… (шаблон: {'загруженный' if template_source == 'upload' else 'с сервера'})",
+        })
 
         zip_path, logs = await asyncio.to_thread(
             run_deployment,
             reports_dir=DEPLOYMENT_REPORTS_DIR,
             pril7_path=DEPLOYMENT_PRIL7_PATH,
-            template_path=DEPLOYMENT_TEMPLATE_PATH,
+            template_path=template_path,
             output_dir=DEPLOYMENT_RESULT_DIR,
             report_date=report_date,
         )

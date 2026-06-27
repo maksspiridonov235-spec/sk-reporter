@@ -42,11 +42,11 @@
 
     <div class="sidebar-block-help">
       <div class="section-header-row section-header-row--solo">
-        <span class="section-label">Шаблон расстановки (.xlsm)</span>
+        <span class="section-label">Шаблон расстановки</span>
       </div>
       <div class="upload-zone" onclick="document.getElementById('inp-template').click()">
         <input type="file" id="inp-template" accept=".xlsm,.xlsx" onchange="uploadTemplate(this)"/>
-        <span id="templateHint">Рабочая исходник</span>
+        <span id="templateHint">На сервере уже есть шаблон.<br>Загрузите свой — только если нужна замена</span>
       </div>
     </div>
 
@@ -90,7 +90,7 @@
         <ol class="empty-hint-steps">
           <li>Суточные отчёты подрядчиков (.docx) — несколько файлов.</li>
           <li>Приложение 7 (.xlsm) — таблица ВОУ.</li>
-          <li>Шаблон расстановки (.xlsm) — лист «Рабочая исходник».</li>
+          <li>Шаблон расстановки уже на сервере; при необходимости можно загрузить свой.</li>
           <li>Дата → «Сформировать» → ZIP: summary.xlsx, заполненное Прил.7, расстановка .xlsm.</li>
         </ol>
       </div>
