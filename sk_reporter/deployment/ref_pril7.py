@@ -64,7 +64,7 @@ def _shares(n):
 # ═════════════════════════════════════════════════════════════════════════════
 #  РЕЖИМ 1: openpyxl  (.xlsx)
 # ═════════════════════════════════════════════════════════════════════════════
-def _fill_openpyxl(df, pril7_path, log_func, desc_map=None):
+def _fill_openpyxl(df, pril7_path, log_func, desc_map=None, *, save_as_xlsm=False):
     from openpyxl import load_workbook
     from openpyxl.utils import get_column_letter
     from copy import copy
@@ -205,7 +205,7 @@ def _fill_openpyxl(df, pril7_path, log_func, desc_map=None):
         return nr
 
     log_func("Открываю Приложение 7 (openpyxl)...")
-    wb = load_workbook(pril7_path)
+    wb = load_workbook(pril7_path, keep_vba=save_as_xlsm)
     if SHEET_NAME not in wb.sheetnames:
         log_func(f"ОШИБКА: Лист '{SHEET_NAME}' не найден.")
         return False
@@ -240,7 +240,11 @@ def _fill_openpyxl(df, pril7_path, log_func, desc_map=None):
 
     log_func("Сохраняю файл...")
     try:
-        wb.save(pril7_path)
+        if save_as_xlsm:
+            from sk_reporter.deployment.xlsx_save import save_xlsm_workbook
+            save_xlsm_workbook(wb, pril7_path)
+        else:
+            wb.save(pril7_path)
     except Exception as e:
         log_func(f"ОШИБКА при сохранении: {e}")
         log_func(traceback.format_exc())
@@ -475,12 +479,18 @@ def fill_pril7(summary_path, pril7_path, log_func=print):
         log_func("Формат .xlsm → Excel COM (Windows)")
         return _fill_win32(df, pril7_path, log_func, desc_map)
     if pril7_path.lower().endswith('.xlsm'):
-        from sk_reporter.deployment.excel_engine import fill_xlsm_via_libreoffice
+        from sk_reporter.deployment.excel_engine import fill_xlsm_via_libreoffice, libreoffice_available
 
-        log_func("Формат .xlsm → LibreOffice + openpyxl")
-        return fill_xlsm_via_libreoffice(
-            Path(pril7_path),
-            lambda xlsx: _fill_openpyxl(df, str(xlsx), log_func, desc_map),
-            log_func,
+        if libreoffice_available():
+            log_func("Формат .xlsm → LibreOffice + openpyxl")
+            return fill_xlsm_via_libreoffice(
+                Path(pril7_path),
+                lambda xlsx: _fill_openpyxl(df, str(xlsx), log_func, desc_map),
+                log_func,
+            )
+        log_func(
+            "ПРЕДУПРЕЖДЕНИЕ: LibreOffice не установлен на сервере — "
+            "запись через openpyxl (ограниченный режим, без Excel COM)"
         )
+        return _fill_openpyxl(df, pril7_path, log_func, desc_map, save_as_xlsm=True)
     return _fill_openpyxl(df, pril7_path, log_func, desc_map)

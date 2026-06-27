@@ -1,0 +1,5 @@
+# RelaxDev собирает Python через Nixpacks/buildpack — Dockerfile может игнорироваться.
+# Эти apt-пакеты нужны для /deployment (заполнение .xlsm через soffice).
+
+[phases.setup]
+aptPkgs = ["...", "libreoffice-calc", "libreoffice-writer", "fonts-dejavu-core"]
